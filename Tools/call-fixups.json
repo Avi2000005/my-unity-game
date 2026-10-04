@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/L1Fixups.cs",
+    "entry": "Echoes.Painterly.EditorTools.Run.Do",
+    "timeout_ms": 120000
+  }
+}

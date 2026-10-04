@@ -15,7 +15,7 @@ namespace Echoes.Painterly.EditorTools
     /// there is nothing in the source folder to copy — the bytes only exist once
     /// an importer has decoded them. The same character rig is shared by every
     /// animation FBX, which is why the texture is authored to Ari's UVs and
-    /// lands correctly on her rather than needing a UV remap.
+    /// lands correctly on HIM rather than needing a UV remap.
     /// </summary>
     public static class EmbeddedTextureExtract
     {

@@ -30,7 +30,7 @@ public static class GroundProfile
     /// and one under Ari reports y = 2.27, while Ari herself stands at 0.25 and
     /// every one of the 2 151 colliders in the scene is floor, wall or roof.
     /// Both numbers are a downward ray finding the top of something, and the
-    /// origin happens to be the fountain's rim while Ari has an awning over her.
+    /// origin happens to be the fountain's rim while Ari has an awning over HIM.
     ///
     /// So rather than pick a better reference point, this measures the whole
     /// village and reports the distribution of surface heights. Where there is

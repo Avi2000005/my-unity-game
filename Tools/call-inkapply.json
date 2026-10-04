@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/InkApply.cs",
+    "entry": "Echoes.Painterly.EditorTools.InkApply.Run",
+    "timeout_ms": 55000
+  }
+}

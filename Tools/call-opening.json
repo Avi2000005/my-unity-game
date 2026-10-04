@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/L1Opening.cs",
+    "entry": "Echoes.Painterly.EditorTools.L1Opening.Run",
+    "timeout_ms": 55000
+  }
+}

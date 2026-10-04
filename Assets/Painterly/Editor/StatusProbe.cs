@@ -311,7 +311,7 @@ public static class StatusProbe
         sb.AppendLine("  Beat 7  Color Thief on the hill, level complete, sting");
         sb.AppendLine();
         sb.AppendLine("  A hill does not exist: 288 samples from 55 to 110 m out are flat,");
-        sb.AppendLine("  so Beat 7 has nothing to put her on yet.");
+        sb.AppendLine("  so Beat 7 has nothing to put HIM on yet.");
         sb.AppendLine();
         sb.AppendLine("  No real brush-stroke clip exists in the kit. Ari_HitReact at");
         sb.AppendLine("  SwingSpeed 1.11 is the stand-in and still reads as a hit-react.");

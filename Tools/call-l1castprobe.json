@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/L1CastProbe.cs",
+    "entry": "Echoes.Painterly.EditorTools.L1CastProbe.Run",
+    "timeout_ms": 55000
+  }
+}

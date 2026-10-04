@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/Beat5Crawlers.cs",
+    "entry": "Echoes.Painterly.EditorTools.Beat5Crawlers.Run",
+    "timeout_ms": 55000
+  }
+}

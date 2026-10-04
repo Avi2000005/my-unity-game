@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/InkBuild.cs",
+    "entry": "Echoes.Painterly.EditorTools.InkBuild.Run",
+    "timeout_ms": 55000
+  }
+}

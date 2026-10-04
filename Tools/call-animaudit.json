@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/L1AnimAudit.cs",
+    "entry": "Echoes.Painterly.EditorTools.L1AnimAudit.Run",
+    "timeout_ms": 55000
+  }
+}

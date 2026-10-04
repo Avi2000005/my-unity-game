@@ -41,7 +41,7 @@ namespace Echoes.Painterly
 
             /// <summary>
             /// Ambient lines while following, fired at random after a gap. These
-            /// are what make Mono feel like he is with her rather than queued
+            /// are what make Mono feel like he is with HIM rather than queued
             /// up, and the gap is the only thing stopping him from talking over
             /// himself.
             /// </summary>
