@@ -1,132 +1,110 @@
+using System;
 using System.IO;
 using System.Text;
 using UnityEditor;
 using UnityEditor.SceneManagement;
-using UnityEngine;
+using UnityEngine;
+using Object = UnityEngine.Object;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 
 namespace Echoes.Painterly.EditorTools
 {
-    /// <summary>
-    /// Puts the on-screen movement controls into the scene. Writes
-    /// Temp/screen_controls.txt.
-    ///
-    /// The canvas is one empty GameObject with a single component on it — the
-    /// component builds the rest in Awake. Authoring the pad as a prefab would
-    /// mean a binary asset holding five buttons, four labels and a font
-    /// reference, none of which can be reviewed in a diff. Four rectangles do not
-    /// justify that.
-    ///
-    /// Ari's AriMover is switched to read from the buttons at the same time, so
-    /// the two cannot be set up in one order and work and in the other order sit
-    /// there inert — which is the failure that looks like "the buttons don't do
-    /// anything".
-    /// </summary>
+
     public static class ScreenControlsSetup
     {
-        const string ObjectName = "ScreenControls";
+    	private const string ObjectName = "ScreenControls";
 
-        [MenuItem("Tools/Echoes/Add Screen Controls", priority = 65)]
-        public static void Run()
-        {
-            try
-            {
-                RunInner();
-            }
-            catch (System.Exception e)
-            {
-                File.WriteAllText("Temp/screen_controls_error.txt", e.ToString());
-                Debug.LogError("[Echoes] screen controls failed\n" + e);
-            }
-        }
+    	[MenuItem("Tools/Echoes/Add Screen Controls", priority = 65)]
+    	public static void Run()
+    	{
+    		try
+    		{
+    			RunInner();
+    		}
+    		catch (Exception ex)
+    		{
+    			File.WriteAllText("Temp/screen_controls_error.txt", ex.ToString());
+    			Debug.LogError((object)("[Echoes] screen controls failed\n" + ex));
+    		}
+    	}
 
-        static void RunInner()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                Debug.LogError("[Echoes] stop play mode first; the canvas would be " +
-                               "discarded on exit.");
-                return;
-            }
-
-            var sb = new StringBuilder();
-            var scene = SceneManager.GetActiveScene();
-
-            // ---- the canvas ----
-            var existing = GameObject.Find(ObjectName);
-            if (existing != null)
-            {
-                Object.DestroyImmediate(existing);
-                sb.AppendLine("removed the existing ScreenControls");
-            }
-
-            var go = new GameObject(ObjectName);
-            SceneManager.MoveGameObjectToScene(go, scene);
-            go.AddComponent<Echoes.Painterly.OnScreenControls>();
-            sb.AppendLine("created ScreenControls with OnScreenControls");
-
-            // ---- an EventSystem, if the scene has none ----
-            // Unity's built-in "create EventSystem" adds the legacy
-            // StandaloneInputModule, which is inert while the Input System
-            // package owns input, so the type is specified rather than left to
-            // whatever the menu item picks.
-            var existingES = Object.FindAnyObjectByType<EventSystem>();
-            if (existingES == null)
-            {
-                var es = new GameObject("EventSystem");
-                SceneManager.MoveGameObjectToScene(es, scene);
-                es.AddComponent<EventSystem>();
-                es.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-                sb.AppendLine("created EventSystem with InputSystemUIInputModule");
-            }
-            else
-            {
-                sb.AppendLine($"EventSystem already present ('{existingES.name}')");
-
-                var legacy = existingES.GetComponent<UnityEngine.EventSystems.StandaloneInputModule>();
-                if (legacy != null)
-                {
-                    // The legacy module and the Input System module cannot both
-                    // drive the same EventSystem; the legacy one wins and the
-                    // buttons never receive a press.
-                    Object.DestroyImmediate(legacy);
-
-                    // Added via the GameObject, not the component: EventSystem is
-                    // not a GameObject, so it has no AddComponent of its own.
-                    if (existingES.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>() == null)
-                        existingES.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-
-                    sb.AppendLine("replaced StandaloneInputModule with InputSystemUIInputModule");
-                }
-            }
-
-            // ---- point Ari at the buttons ----
-            var ari = GameObject.Find("Ari");
-            if (ari == null)
-            {
-                sb.AppendLine("WARNING: no Ari in the scene, so nothing was pointed " +
-                              "at the controls. Run Tools/Echoes/Place Ari.");
-            }
-            else
-            {
-                var mover = ari.GetComponent<Echoes.Painterly.AriMover>();
-                if (mover == null)
-                {
-                    mover = ari.AddComponent<Echoes.Painterly.AriMover>();
-                    sb.AppendLine("added AriMover to Ari");
-                }
-
-                mover.UseScreenControls = true;
-                sb.AppendLine("Ari's AriMover.UseScreenControls = true");
-            }
-
-            EditorSceneManager.MarkSceneDirty(scene);
-            AssetDatabase.SaveAssets();
-
-            var text = sb.ToString();
-            File.WriteAllText("Temp/screen_controls.txt", text);
-            Debug.Log("[Echoes] Screen controls added\n" + text);
-        }
+    	private static void RunInner()
+    	{
+    		//IL_0018: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0049: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0055: Expected Obj, but got Unknown
+    		//IL_007b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0080: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0081: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0087: Expected Obj, but got Unknown
+    		//IL_0087: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_015d: Unknown result type (might be due to invalid IL or missing references)
+    		if (EditorApplication.isPlayingOrWillChangePlaymode)
+    		{
+    			Debug.LogError((object)"[Echoes] stop play mode first; the canvas would be discarded on exit.");
+    			return;
+    		}
+    		StringBuilder stringBuilder = new StringBuilder();
+    		Scene activeScene = SceneManager.GetActiveScene();
+    		GameObject val = GameObject.Find("ScreenControls");
+    		if ((Object)(object)val != (Object)null)
+    		{
+    			Object.DestroyImmediate((Object)(object)val);
+    			stringBuilder.AppendLine("removed the existing ScreenControls");
+    		}
+    		GameObject val2 = new GameObject("ScreenControls");
+    		SceneManager.MoveGameObjectToScene(val2, activeScene);
+    		val2.AddComponent<OnScreenControls>();
+    		stringBuilder.AppendLine("created ScreenControls with OnScreenControls");
+    		EventSystem eventSystem = Object.FindAnyObjectByType<EventSystem>();
+    		if ((Object)(object)eventSystem == (Object)null)
+    		{
+    			GameObject val3 = new GameObject("EventSystem");
+    			SceneManager.MoveGameObjectToScene(val3, activeScene);
+    			val3.AddComponent<EventSystem>();
+    			val3.AddComponent<InputSystemUIInputModule>();
+    			stringBuilder.AppendLine("created EventSystem with InputSystemUIInputModule");
+    		}
+    		else
+    		{
+    			stringBuilder.AppendLine("EventSystem already present ('" + ((Object)eventSystem).name + "')");
+    			StandaloneInputModule component = ((Component)eventSystem).GetComponent<StandaloneInputModule>();
+    			if ((Object)(object)component != (Object)null)
+    			{
+    				Object.DestroyImmediate((Object)(object)component);
+    				if ((Object)(object)((Component)eventSystem).GetComponent<InputSystemUIInputModule>() == (Object)null)
+    				{
+    					((Component)eventSystem).gameObject.AddComponent<InputSystemUIInputModule>();
+    				}
+    				stringBuilder.AppendLine("replaced StandaloneInputModule with InputSystemUIInputModule");
+    			}
+    		}
+    		GameObject val4 = GameObject.Find("Ari");
+    		if ((Object)(object)val4 == (Object)null)
+    		{
+    			stringBuilder.AppendLine("WARNING: no Ari in the scene, so nothing was pointed at the controls. Run Tools/Echoes/Place Ari.");
+    		}
+    		else
+    		{
+    			AriMover ariMover = val4.GetComponent<AriMover>();
+    			if ((Object)(object)ariMover == (Object)null)
+    			{
+    				ariMover = val4.AddComponent<AriMover>();
+    				stringBuilder.AppendLine("added AriMover to Ari");
+    			}
+    			ariMover.UseScreenControls = true;
+    			stringBuilder.AppendLine("Ari's AriMover.UseScreenControls = true");
+    		}
+    		EditorSceneManager.MarkSceneDirty(activeScene);
+    		AssetDatabase.SaveAssets();
+    		string text = stringBuilder.ToString();
+    		File.WriteAllText("Temp/screen_controls.txt", text);
+    		Debug.Log((object)("[Echoes] Screen controls added\n" + text));
+    	}
     }
 }

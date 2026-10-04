@@ -1,0 +1,615 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+
+using Object = UnityEngine.Object;
+namespace Echoes.Painterly.EditorTools
+{
+
+    public static class HouseRelocation
+    {
+    	private sealed class Candidate
+    	{
+    		public float X;
+
+    		public float Z;
+
+    		public float GroundY;
+
+    		public float Yaw;
+
+    		public float Margin;
+
+    		public float DistanceFromSquare;
+    	}
+
+    	private const string Report = "Temp/house_relocation.txt";
+
+    	private const string HousePath = "Village_Grey/MarketSquare/House_0_0";
+
+    	private const float MinMargin = 0.75f;
+
+    	private const float MinRadius = 13f;
+
+    	private const float MaxRadius = 46f;
+
+    	private const float Step = 1f;
+
+    	private const float GroundTolerance = 0.6f;
+
+    	public static void Run()
+    	{
+    		//IL_007d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0082: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00dc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00e0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ee: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00fa: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0107: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0113: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0127: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0134: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0136: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_013b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_017f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0184: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01c8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01cd: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01ef: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01f4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0369: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0373: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_037b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03ca: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03ec: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03f9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0400: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0402: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0407: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0409: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0418: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_041a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0438: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_06ed: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_06f2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_07b3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_07b8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_07bb: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_07d8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_07ea: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0806: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0816: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0818: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_083a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_083c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0841: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0845: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_096e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0973: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0a79: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b79: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b8d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b3b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b6c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_08b8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_08cc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_08d4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_08d9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_08de: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_08e3: Unknown result type (might be due to invalid IL or missing references)
+    		StringBuilder stringBuilder = new StringBuilder();
+    		stringBuilder.AppendLine("[Echoes] moving the house out of the market square");
+    		if (EditorApplication.isPlayingOrWillChangePlaymode)
+    		{
+    			stringBuilder.AppendLine("STOPPED: exit play mode first (Ctrl+P).");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		GameObject val = FindHouse();
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			stringBuilder.AppendLine("FATAL: no GameObject named House_0_0 in the scene.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		GameObject val2 = SquarePlacement.FindSquare();
+    		if ((Object)(object)val2 == (Object)null)
+    		{
+    			stringBuilder.AppendLine("FATAL: no MarketSquare in the scene.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		Transform transform = val.transform;
+    		Vector3 position = val2.transform.position;
+    		GameObject val3 = GameObject.Find("Village_Grey");
+    		bool flag = false;
+    		if ((Object)(object)val3 != (Object)null && (Object)(object)transform.parent != (Object)(object)val3.transform)
+    		{
+    			transform.SetParent(val3.transform, true);
+    			flag = true;
+    		}
+    		SquarePlacement.FindGround(SquarePlacement.TopBounds(val2), out var groundY, val2.transform);
+    		Bounds local = LocalAabb(transform);
+    		float y = local.size.y;
+    		float radius = Mathf.Sqrt(local.extents.x * local.extents.x + local.extents.z * local.extents.z);
+    		float y2 = transform.eulerAngles.y;
+    		Bounds val4 = WorldAabb(transform, local);
+    		SquarePlacement.Scan scan = SquarePlacement.MeasureSquare();
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("--- the house ---");
+    		stringBuilder.AppendLine("path              : " + SquarePlacement.PathOf(transform));
+    		stringBuilder.AppendLine("position          : " + ((object)transform.position/*cast due to constrained. prefix*/).ToString());
+    		stringBuilder.AppendLine("yaw               : " + y2.ToString("F1") + " deg");
+    		stringBuilder.AppendLine("size (x,y,z)      : " + ((object)val4.size/*cast due to constrained. prefix*/).ToString());
+    		stringBuilder.AppendLine("local half extents: " + ((object)local.extents/*cast due to constrained. prefix*/).ToString());
+    		stringBuilder.AppendLine("circumradius      : " + radius.ToString("F2") + " m");
+    		stringBuilder.AppendLine("ground under square: y = " + groundY.ToString("F3"));
+    		if (flag)
+    		{
+    			stringBuilder.AppendLine("reparented        : out of MarketSquare, now under Village_Grey");
+    		}
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("--- the square, before ---");
+    		stringBuilder.AppendLine("clearance median  : " + Median(scan).ToString("F2") + " m");
+    		stringBuilder.AppendLine("clearance max     : " + scan.BestClearance.ToString("F2") + " m");
+    		stringBuilder.AppendLine("spots fitting r=3.4 m (the fountain): " + scan.Fitting(3.4f).Count());
+    		List<Transform> list = SquarePlacement.PlacementIgnores();
+    		list.Add(transform);
+    		Collider[] buffer = new Collider[8192];
+    		List<Bounds> list2 = CollectBlockers(list, groundY, groundY + y);
+    		stringBuilder.AppendLine("obstruction boxes  : " + list2.Count);
+    		int num = 0;
+    		int num2 = 0;
+    		int num3 = 0;
+    		List<Candidate> list3 = new List<Candidate>();
+    		for (float num4 = -46f; num4 <= 46f; num4++)
+    		{
+    			for (float num5 = -46f; num5 <= 46f; num5++)
+    			{
+    				Vector2 val5 = new Vector2(num4 - position.x, num5 - position.z);
+    				float magnitude = val5.magnitude;
+    				if (magnitude < 13f || magnitude > 46f)
+    				{
+    					continue;
+    				}
+    				num++;
+    				if (!TryGround(num4, num5, groundY, list, out var groundY2))
+    				{
+    					continue;
+    				}
+    				num2++;
+    				float yaw = float.NaN;
+    				Bounds val6 = default;
+    				bool flag2 = false;
+    				for (int i = 0; i < 4; i++)
+    				{
+    					float num6 = y2 + 90f * (float)i;
+    					Bounds val7 = WorldAabbAt(new Vector3(num4, groundY2 - local.min.y, num5), num6, local);
+    					if (!Blocked(val7, list2))
+    					{
+    						yaw = num6;
+    						val6 = val7;
+    						flag2 = true;
+    						break;
+    					}
+    				}
+    				if (flag2)
+    				{
+    					num3++;
+    					float margin = Margin(val6.center, radius, groundY2, groundY2 + y, list, buffer);
+    					list3.Add(new Candidate
+    					{
+    						X = num4,
+    						Z = num5,
+    						GroundY = groundY2,
+    						Yaw = yaw,
+    						Margin = margin,
+    						DistanceFromSquare = magnitude
+    					});
+    				}
+    			}
+    		}
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("--- search ---");
+    		stringBuilder.AppendLine("positions tested  : " + num);
+    		stringBuilder.AppendLine("on real ground     : " + num2);
+    		stringBuilder.AppendLine("no obstructions    : " + num3);
+    		if (list3.Count == 0)
+    		{
+    			stringBuilder.AppendLine();
+    			stringBuilder.AppendLine("FATAL: nowhere in the village fits this house with any margin.");
+    			stringBuilder.AppendLine("Nothing has been moved. The house is still where it was.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		List<Candidate> list4 = list3.Where((Candidate c) => c.Margin >= 0.75f).ToList();
+    		bool flag3 = list4.Count > 0;
+    		if (!flag3)
+    		{
+    			list4 = list3;
+    		}
+    		Candidate candidate = (from c in list4
+    			orderby c.DistanceFromSquare, c.Margin descending
+    			select c).First();
+    		stringBuilder.AppendLine("with " + 0.75f.ToString("F2") + " m margin: " + list4.Count + (flag3 ? "" : ("   (NONE — best available is only " + list3.Max((Candidate c) => c.Margin).ToString("F2") + " m)")));
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("--- best destinations ---");
+    		foreach (Candidate item in list4.OrderBy((Candidate c) => c.DistanceFromSquare).Take(12))
+    		{
+    			stringBuilder.AppendLine("   at " + ((object)new Vector3(item.X, item.GroundY, item.Z)/*cast due to constrained. prefix*/).ToString().PadRight(30) + " margin " + item.Margin.ToString("F2").PadLeft(5) + " m   yaw " + item.Yaw.ToString("F0").PadLeft(4) + "   " + item.DistanceFromSquare.ToString("F1").PadLeft(5) + " m from square" + ((item == candidate) ? "   <== chosen" : ""));
+    		}
+    		Vector3 position2 = transform.position;
+    		float y3 = transform.eulerAngles.y;
+    		transform.position = new Vector3(candidate.X, candidate.GroundY - local.min.y, candidate.Z);
+    		transform.rotation = Quaternion.Euler(0f, candidate.Yaw, 0f);
+    		Physics.SyncTransforms();
+    		int num7 = CountObstructions(WorldAabb(transform, local), candidate.GroundY, candidate.GroundY + y, list, buffer);
+    		Bounds val8 = WorldAabb(transform, local);
+    		float num8 = Margin(val8.center, radius, candidate.GroundY, candidate.GroundY + y, list, buffer);
+    		SquarePlacement.Scan scan2 = SquarePlacement.MeasureSquare();
+    		float num9 = -1f;
+    		if (scan2.Ok)
+    		{
+    			float num10 = 0f;
+    			foreach (SquarePlacement.Spot spot in scan2.Spots)
+    			{
+    				if (!(Vector3.Distance(Vector2.op_Implicit(new Vector2(spot.Point.x - position.x, spot.Point.z - position.z)), Vector2.op_Implicit(Vector2.zero)) > 2f) && spot.Clearance > num10)
+    				{
+    					num10 = spot.Clearance;
+    				}
+    			}
+    			num9 = num10;
+    		}
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("--- moved ---");
+    		stringBuilder.AppendLine("from              : " + ((object)position2/*cast due to constrained. prefix*/).ToString() + " yaw " + y3.ToString("F1"));
+    		stringBuilder.AppendLine("to                : " + ((object)transform.position/*cast due to constrained. prefix*/).ToString() + " yaw " + candidate.Yaw.ToString("F1"));
+    		stringBuilder.AppendLine("obstructions now  : " + num7 + "   (must be 0)");
+    		stringBuilder.AppendLine("margin now        : " + num8.ToString("F2") + " m");
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("--- the square, after ---");
+    		stringBuilder.AppendLine("clearance median  : " + Median(scan2).ToString("F2") + " m   (was " + Median(scan).ToString("F2") + ")");
+    		stringBuilder.AppendLine("best clearance within 2 m of the centre: " + num9.ToString("F2") + " m   (was " + CentreClearance(scan, position).ToString("F2") + " m)");
+    		stringBuilder.AppendLine("clearance max     : " + scan2.BestClearance.ToString("F2") + " m");
+    		stringBuilder.AppendLine("spots fitting r=3.4 m (the fountain): " + scan2.Fitting(3.4f).Count() + "   (was " + scan.Fitting(3.4f).Count() + ")");
+    		if (num7 == 0)
+    		{
+    			EditorSceneManager.MarkSceneDirty(((Component)transform).gameObject.scene);
+    			stringBuilder.AppendLine();
+    			stringBuilder.AppendLine("verified clear.");
+    			Finish(stringBuilder);
+    			if (!EditorApplication.isPlayingOrWillChangePlaymode)
+    			{
+    				EditorSceneManager.SaveScene(((Component)transform).gameObject.scene);
+    			}
+    		}
+    		else
+    		{
+    			transform.position = position2;
+    			transform.rotation = Quaternion.Euler(0f, y3, 0f);
+    			Physics.SyncTransforms();
+    			stringBuilder.AppendLine();
+    			stringBuilder.AppendLine("REVERTED: the move did not verify clean, so the house was put");
+    			stringBuilder.AppendLine("back where it started.");
+    			Finish(stringBuilder);
+    		}
+    	}
+
+    	private static GameObject FindHouse()
+    	{
+    		GameObject val = GameObject.Find("Village_Grey/MarketSquare/House_0_0");
+    		if ((Object)(object)val != (Object)null)
+    		{
+    			return val;
+    		}
+    		Transform[] array = Object.FindObjectsByType<Transform>((FindObjectsInactive)1);
+    		foreach (Transform val2 in array)
+    		{
+    			if (((Object)val2).name == "House_0_0")
+    			{
+    				return ((Component)val2).gameObject;
+    			}
+    		}
+    		return null;
+    	}
+
+    	private static List<Bounds> CollectBlockers(IList<Transform> ignore, float groundY, float topY)
+    	{
+    		//IL_002d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0032: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0036: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0059: Unknown result type (might be due to invalid IL or missing references)
+    		List<Bounds> list = new List<Bounds>();
+    		Collider[] array = Object.FindObjectsByType<Collider>((FindObjectsInactive)1);
+    		foreach (Collider val in array)
+    		{
+    			if (!((Object)(object)val == (Object)null) && !IsIgnored(((Component)val).transform, ignore))
+    			{
+    				Bounds bounds = val.bounds;
+    				if (!(bounds.max.y <= groundY + 0.35f) && !(bounds.min.y >= topY))
+    				{
+    					list.Add(bounds);
+    				}
+    			}
+    		}
+    		return list;
+    	}
+
+    	private static bool Blocked(Bounds box, List<Bounds> blockers)
+    	{
+    		//IL_0008: Unknown result type (might be due to invalid IL or missing references)
+    		for (int i = 0; i < blockers.Count; i++)
+    		{
+    			if (box.Intersects(blockers[i]))
+    			{
+    				return true;
+    			}
+    		}
+    		return false;
+    	}
+
+    	private static Bounds LocalAabb(Transform root)
+    	{
+    		//IL_0002: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0021: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0043: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0035: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0063: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0055: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0083: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0075: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_008d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0093: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0095: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a8: Unknown result type (might be due to invalid IL or missing references)
+    		Bounds result = default;
+    		bool flag = false;
+    		Renderer[] componentsInChildren = ((Component)root).GetComponentsInChildren<Renderer>(true);
+    		for (int i = 0; i < componentsInChildren.Length; i++)
+    		{
+    			Bounds bounds = componentsInChildren[i].bounds;
+    			for (int j = 0; j < 8; j++)
+    			{
+    				Vector3 val = new Vector3(((j & 1) == 0) ? bounds.min.x : bounds.max.x, ((j & 2) == 0) ? bounds.min.y : bounds.max.y, ((j & 4) == 0) ? bounds.min.z : bounds.max.z);
+    				Vector3 val2 = root.InverseTransformPoint(val);
+    				if (!flag)
+    				{
+    					result = new Bounds(val2, Vector3.zero);
+    					flag = true;
+    				}
+    				else
+    				{
+    					result.Encapsulate(val2);
+    				}
+    			}
+    		}
+    		return result;
+    	}
+
+    	private static Bounds WorldAabb(Transform tr, Bounds local)
+    	{
+    		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0007: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0012: Unknown result type (might be due to invalid IL or missing references)
+    		return WorldAabbAt(tr.position, tr.eulerAngles.y, local);
+    	}
+
+    	private static Bounds WorldAabbAt(Vector3 pos, float yaw, Bounds local)
+    	{
+    		//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0010: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0013: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00bf: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0039: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0058: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0077: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0069: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0081: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0086: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0087: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0088: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_008a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_008f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0094: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ad: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a2: Unknown result type (might be due to invalid IL or missing references)
+    		Quaternion val = Quaternion.Euler(0f, yaw, 0f);
+    		Bounds result = default;
+    		bool flag = false;
+    		for (int i = 0; i < 8; i++)
+    		{
+    			Vector3 val2 = new Vector3(((i & 1) == 0) ? local.min.x : local.max.x, ((i & 2) == 0) ? local.min.y : local.max.y, ((i & 4) == 0) ? local.min.z : local.max.z);
+    			Vector3 val3 = pos + val * val2;
+    			if (!flag)
+    			{
+    				result = new Bounds(val3, Vector3.zero);
+    				flag = true;
+    			}
+    			else
+    			{
+    				result.Encapsulate(val3);
+    			}
+    		}
+    		return result;
+    	}
+
+    	private static bool TryGround(float x, float z, float squareGroundY, IList<Transform> ignore, out float groundY)
+    	{
+    		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0016: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0056: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0081: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00aa: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00bf: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d8: Unknown result type (might be due to invalid IL or missing references)
+    		groundY = 0f;
+    		RaycastHit[] array = Physics.RaycastAll(new Vector3(x, squareGroundY + 80f, z), Vector3.down, 400f, -1, (QueryTriggerInteraction)1);
+    		Array.Sort(array, (RaycastHit p, RaycastHit q) => q.distance.CompareTo(p.distance));
+    		RaycastHit[] array2 = array;
+    		for (int num = 0; num < array2.Length; num++)
+    		{
+    			RaycastHit val = array2[num];
+    			if (!((Object)(object)val.collider == (Object)null) && !IsIgnored(((Component)val.collider).transform, ignore))
+    			{
+    				if (Mathf.Abs(val.point.y - squareGroundY) > 0.6f)
+    				{
+    					return false;
+    				}
+    				Bounds bounds = val.collider.bounds;
+    				if (bounds.size.y > 0.7f)
+    				{
+    					return false;
+    				}
+    				if (bounds.max.y > squareGroundY + 1.2f)
+    				{
+    					return false;
+    				}
+    				groundY = val.point.y;
+    				return true;
+    			}
+    		}
+    		return false;
+    	}
+
+    	private static int CountObstructions(Bounds box, float groundY, float topY, IList<Transform> ignore, Collider[] buffer)
+    	{
+    		//IL_0002: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0009: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0010: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0040: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0045: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0049: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005e: Unknown result type (might be due to invalid IL or missing references)
+    		int num = Physics.OverlapBoxNonAlloc(box.center, box.extents, buffer, Quaternion.identity, -1, (QueryTriggerInteraction)1);
+    		int num2 = 0;
+    		for (int i = 0; i < num; i++)
+    		{
+    			Collider val = buffer[i];
+    			if (!((Object)(object)val == (Object)null) && !IsIgnored(((Component)val).transform, ignore))
+    			{
+    				Bounds bounds = val.bounds;
+    				if (!(bounds.max.y <= groundY + 0.35f) && !(bounds.min.y >= topY))
+    				{
+    					num2++;
+    				}
+    			}
+    		}
+    		return num2;
+    	}
+
+    	private static float Margin(Vector3 centre, float radius, float groundY, float topY, IList<Transform> ignore, Collider[] buffer)
+    	{
+    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0043: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0058: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0067: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0068: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_006d: Unknown result type (might be due to invalid IL or missing references)
+    		int num = Physics.OverlapSphereNonAlloc(centre, radius + 8f, buffer, -1, (QueryTriggerInteraction)1);
+    		float num2 = 8f;
+    		for (int i = 0; i < num; i++)
+    		{
+    			Collider val = buffer[i];
+    			if ((Object)(object)val == (Object)null || IsIgnored(((Component)val).transform, ignore))
+    			{
+    				continue;
+    			}
+    			Bounds bounds = val.bounds;
+    			if (!(bounds.max.y <= groundY + 0.35f) && !(bounds.min.y >= topY))
+    			{
+    				float num3 = Vector3.Distance(bounds.ClosestPoint(centre), centre) - radius;
+    				if (num3 < num2)
+    				{
+    					num2 = num3;
+    				}
+    			}
+    		}
+    		return num2;
+    	}
+
+    	private static bool IsIgnored(Transform t, IList<Transform> ignore)
+    	{
+    		if (ignore == null)
+    		{
+    			return false;
+    		}
+    		for (int i = 0; i < ignore.Count; i++)
+    		{
+    			Transform val = ignore[i];
+    			if (!((Object)(object)val == (Object)null) && ((Object)(object)t == (Object)(object)val || t.IsChildOf(val)))
+    			{
+    				return true;
+    			}
+    		}
+    		return false;
+    	}
+
+    	private static float Median(SquarePlacement.Scan scan)
+    	{
+    		if (scan == null || !scan.Ok || scan.Spots.Count == 0)
+    		{
+    			return 0f;
+    		}
+    		List<float> list = (from s in scan.Spots
+    			select s.Clearance into v
+    			orderby v
+    			select v).ToList();
+    		return list[list.Count / 2];
+    	}
+
+    	private static float CentreClearance(SquarePlacement.Scan scan, Vector3 centre)
+    	{
+    		//IL_0038: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0051: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0056: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0060: Unknown result type (might be due to invalid IL or missing references)
+    		if (scan == null || !scan.Ok)
+    		{
+    			return 0f;
+    		}
+    		float num = 0f;
+    		foreach (SquarePlacement.Spot spot in scan.Spots)
+    		{
+    			if (!(Vector3.Distance(Vector2.op_Implicit(new Vector2(spot.Point.x - centre.x, spot.Point.z - centre.z)), Vector2.op_Implicit(Vector2.zero)) > 2f) && spot.Clearance > num)
+    			{
+    				num = spot.Clearance;
+    			}
+    		}
+    		return num;
+    	}
+
+    	private static void Finish(StringBuilder sb)
+    	{
+    		Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(Directory.GetCurrentDirectory(), "Temp/house_relocation.txt")));
+    		File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), "Temp/house_relocation.txt"), sb.ToString());
+    		Debug.Log((object)sb.ToString());
+    	}
+    }
+}

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 
+using Object = UnityEngine.Object;
 // Global namespace, UnityEngine only, so run_script can compile and run it
 // independently of the project assembly.
 public static class WallSurvey

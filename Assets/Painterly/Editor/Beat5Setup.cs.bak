@@ -1,0 +1,1429 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using System.Text;
+using UnityEditor;
+using UnityEditor.Animations;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using Object = UnityEngine.Object;
+using UnityEngine.SceneManagement;
+
+namespace Echoes.Painterly.EditorTools
+{
+
+    public static class Beat5Setup
+    {
+    	private struct Wall
+    	{
+    	public Wall(string name, float x, float z, float sizeX, float sizeZ, float height)
+    	{
+    	    	this.name = name;
+    	    	this.x = x;
+    	    	this.z = z;
+    	    	this.sizeX = sizeX;
+    	    	this.sizeZ = sizeZ;
+    	    	this.height = height;
+    	}
+    		public readonly string name;
+
+    		public readonly float x;
+
+    		public readonly float z;
+
+    		public readonly float sizeX;
+
+    		public readonly float sizeZ;
+
+    		public readonly float height;
+
+    		public Vector3 Extent
+    		{
+    			get
+    			{
+    				//IL_0024: Unknown result type (might be due to invalid IL or missing references)
+    				return new Vector3(sizeX * 0.5f, height * 0.5f, sizeZ * 0.5f);
+    			}
+    		}
+
+    		public Vector3 Centre
+    		{
+    			get
+    			{
+    				//IL_0018: Unknown result type (might be due to invalid IL or missing references)
+    				return new Vector3(x, height * 0.5f, z);
+    			}
+    		}
+    	}
+
+    	private const string LinesPath = "Assets/Painterly/MonoHintLines.asset";
+
+    	private const string ModelPath = "Assets/Art/L1/InkCrawler.fbx";
+
+    	private const string ControllerPath = "Assets/Art/L1/InkCrawler.controller";
+
+    	private const string Container = "L1_Beat5";
+
+    	private const string CrawlerName = "Beat5_Crawler";
+
+    	private const string DirectorName = "Beat5_Director";
+
+    	private const float YardXMin;
+
+    	private const float YardXMax;
+
+    	private const float YardZMin;
+
+    	private const float YardZMax;
+
+    	private const float WallZ = 8.2f;
+
+    	private const float WallGapX;
+
+    	private const float WallGapX2;
+
+    	private const float LaneSouthZ = 6.4f;
+
+    	private const float LaneFightZ = 12.2f;
+
+    	private const float EnterX;
+
+    	private const float ExitX;
+
+    	private const float CrawlerOffset;
+
+    	private const float WallThick = 0.45f;
+
+    	private const float CoverHeight = 2.2f;
+
+    	private const float LowWallHeight = 0.55f;
+
+    	private const float CrawlerX;
+
+    	private const float CrawlerZ = 10.5f;
+
+    	private const float CrawlerHeight = 0.96f;
+
+    	private const float CrawlerRadius = 0.34f;
+
+    	private const float CloseStandoff = 1.3f;
+
+    	private const float AriBodyHeight = 1.8f;
+
+    	private const float AriBodyRadius = 0.3f;
+
+    	private const float AriStepHeight = 0.35f;
+
+    	private const float AriWalkSpeed = 2.2f;
+
+    	private const float AriRunSpeed = 3.6f;
+
+    	private const float YardGround;
+
+    	private const float BrushColourRadius;
+
+    	private const float SplashRadius = 1.6f;
+
+    	private const float NoticeRadius;
+
+    	private const float ForgetRadius;
+
+    	private static readonly string[] LaneNames = new string[3] { "south lane (the stealth route)", "along the wall", "north lane (the fight route)" };
+
+    	private const string Report = "Temp/beat5_setup.txt";
+
+    	public static void Run()
+    	{
+    		StringBuilder stringBuilder = new StringBuilder();
+    		int pass = 0;
+    		int fail = 0;
+    		int warn = 0;
+    		try
+    		{
+    			if (Application.isPlaying)
+    			{
+    				stringBuilder.AppendLine("!! refusing to run in play mode — MarkSceneDirty throws here and the build would stop halfway with nothing to show for it. Stop, then run again.");
+    				File.WriteAllText("Temp/beat5_setup.txt", stringBuilder.ToString());
+    				Debug.LogError((object)"[Echoes] beat5: in play mode");
+    				return;
+    			}
+    			Body(stringBuilder, ref pass, ref fail, ref warn);
+    		}
+    		catch (Exception ex)
+    		{
+    			stringBuilder.AppendLine();
+    			stringBuilder.AppendLine("THREW: " + ex.GetType().Name + ": " + ex.Message);
+    			stringBuilder.AppendLine(ex.StackTrace);
+    			fail++;
+    		}
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("VERDICT " + ((fail == 0) ? "PASS" : "FAIL") + " — " + pass + " passed, " + fail + " failed, " + warn + " warnings");
+    		File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), "Temp/beat5_setup.txt"), stringBuilder.ToString());
+    		Debug.Log((object)("[Echoes] beat5\n" + stringBuilder));
+    	}
+
+    	private static void Body(StringBuilder sb, ref int pass, ref int fail, ref int warn)
+    	{
+    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0161: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0166: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_016a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02d7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02dc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02fb: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0300: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_031f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0324: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_036e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0373: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0377: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_037c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_041d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0422: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_043c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0441: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0472: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0477: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0497: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_049c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04bc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04c8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0508: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_050d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0528: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_052d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0548: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_054d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c08: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_14d1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c74: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c79: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c7f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c94: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0d5c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0d61: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0d81: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0d86: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0da6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0dab: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0df6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0dfb: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0dff: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0e04: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0eb1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0eb6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0ed6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0edb: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0efb: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0f07: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0f47: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0f4c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0f6c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0f71: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0f91: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0f9d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0fdd: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0fe2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0ffd: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_1002: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_101d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_1022: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_1044: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_1050: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_1070: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_107c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_1310: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_13d0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_13d7: Expected Obj, but got Unknown
+    		//IL_13fe: Unknown result type (might be due to invalid IL or missing references)
+    		Scene activeScene = SceneManager.GetActiveScene();
+    		if (!activeScene.isLoaded)
+    		{
+    			sb.AppendLine("!! no scene open");
+    			fail++;
+    			return;
+    		}
+    		sb.AppendLine("BEAT 5 — INK CRAWLER, THE BRUSH IS NOT A WEAPON");
+    		sb.AppendLine();
+    		sb.AppendLine("scene '" + activeScene.name + "' at " + activeScene.path);
+    		sb.AppendLine("open scenes: " + activeScene.rootCount);
+    		GameObject val = Named("Ari");
+    		GameObject val2 = Named("Mono");
+    		sb.AppendLine();
+    		sb.AppendLine("--- the two bodies, and the third that matters more ---");
+    		float num = AriBody(sb, "BodyHeight", 1.8f);
+    		float ariRadius = AriBody(sb, "BodyRadius", 0.3f);
+    		float ariStep = AriBody(sb, "StepHeight", 0.35f);
+    		float num2 = AriVisible(val);
+    		Check(sb, ref pass, ref fail, "Ari's body is the number the level was designed on", Mathf.Abs(num - 1.8f) < 0.01f, num.ToString("0.00") + " m swept capsule against " + 1.8f.ToString("0.00") + " m assumed");
+    		float num3 = float.PositiveInfinity;
+    		if ((Object)(object)val != (Object)null)
+    		{
+    			Renderer[] componentsInChildren = val.GetComponentsInChildren<Renderer>(true);
+    			foreach (Renderer val3 in componentsInChildren)
+    			{
+    				if (!((Object)(object)val3 == (Object)null))
+    				{
+    					float num4 = num3;
+    					Bounds bounds = val3.bounds;
+    					num3 = Mathf.Min(num4, bounds.min.y);
+    				}
+    			}
+    		}
+    		if (float.IsPositiveInfinity(num3))
+    		{
+    			num3 = 0f;
+    		}
+    		bool flag = AriPosedHeight(val, out var feetY, out var crownY);
+    		float num5 = (flag ? (crownY - feetY) : 0f);
+    		sb.AppendLine("  seeded bounds: " + num3.ToString("F2") + " to " + (num3 + num2).ToString("F2") + ", " + num2.ToString("0.00") + " m — this spans EVERY pose her animation reaches, not her height");
+    		sb.AppendLine("  baked pose:    " + (flag ? (feetY.ToString("F2") + " to " + crownY.ToString("F2") + ", " + num5.ToString("0.00") + " m standing") : "could not be baked") + " against " + num.ToString("0.00") + " m of capsule");
+    		Vector3 val4;
+    		if ((Object)(object)val != (Object)null)
+    		{
+    			string[] array = new string[6] { "  Ari root at ", null, null, null, null, null };
+    			val4 = val.transform.position;
+    			array[1] = val4.ToString("F2");
+    			array[2] = ", local scale ";
+    			val4 = val.transform.localScale;
+    			array[3] = val4.ToString("F3");
+    			array[4] = ", lossy scale ";
+    			val4 = val.transform.lossyScale;
+    			array[5] = val4.ToString("F3");
+    			sb.AppendLine(string.Concat(array));
+    			Renderer[] componentsInChildren = val.GetComponentsInChildren<Renderer>(true);
+    			foreach (Renderer val5 in componentsInChildren)
+    			{
+    				if (!((Object)(object)val5 == (Object)null))
+    				{
+    					Transform transform = ((Component)val5).transform;
+    					Bounds localBounds = val5.localBounds;
+    					Bounds bounds2 = val5.bounds;
+    					string text = ((Object)transform).name;
+    					Transform parent = transform.parent;
+    					int num6 = 0;
+    					while ((Object)(object)parent != (Object)null && (Object)(object)parent != (Object)(object)val.transform && num6 < 8)
+    					{
+    						text = ((Object)parent).name + "/" + text;
+    						parent = parent.parent;
+    						num6++;
+    					}
+    					sb.AppendLine("    " + ((object)val5).GetType().Name + " '" + text + "'");
+    					val4 = bounds2.min;
+    					string text2 = val4.y.ToString("F3");
+    					val4 = bounds2.max;
+    					sb.AppendLine("      seeded world y " + text2 + " to " + val4.y.ToString("F3"));
+    					string[] array2 = new string[7] { "      localBounds y ", null, null, null, null, null, null };
+    					val4 = localBounds.min;
+    					array2[1] = val4.y.ToString("F3");
+    					array2[2] = " to ";
+    					val4 = localBounds.max;
+    					array2[3] = val4.y.ToString("F3");
+    					array2[4] = ", ";
+    					array2[5] = (localBounds.max.y - localBounds.min.y).ToString("F3");
+    					array2[6] = " m across the whole animation";
+    					sb.AppendLine(string.Concat(array2));
+    					string[] array3 = new string[6] { "      localScale ", null, null, null, null, null };
+    					val4 = transform.localScale;
+    					array3[1] = val4.ToString("F3");
+    					array3[2] = "   lossyScale ";
+    					val4 = transform.lossyScale;
+    					array3[3] = val4.ToString("F3");
+    					array3[4] = "   localPos ";
+    					val4 = transform.localPosition;
+    					array3[5] = val4.ToString("F3");
+    					sb.AppendLine(string.Concat(array3));
+    				}
+    			}
+    		}
+    		Check(sb, ref pass, ref fail, "Ari fits the body physics sweeps for her", flag && num5 <= num + 0.1f, (!flag) ? "her skin could not be baked, so her standing height is unknown and this is untested rather than passed" : ("she stands " + num5.ToString("0.00") + " m against " + num.ToString("0.00") + " m of capsule, so her crown is " + (num5 - num).ToString("0.00") + " m " + ((num5 <= num) ? "inside it — nothing of her is outside what physics knows about" : "outside it, and this is the beat that shoves her, so that is how much of her can end up inside the creature")));
+    		sb.AppendLine("  Ari: body " + num.ToString("0.00") + " m, radius " + ariRadius.ToString("0.00") + " m, step " + ariStep.ToString("0.00") + " m, visible " + num2.ToString("0.00") + " m");
+    		GameObject orAdd = GetOrAdd("L1_Beat5");
+    		Clear(orAdd);
+    		Physics.SyncTransforms();
+    		float num7 = GroundUnder(46f, 8.5f);
+    		float num8 = GroundUnder(49f, 10.5f);
+    		float num9 = GroundUnder(39f, 10.5f);
+    		sb.AppendLine();
+    		sb.AppendLine("--- the ground the yard is built on ---");
+    		sb.AppendLine("  measured after this beat's own geometry was cleared, and with anything under L1_Beat5 refused by the probe");
+    		sb.AppendLine("  west " + num9.ToString("0.00") + " m, centre " + num7.ToString("0.00") + " m, crawler " + num8.ToString("0.00") + " m");
+    		Check(sb, ref pass, ref fail, "there is ground under the yard at all", !float.IsNaN(num7) && !float.IsNaN(num8) && !float.IsNaN(num9), (float.IsNaN(num7) || float.IsNaN(num8) || float.IsNaN(num9)) ? ("a probe at (" + (float.IsNaN(num7) ? "yard centre" : (float.IsNaN(num9) ? "yard west" : "crawler post")) + ") hit nothing but this beat's own cleared geometry, so there is no floor there to fight on. Everything below is reported against the designed " + 0f.ToString("0.00") + " m and is not measured") : "all three probes hit real geometry, not this beat's and not a hole");
+    		Check(sb, ref pass, ref fail, "the yard sits on the floor it was designed over", Mathf.Abs(FloorOf(num7) - 0f) < 0.05f && Mathf.Abs(FloorOf(num8) - 0f) < 0.05f && Mathf.Abs(FloorOf(num9) - 0f) < 0.05f, "all three probes at " + FloorOf(num7).ToString("0.00") + ", " + FloorOf(num8).ToString("0.00") + " and " + FloorOf(num9).ToString("0.00") + " m against a designed floor of " + 0f.ToString("0.00") + " m" + ((Mathf.Abs(FloorOf(num7) - 0f) >= 0.05f || Mathf.Abs(FloorOf(num8) - 0f) >= 0.05f || Mathf.Abs(FloorOf(num9) - 0f) >= 0.05f) ? ". Anything standing here is not the yard: every sight line, every lane percentage and every creature position below was cast at this height, so they are all wrong together and no single one of them will show it" : ""));
+    		float num10 = FloorOf(num7);
+    		float num11 = FloorOf(num8);
+    		float num12 = FloorOf(num9);
+    		float num13 = Mathf.Max(num10, Mathf.Max(num11, num12)) - Mathf.Min(num10, Mathf.Min(num11, num12));
+    		Check(sb, ref pass, ref fail, "the yard is flat enough to fight on", num13 <= 0.05f, num13.ToString("0.00") + " m of fall across " + 16f.ToString("0") + " m" + ((num13 > 0.05f) ? " — the crawler will slide downhill on top of Ari" : ""));
+    		num7 = num10;
+    		num8 = num11;
+    		num9 = num12;
+    		sb.AppendLine();
+    		sb.AppendLine("--- built ---");
+    		Material mat = LoadMat("RockTrim");
+    		LoadMat("Brick");
+    		List<Wall> list = new List<Wall>
+    		{
+    			new Wall("west run", 42.5f, 8.2f, 7f, 0.45f, 2.2f),
+    			new Wall("east run", 50f, 8.2f, 4f, 0.45f, 2.2f),
+    			new Wall("north stub", 44f, 11f, 0.45f, 3f, 0.55f)
+    		};
+    		int num14 = 0;
+    		foreach (Wall item in list)
+    		{
+    			MakeWall(orAdd.transform, item, mat);
+    			num14++;
+    			sb.AppendLine("  " + item.name + ": " + item.sizeX.ToString("0.0") + " x " + item.sizeZ.ToString("0.0") + " x " + item.height.ToString("0.0") + " m at (" + item.x.ToString("0.0") + ", " + item.z.ToString("0.0") + ")");
+    		}
+    		sb.AppendLine("  " + num14 + " ruin wall(s) in the yard");
+    		GameObject val6 = Prefab("Assets/Art/L1/InkCrawler.fbx", "Beat5_Crawler", orAdd.transform, new Vector3(49f, num8, 10.5f));
+    		sb.AppendLine();
+    		sb.AppendLine("--- the crawler, placed and measured ---");
+    		if ((Object)(object)val6 == (Object)null)
+    		{
+    			Fail(sb, ref pass, ref fail, "could not instantiate Assets/Art/L1/InkCrawler.fbx — the beat has no antagonist");
+    		}
+    		else
+    		{
+    			SetController(val6, "Assets/Art/L1/InkCrawler.controller");
+    			float num15 = float.NegativeInfinity;
+    			float num16 = float.PositiveInfinity;
+    			int num17 = 0;
+    			Renderer[] componentsInChildren = val6.GetComponentsInChildren<Renderer>(true);
+    			for (int i = 0; i < componentsInChildren.Length; i++)
+    			{
+    				Bounds bounds3 = componentsInChildren[i].bounds;
+    				num15 = Mathf.Max(num15, bounds3.max.y);
+    				num16 = Mathf.Min(num16, bounds3.min.y);
+    				num17++;
+    			}
+    			if (num17 == 0)
+    			{
+    				num15 = 0f;
+    				num16 = 0f;
+    			}
+    			float num18 = num15 - num16;
+    			sb.AppendLine("  " + num17 + " renderer(s), world y " + num16.ToString("0.00") + " to " + num15.ToString("0.00") + " m, so " + num18.ToString("0.00") + " m tall");
+    			string[] array4 = new string[6] { "  crawler root at ", null, null, null, null, null };
+    			val4 = val6.transform.position;
+    			array4[1] = val4.ToString("F2");
+    			array4[2] = ", local scale ";
+    			val4 = val6.transform.localScale;
+    			array4[3] = val4.ToString("F3");
+    			array4[4] = ", lossy scale ";
+    			val4 = val6.transform.lossyScale;
+    			array4[5] = val4.ToString("F3");
+    			sb.AppendLine(string.Concat(array4));
+    			componentsInChildren = val6.GetComponentsInChildren<Renderer>(true);
+    			foreach (Renderer val7 in componentsInChildren)
+    			{
+    				if (!((Object)(object)val7 == (Object)null))
+    				{
+    					Transform transform2 = ((Component)val7).transform;
+    					Bounds localBounds2 = val7.localBounds;
+    					Bounds bounds4 = val7.bounds;
+    					string text3 = ((Object)transform2).name;
+    					Transform parent2 = transform2.parent;
+    					int num19 = 0;
+    					while ((Object)(object)parent2 != (Object)null && (Object)(object)parent2 != (Object)(object)val6.transform && num19 < 8)
+    					{
+    						text3 = ((Object)parent2).name + "/" + text3;
+    						parent2 = parent2.parent;
+    						num19++;
+    					}
+    					sb.AppendLine("    " + ((object)val7).GetType().Name + " '" + text3 + "'");
+    					string[] array5 = new string[7] { "      world  y ", null, null, null, null, null, null };
+    					val4 = bounds4.min;
+    					array5[1] = val4.y.ToString("F3");
+    					array5[2] = " to ";
+    					val4 = bounds4.max;
+    					array5[3] = val4.y.ToString("F3");
+    					array5[4] = "   (";
+    					array5[5] = (bounds4.max.y - bounds4.min.y).ToString("F3");
+    					array5[6] = " m tall)";
+    					sb.AppendLine(string.Concat(array5));
+    					string[] array6 = new string[7] { "      local  y ", null, null, null, null, null, null };
+    					val4 = localBounds2.min;
+    					array6[1] = val4.y.ToString("F3");
+    					array6[2] = " to ";
+    					val4 = localBounds2.max;
+    					array6[3] = val4.y.ToString("F3");
+    					array6[4] = "   (";
+    					array6[5] = (localBounds2.max.y - localBounds2.min.y).ToString("F3");
+    					array6[6] = " m tall, in the mesh's own file)";
+    					sb.AppendLine(string.Concat(array6));
+    					string[] array7 = new string[6] { "      localScale ", null, null, null, null, null };
+    					val4 = transform2.localScale;
+    					array7[1] = val4.ToString("F3");
+    					array7[2] = "   lossyScale ";
+    					val4 = transform2.lossyScale;
+    					array7[3] = val4.ToString("F3");
+    					array7[4] = "   localPos ";
+    					val4 = transform2.localPosition;
+    					array7[5] = val4.ToString("F3");
+    					sb.AppendLine(string.Concat(array7));
+    					sb.AppendLine("      localBounds x lossyScale would be y " + (localBounds2.min.y * transform2.lossyScale.y).ToString("F3") + " to " + (localBounds2.max.y * transform2.lossyScale.y).ToString("F3"));
+    				}
+    			}
+    			Check(sb, ref pass, ref fail, "the crawler is standing on the ground", Mathf.Abs(num16) <= 0.1f, "lowest point " + num16.ToString("0.00") + " m against ground " + num8.ToString("0.00") + " m" + ((num16 < -0.1f) ? (" — " + (0f - num16).ToString("0.00") + " m of him is buried. Mono had the same 0.12 m of sunk mesh and it needs the renderer child raised by 0.387 local units, not the root moved, or his collider lifts off the floor too.") : ""));
+    			float num20 = num15;
+    			Check(sb, ref pass, ref fail, "the crawler is the height the cover was sized against", Mathf.Abs(num18 - 0.96f) <= 0.25f, num18.ToString("0.00") + " m against " + 0.96f.ToString("0.00") + " m assumed, tolerance 0.25 m");
+    			float num21 = num20 * 0.85f;
+    			sb.AppendLine("  his eye at 85% is " + num21.ToString("0.00") + " m; the tall cover is " + 2.2f.ToString("0.00") + " m, the low wall " + 0.55f.ToString("0.00") + " m");
+    			Check(sb, ref pass, ref fail, "the tall cover is actually above his eye", 2.2f > num21, 2.2f.ToString("0.00") + " m wall against a " + num21.ToString("0.00") + " m eye — " + ((2.2f > num21) ? "he cannot see through it" : "he can see straight over the only thing she was meant to hide behind"));
+    			Check(sb, ref pass, ref fail, "the low wall is below his eye, and says so", 0.55f < num21, 0.55f.ToString("0.00") + " m against a " + num21.ToString("0.00") + " m eye — it hides nothing and must not look as though it does");
+    			EnsureCollider(sb, ref pass, ref fail, val6);
+    			InkCrawler inkCrawler = val6.AddComponent<InkCrawler>();
+    			Set(inkCrawler, "bodyHeight", 0.96f);
+    			Set(inkCrawler, "bodyRadius", 0.34f);
+    			Set(inkCrawler, "home", (object)new Vector3(49f, num8, 10.5f));
+    			Set(inkCrawler, "splashRadius", 1.6f);
+    			Set(inkCrawler, "noticeRadius", 7f);
+    			Set(inkCrawler, "forgetRadius", 11f);
+    			Set(inkCrawler, "standoffRange", 1.3f);
+    			if ((Object)(object)val != (Object)null)
+    			{
+    				Set(inkCrawler, "ari", val.GetComponent<AriMover>());
+    			}
+    			MonoCompanion monoCompanion = (((Object)(object)val2 != (Object)null) ? val2.GetComponent<MonoCompanion>() : null);
+    			if ((Object)(object)monoCompanion != (Object)null)
+    			{
+    				Set(inkCrawler, "mono", monoCompanion);
+    			}
+    			DamageCheck(sb, ref pass, ref fail, ref warn, inkCrawler, val6);
+    			GameObject val8 = new GameObject("Beat5_Director");
+    			val8.transform.SetParent(orAdd.transform, false);
+    			val8.transform.position = new Vector3(39.5f, num9, 8.2f);
+    			Beat5Director beat5Director = val8.AddComponent<Beat5Director>();
+    			Set(beat5Director, "crawler", inkCrawler);
+    			Set(beat5Director, "enterX", 38f);
+    			Set(beat5Director, "exitX", 51f);
+    			Set(beat5Director, "crawlerOffset", 11f);
+    			if ((Object)(object)val != (Object)null)
+    			{
+    				Set(beat5Director, "brush", val.GetComponent<BrushPainter>());
+    			}
+    			if ((Object)(object)monoCompanion != (Object)null)
+    			{
+    				Set(beat5Director, "mono", monoCompanion);
+    			}
+    			Verify(sb, ref pass, ref fail, val6, inkCrawler, beat5Director, val8, num8, num, ariRadius, ariStep);
+    		}
+    		BuildLines(sb, ref pass, ref fail);
+    		sb.AppendLine();
+    		sb.AppendLine("--- the test warp ---");
+    		AddWarpStop(sb, ref pass, ref fail, ref warn, num7);
+    		EditorSceneManager.MarkSceneDirty(activeScene);
+    		EditorUtility.SetDirty((Object)(object)orAdd);
+    	}
+
+    	private static void AddWarpStop(StringBuilder sb, ref int pass, ref int fail, ref int warn, float ground)
+    	{
+    		//IL_0090: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0095: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00bc: Unknown result type (might be due to invalid IL or missing references)
+    		BeatWarp beatWarp = Object.FindAnyObjectByType<BeatWarp>((FindObjectsInactive)1);
+    		if ((Object)(object)beatWarp == (Object)null)
+    		{
+    			Warn(sb, ref warn, "no BeatWarp in the level, so Beat 5 has no test stop. Re-run Beat 4's tool if the N and B keys are not working.");
+    			return;
+    		}
+    		List<BeatWarp.Stop> list = Src<List<BeatWarp.Stop>>(beatWarp, "stops");
+    		if (list == null)
+    		{
+    			Fail(sb, ref pass, ref fail, "BeatWarp has no stops list to add to");
+    			return;
+    		}
+    		list.RemoveAll((BeatWarp.Stop s) => s != null && s.name == "beat5_enter");
+    		Object.FindAnyObjectByType<AriMover>((FindObjectsInactive)1);
+    		GameObject val = Named("Mono");
+    		list.Add(new BeatWarp.Stop
+    		{
+    			name = "beat5_enter",
+    			ari = new Vector3(39f, ground, 6.4f),
+    			mono = (Vector3)(((Object)(object)val != (Object)null) ? new Vector3(37.4f, ground, 6.4f) : Vector3.zero)
+    		});
+    		Set(beatWarp, "index", list.Count - 1);
+    		Check(sb, ref pass, ref fail, "there is a warp stop for this beat", list.Count > 0, beatWarp.Count + " stop(s) now, this one is 'beat5_enter' at " + list[list.Count - 1].ari.ToString("F2"));
+    		Check(sb, ref pass, ref fail, "the stop is past the beat's entrance", list[list.Count - 1].ari.x > 38f, "x " + list[list.Count - 1].ari.x.ToString("0.00") + " against an entrance at " + 38f.ToString("0") + " — " + ((list[list.Count - 1].ari.x > 38f) ? "the beat starts on arrival" : "she would have to walk into it"));
+    		Check(sb, ref pass, ref fail, "the stop is short of the crawler", 49f - list[list.Count - 1].ari.x > 7f, (49f - list[list.Count - 1].ari.x).ToString("0.0") + " m from the post against " + 7f.ToString("0") + " m of notice — she lands " + (49f - list[list.Count - 1].ari.x - 7f).ToString("0.0") + " m outside it and walks in under her own steam" + ((49f - list[list.Count - 1].ari.x <= 7f) ? " — she is spotted the frame she lands, which is not a first look at a crawler, it is the start of a chase" : ""));
+    	}
+
+    	private static void EnsureCollider(StringBuilder sb, ref int pass, ref int fail, GameObject go)
+    	{
+    		//IL_0055: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0063: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00f1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_014b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0150: Unknown result type (might be due to invalid IL or missing references)
+    		Collider[] componentsInChildren = go.GetComponentsInChildren<Collider>(true);
+    		List<string> list = new List<string>();
+    		Vector3 val2;
+    		foreach (Collider val in componentsInChildren)
+    		{
+    			if (!((Object)(object)val == (Object)null))
+    			{
+    				string[] array = new string[5]
+    				{
+    					((object)val).GetType().Name,
+    					" '",
+    					((Object)val).name,
+    					"' ",
+    					null
+    				};
+    				Bounds bounds = val.bounds;
+    				val2 = bounds.size;
+    				array[4] = val2.ToString("F2");
+    				list.Add(string.Concat(array));
+    				val.enabled = false;
+    			}
+    		}
+    		CapsuleCollider val3 = go.GetComponent<CapsuleCollider>();
+    		if ((Object)(object)val3 == (Object)null)
+    		{
+    			val3 = go.AddComponent<CapsuleCollider>();
+    		}
+    		((Collider)val3).enabled = true;
+    		((Collider)val3).isTrigger = false;
+    		val3.direction = 1;
+    		val3.height = Mathf.Max(0.96f, 0.69f);
+    		val3.radius = 0.34f;
+    		val3.center = new Vector3(0f, val3.height * 0.5f, 0f);
+    		string[] array2 = new string[7]
+    		{
+    			"  collider: a capsule ",
+    			val3.radius.ToString("0.00"),
+    			" r x ",
+    			val3.height.ToString("0.00"),
+    			" h at y ",
+    			null,
+    			null
+    		};
+    		val2 = val3.center;
+    		array2[5] = val2.y.ToString("0.00");
+    		array2[6] = ((list.Count == 0) ? ", nothing on the FBX to replace" : ("; disabled from the FBX: " + string.Join(", ", list.ToArray())));
+    		sb.AppendLine(string.Concat(array2));
+    		Check(sb, ref pass, ref fail, "the crawler is a solid capsule he can be aimed at", ((Collider)val3).enabled && val3.radius > 0f && val3.height >= 0.68f, "radius " + val3.radius.ToString("0.00") + " m, height " + val3.height.ToString("0.00") + " m, trigger " + (((Collider)val3).isTrigger ? "YES — clicks ignore triggers only if they ask to, and Ari's cast does not" : "no"));
+    	}
+
+    	private static void DamageCheck(StringBuilder sb, ref int pass, ref int fail, ref int warn, InkCrawler crawler, GameObject go)
+    	{
+    		//IL_0484: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0489: Unknown result type (might be due to invalid IL or missing references)
+    		Type type = ((object)crawler).GetType();
+    		List<string> list = new List<string>();
+    		List<string> list2 = new List<string>();
+    		MemberInfo[] members = type.GetMembers();
+    		foreach (MemberInfo memberInfo in members)
+    		{
+    			string text = memberInfo.Name.ToLowerInvariant();
+    			if (text.Contains("health") || text.Contains("damage") || text.Contains("hurt") || text.Contains("die") || text.Contains("kill") || text.Contains("death") || text.Contains("hitpoint") || text == "hp")
+    			{
+    				if ((memberInfo is PropertyInfo propertyInfo && propertyInfo.PropertyType == typeof(AriHealth)) || (memberInfo is FieldInfo fieldInfo && fieldInfo.FieldType == typeof(AriHealth)) || (memberInfo is MethodInfo methodInfo && methodInfo.ReturnType == typeof(AriHealth)))
+    				{
+    					list2.Add(memberInfo.Name);
+    				}
+    				else
+    				{
+    					list.Add(memberInfo.Name);
+    				}
+    			}
+    		}
+    		Check(sb, ref pass, ref fail, "the crawler has no health of its own and cannot be killed", list.Count == 0, (list.Count == 0) ? ("no member of " + type.Name + " is a health pool, a damage entry point or a death. It has " + list2.Count + " member(s) that reach Ari's health instead (" + string.Join(", ", list2.ToArray()) + "), which is the opposite.") : ("found on the crawler itself: " + string.Join(", ", list.ToArray())));
+    		Check(sb, ref pass, ref fail, "the crawler can hurt Ari, which is what makes this beat losable", list2.Count > 0, (list2.Count > 0) ? (list2.Count + " member(s) reach Ari's health: " + string.Join(", ", list2.ToArray())) : "NOTHING on the crawler can damage her, so a lunge is free and this beat still cannot be lost");
+    		AriHealth ariHealth = Object.FindAnyObjectByType<AriHealth>((FindObjectsInactive)1);
+    		if ((Object)(object)ariHealth == (Object)null)
+    		{
+    			Warn(sb, ref warn, "no AriHealth in the scene, so the per-hit cost could not be measured. Nothing can be hurt yet.");
+    		}
+    		else
+    		{
+    			float hitCost = ariHealth.HitCost;
+    			Check(sb, ref pass, ref fail, "a hit costs 10-15% of her remaining health", hitCost >= 0.1f && hitCost <= 0.15f, (hitCost * 100f).ToString("0.0") + "% of remaining, cooldown " + ((hitCost > 0f) ? "so three crawlers landing in one frame is one hit, not three" : "NONE — every hit would be free"));
+    			Check(sb, ref pass, ref fail, "she is not dead yet at full health", !ariHealth.IsDead, "health " + ariHealth.Fraction.ToString("0.00") + (ariHealth.IsDead ? " — DEAD" : (", hits taken " + ariHealth.Hits)));
+    		}
+    		Animator componentInChildren = go.GetComponentInChildren<Animator>(true);
+    		if ((Object)(object)componentInChildren == (Object)null)
+    		{
+    			Warn(sb, ref warn, "no Animator on the crawler, so no trigger can be checked");
+    			return;
+    		}
+    		Check(sb, ref pass, ref fail, "the crawler is running the built controller", (Object)(object)componentInChildren.runtimeAnimatorController != (Object)null, ((Object)(object)componentInChildren.runtimeAnimatorController != (Object)null) ? ((Object)componentInChildren.runtimeAnimatorController).name : "NONE — it would stand in its bind pose for the whole beat");
+    		string text2 = "";
+    		string[] files = Directory.GetFiles(Path.Combine(Directory.GetCurrentDirectory(), "Assets/Painterly/Scripts"), "InkCrawler.cs");
+    		if (files.Length != 0)
+    		{
+    			text2 = File.ReadAllText(files[0]);
+    		}
+    		Check(sb, ref pass, ref fail, "nothing in the crawler ever fires the death trigger", !text2.Contains("\"Die\"") && !text2.Contains("dieTrigger") && !text2.Contains("deathTrigger"), "InkCrawler.cs mentions the death trigger " + (text2.Contains("\"Die\"") ? "and uses it" : "only in comments"));
+    		RuntimeAnimatorController runtimeAnimatorController = componentInChildren.runtimeAnimatorController;
+    		AnimatorController val = (AnimatorController)(object)((runtimeAnimatorController is AnimatorController) ? runtimeAnimatorController : null);
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			Warn(sb, ref warn, "the crawler's controller is a " + (((Object)(object)componentInChildren.runtimeAnimatorController == (Object)null) ? "null" : ((object)componentInChildren.runtimeAnimatorController).GetType().Name) + ", not an AnimatorController, so the death-state transitions could not be counted. The no-kill guarantee still rests on the two checks above it.");
+    			return;
+    		}
+    		int num = 0;
+    		AnimatorControllerLayer[] layers = val.layers;
+    		for (int i = 0; i < layers.Length; i++)
+    		{
+    			ChildAnimatorState[] states = layers[i].stateMachine.states;
+    			for (int j = 0; j < states.Length; j++)
+    			{
+    				ChildAnimatorState val2 = states[j];
+    				AnimatorStateTransition[] transitions = val2.state.transitions;
+    				foreach (AnimatorStateTransition val3 in transitions)
+    				{
+    					if ((Object)(object)((AnimatorTransitionBase)val3).destinationState != (Object)null && ((Object)((AnimatorTransitionBase)val3).destinationState).name == "Crawler_Death")
+    					{
+    						num++;
+    					}
+    				}
+    			}
+    		}
+    		sb.AppendLine("  the controller has " + num + " transition(s) into Crawler_Death; none of them are reachable from this beat, because nothing sets the trigger");
+    	}
+
+    	private static void Verify(StringBuilder sb, ref int pass, ref int fail, GameObject crawlerGo, InkCrawler crawler, Beat5Director dir, GameObject dirGo, float ground, float ariBody, float ariRadius, float ariStep)
+    	{
+    		//IL_0514: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0581: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0586: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0847: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_084c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_095e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0963: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0a63: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0a7c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0af6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0afb: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0aff: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b09: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b14: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b19: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b1d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b27: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b32: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b37: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b3b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b45: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b50: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b55: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b59: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b63: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0bf0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0bf5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0bf9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0bfe: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c1e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c23: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c27: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c2c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c4e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c53: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c57: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c5c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c7e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c83: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c87: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c8c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0cae: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0cb3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0cb7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0cbc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0cde: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0ce3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0ce7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0cec: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0f41: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0f48: Unknown result type (might be due to invalid IL or missing references)
+    		Physics.SyncTransforms();
+    		AriMover ariMover = Object.FindAnyObjectByType<AriMover>((FindObjectsInactive)1);
+    		sb.AppendLine();
+    		sb.AppendLine("--- the fight, in numbers ---");
+    		float num = Src(crawler, "noticeRadius", 7f);
+    		float num2 = Src(crawler, "forgetRadius", 11f);
+    		float num3 = Src(crawler, "standoffRange", 1.9f);
+    		float num4 = Src(crawler, "lungeRange", 2.2f);
+    		float num5 = Src(crawler, "lungeReach", 1.1f);
+    		float num6 = Src(crawler, "staggerSeconds", 1.4f);
+    		float num7 = Src(crawler, "giveUpSeconds", 6f);
+    		float num8 = Src(crawler, "crawlSpeed", 1.5f);
+    		float num9 = Src(crawler, "closeSpeed", 2.6f);
+    		Check(sb, ref pass, ref fail, "it notices before it is on top of her", num > num4 + ariRadius, num.ToString("0.00") + " m notice against a " + num4.ToString("0.00") + " m lunge and a " + ariRadius.ToString("0.00") + " m body radius");
+    		float num10 = num3 - Src(crawler, "bodyRadius", 0.34f);
+    		Check(sb, ref pass, ref fail, "it stops with the brush in range", num10 <= 1.3f, "it holds " + num3.ToString("0.00") + " m off and his capsule is " + Src(crawler, "bodyRadius", 0.34f).ToString("0.00") + " m, so the near face of it is " + num10.ToString("0.00") + " m from her centre against a " + 1.6f.ToString("0.00") + " m stroke" + ((num10 > 1.3f) ? " — she cannot reach him where he stops, so the brush would connect only by accident and the fight could not be taught" : (", with " + (1.6f - num10).ToString("0.00") + " m to spare for a swing aimed with a mouse")));
+    		Check(sb, ref pass, ref fail, "its standoff is not so tight she cannot swing", num3 >= ariRadius + 0.4f, num3.ToString("0.00") + " m — closer than " + (ariRadius + 0.4f).ToString("0.00") + " m and the two bodies are inside each other");
+    		Check(sb, ref pass, ref fail, "the splash reach is an arm, not the brush", ok: true, "stroke reach " + 1.6f.ToString("0.00") + " m against the brush's own colour radius " + 6f.ToString("0.00") + " m, so clicking the ground beside her cannot reach it");
+    		Check(sb, ref pass, ref fail, "a brush sweep past it would connect", 1.6f >= num5, 1.6f.ToString("0.00") + " m reach against a " + num5.ToString("0.00") + " m lunge it can throw at her");
+    		Check(sb, ref pass, ref fail, "walking is never an answer, and she is never forced to swing", num8 < 2.2f, "it crawls at " + num8.ToString("0.00") + " m/s against her " + 2.2f.ToString("0.00") + " m/s walk, so she is never caught on foot — and its post is " + 2f.ToString("0.00") + " m short of the exit, so walking east is walking towards it, not away" + ((num8 >= 2.2f) ? " — it is FASTER than she is, so every encounter becomes a chase and cover is worth nothing" : ""));
+    		Check(sb, ref pass, ref fail, "it can always be outrun", num9 < 3.6f, num9.ToString("0.00") + " m/s against her 3.60 m/s run" + ((num9 >= 3.6f) ? " — and it is FASTER than she is, so the stealth route is not actually a route and she can be caught no matter what she does" : ", so leaving is always available"));
+    		Check(sb, ref pass, ref fail, "it forgets more slowly than it notices", num2 > num, num2.ToString("0.00") + " m forget against " + num.ToString("0.00") + " m notice");
+    		Check(sb, ref pass, ref fail, "giving up is quick enough to finish a stealth run", num7 <= 10f, num7.ToString("0.0") + " s of not seeing her, and the yard is " + 13f.ToString("0") + " m long");
+    		Check(sb, ref pass, ref fail, "a stagger outlasts the lunge it interrupts", num6 > Src(crawler, "lungeSeconds", 0.55f), num6.ToString("0.00") + " s stagger against a " + Src(crawler, "lungeSeconds", 0.55f).ToString("0.00") + " s lunge" + ((num6 <= Src(crawler, "lungeSeconds", 0.55f)) ? " — she can hit it and it still lands on her" : ", so a clean hit wins outright"));
+    		sb.AppendLine();
+    		sb.AppendLine("--- does the ruin wall do anything? ---");
+    		Vector3 val = new Vector3(49f, ground, 10.5f);
+    		float[] array = new float[3] { 6.4f, 8.2f, 12.2f };
+    		float[] array2 = new float[array.Length];
+    		float[] array3 = new float[array.Length];
+    		int[] array4 = new int[array.Length];
+    		for (int i = 0; i < array.Length; i++)
+    		{
+    			float num11 = array[i];
+    			int num12 = 0;
+    			int num13 = 0;
+    			array3[i] = -1f;
+    			for (float num14 = 38f; num14 <= 51f; num14 += 0.5f)
+    			{
+    				num12++;
+    				if (Blocked(new Vector3(num14, ground, num11), val, crawler))
+    				{
+    					num13++;
+    				}
+    				else if (array3[i] < 0f)
+    				{
+    					array3[i] = num14 - 38f;
+    				}
+    			}
+    			array4[i] = num12;
+    			array2[i] = ((num12 > 0) ? ((float)num13 / (float)num12) : 0f);
+    		}
+    		for (int j = 0; j < array.Length; j++)
+    		{
+    			sb.AppendLine("  z " + array[j].ToString("0.0") + " " + LaneNames[j].PadRight(30) + " hidden " + (array2[j] * 100f).ToString("0") + "% of " + 13f.ToString("0") + " m, in " + array4[j] + " samples" + ((array3[j] < 0f) ? ", never exposed" : (", first exposed at " + array3[j].ToString("0.0") + " m")));
+    		}
+    		Check(sb, ref pass, ref fail, "the wall hides the southern lane from its post", array2[0] >= 0.6f, (array2[0] * 100f).ToString("0") + "% of the southern lane is out of its sight" + ((array2[0] < 0.6f) ? " — below 60%. The wall is not between them for most of the run, so there is no cover in this yard and 'optional stealth' is only optional in the sense that it does not exist" : ""));
+    		Check(sb, ref pass, ref fail, "the two lanes are not equally good", array2[0] - array2[2] >= 0.25f, "south " + (array2[0] * 100f).ToString("0") + "% hidden against north " + (array2[2] * 100f).ToString("0") + "%" + ((array2[0] - array2[2] < 0.25f) ? " — if both routes were equally hidden there would be no reason to walk one rather than the other, and the wall would be decoration" : ", so going south is worth something"));
+    		Check(sb, ref pass, ref fail, "the fight lane is honestly exposed", array2[2] <= 0.4f, (array2[2] * 100f).ToString("0") + "% hidden on the northern lane" + ((array2[2] > 0.4f) ? " — if the north lane is also safe then the player who went round to the north took the same route and the choice was an illusion" : ", so north is the open ground where it can reach her"));
+    		float num15 = 47f;
+    		bool flag = Blocked(new Vector3(num15, ground, 6.4f), val, crawler);
+    		sb.AppendLine();
+    		sb.AppendLine("  sampled through the middle of the gap, at x " + num15.ToString("0.0") + ", z " + 6.4f.ToString("0.0") + ", looking at its post: " + (flag ? "something is in the way" : "nothing in the way"));
+    		Check(sb, ref pass, ref fail, "the gap in the wall is an opening, not a joint", !flag, "the gap runs " + 2f.ToString("0.0") + " m at x " + 46f.ToString("0.0") + " to " + 48f.ToString("0.0") + ", and a sight line through its centre from the southern lane is " + (flag ? "blocked. That is measured, not diagnosed: run the two walls apart and re-run this before assuming they are touching" : "clear, so a walker at that spot is seen and the opening is worth the two metres of exposure it was drawn for"));
+    		float num16 = Vector3.Distance(new Vector3(51f, ground, 6.4f), val);
+    		sb.AppendLine();
+    		sb.AppendLine("  the exit is " + num16.ToString("0.0") + " m from its post, inside a " + 7f.ToString("0") + " m notice radius");
+    		Check(sb, ref pass, ref fail, "no crawler could let her out on geometry alone", num16 <= 7f, num16.ToString("0.0") + " m against " + 7f.ToString("0") + " m of notice — she has to walk past where it lives, so the wall cannot finish the route on its own and something has to end the pursuit. InkCrawler.Retired is that thing; see its comment");
+    		Check(sb, ref pass, ref fail, "the crawler does have a way to give up for good", HasRetireLatch(crawler), "SeesHer() returns false once Retired is set, and Retired is set when it gives up" + (HasRetireLatch(crawler) ? "" : " — NOT SET, so it will spot her on the way out and the stealth route cannot complete"));
+    		sb.AppendLine();
+    		sb.AppendLine("--- what is standing in the yard ---");
+    		Vector3 val2 = new Vector3(37.5f, ground - 0.5f, 3.5f);
+    		Vector3 val3 = new Vector3(54.5f, ground + 6f, 13.5f);
+    		int num17 = 0;
+    		int num18 = 0;
+    		int num19 = 0;
+    		int num20 = 0;
+    		HashSet<Collider> hashSet = new HashSet<Collider>();
+    		List<string> list = new List<string>();
+    		Collider[] array5 = Object.FindObjectsByType<Collider>((FindObjectsInactive)1);
+    		Collider[] array6 = array5;
+    		foreach (Collider val4 in array6)
+    		{
+    			if ((Object)(object)val4 == (Object)null)
+    			{
+    				continue;
+    			}
+    			string text = PathOf(((Component)val4).transform);
+    			if (text.Contains("L1_Beat5"))
+    			{
+    				num17++;
+    				hashSet.Add(val4);
+    				continue;
+    			}
+    			Bounds bounds = val4.bounds;
+    			if (bounds.max.x >= val2.x)
+    			{
+    				bounds = val4.bounds;
+    				if (bounds.min.x <= val3.x)
+    				{
+    					bounds = val4.bounds;
+    					if (bounds.max.z >= val2.z)
+    					{
+    						bounds = val4.bounds;
+    						if (bounds.min.z <= val3.z)
+    						{
+    							bool flag2 = text.Contains("Village_Grey");
+    							if (flag2)
+    							{
+    								num18++;
+    							}
+    							else
+    							{
+    								num19++;
+    							}
+    							string[] array7 = new string[19]
+    							{
+    								"    ",
+    								flag2 ? "village " : "UNEXPLAINED ",
+    								((Object)val4).name,
+    								"  ",
+    								((object)val4).GetType().Name,
+    								"  y ",
+    								null,
+    								null,
+    								null,
+    								null,
+    								null,
+    								null,
+    								null,
+    								null,
+    								null,
+    								null,
+    								null,
+    								null,
+    								null
+    							};
+    							bounds = val4.bounds;
+    							array7[6] = bounds.min.y.ToString("F2");
+    							array7[7] = " to ";
+    							bounds = val4.bounds;
+    							array7[8] = bounds.max.y.ToString("F2");
+    							array7[9] = "  x ";
+    							bounds = val4.bounds;
+    							array7[10] = bounds.min.x.ToString("F2");
+    							array7[11] = "-";
+    							bounds = val4.bounds;
+    							array7[12] = bounds.max.x.ToString("F2");
+    							array7[13] = "  z ";
+    							bounds = val4.bounds;
+    							array7[14] = bounds.min.z.ToString("F2");
+    							array7[15] = "-";
+    							bounds = val4.bounds;
+    							array7[16] = bounds.max.z.ToString("F2");
+    							array7[17] = "  path ";
+    							array7[18] = text;
+    							list.Add(string.Concat(array7));
+    							continue;
+    						}
+    					}
+    				}
+    			}
+    			num20++;
+    		}
+    		sb.AppendLine("  " + num17 + " collider(s) this beat built, " + num18 + " village collider(s) and " + num19 + " unexplained inside the yard's " + 38f.ToString("0") + "-" + 54f.ToString("0") + " x " + 4f.ToString("0") + "-" + 13f.ToString("0") + " bounds, " + num20 + " elsewhere in the level");
+    		sb.AppendLine("  (the village's Ground is one collider spanning the whole level, so it is always 'inside the yard'; the houses are House_35_0's east corner, whose roof reaches x 39.05)");
+    		sb.AppendLine();
+    		foreach (string item in list)
+    		{
+    			sb.AppendLine(item);
+    		}
+    		Check(sb, ref pass, ref fail, "nothing unexplained is standing in the yard", num19 == 0, (num19 == 0) ? ("the yard holds only what this beat built and the village's own ground; the other " + num20 + " colliders in the level are other beats' and cast's, and none of them is in here") : (num19 + " collider(s) in the yard from neither this beat nor the village, listed above"));
+    		float num21 = float.MaxValue;
+    		string text2 = "";
+    		array6 = array5;
+    		foreach (Collider val5 in array6)
+    		{
+    			if ((Object)(object)val5 == (Object)null || !hashSet.Contains(val5) || !PathOf(((Component)val5).transform).Contains("Village_Grey"))
+    			{
+    				continue;
+    			}
+    			Collider[] array8 = array5;
+    			foreach (Collider val6 in array8)
+    			{
+    				if (!((Object)(object)val6 == (Object)null) && !(((Object)val6).name == "Ground") && PathOf(((Component)val6).transform).Contains("Village_Grey") && !hashSet.Contains(val6))
+    				{
+    					float num22 = Gap(val5.bounds, val6.bounds);
+    					if (num22 < num21)
+    					{
+    						num21 = num22;
+    						text2 = ((Object)val5).name + " vs " + ((Object)val6).name;
+    					}
+    				}
+    			}
+    		}
+    		sb.AppendLine("  closest approach to the village: " + ((num21 == float.MaxValue) ? "nothing in range" : (num21.ToString("0.00") + " m  (" + text2 + ")")));
+    		Check(sb, ref pass, ref fail, "the yard does not grow through a house", num21 > 0f, (num21 == float.MaxValue) ? "no village geometry in range" : (num21.ToString("0.00") + " m between " + text2 + ((num21 > 0f) ? " — they do not touch" : " — THEY TOUCH")));
+    		sb.AppendLine();
+    		sb.AppendLine("--- wiring ---");
+    		Check(sb, ref pass, ref fail, "the crawler has a collider, or clicks pass through it", (Object)(object)crawlerGo.GetComponentInChildren<Collider>(true) != (Object)null, "BrushPainter casts its click with no layer mask, so a crawler with no collider simply cannot be aimed at");
+    		Check(sb, ref pass, ref fail, "the crawler knows Ari", (Object)(object)Src<AriMover>(crawler, "ari") != (Object)null, ((Object)(object)Src<AriMover>(crawler, "ari") != (Object)null) ? "wired" : "NOT WIRED — it can never notice her");
+    		Check(sb, ref pass, ref fail, "the director knows the crawler", (Object)(object)Src<InkCrawler>(dir, "crawler") == (Object)(object)crawler, ((Object)(object)Src<InkCrawler>(dir, "crawler") == (Object)(object)crawler) ? "wired" : "NOT WIRED — no stroke reaches it");
+    		BrushPainter brushPainter = (((Object)(object)ariMover != (Object)null) ? ((Component)ariMover).GetComponent<BrushPainter>() : null);
+    		StringBuilder sb2 = sb;
+    		ref int pass2 = ref pass;
+    		ref int fail2 = ref fail;
+    		bool ok = (Object)(object)Src<BrushPainter>(dir, "brush") == (Object)(object)brushPainter;
+    		string why;
+    		if ((Object)(object)brushPainter != (Object)null)
+    		{
+    			why = (((Object)(object)Src<BrushPainter>(dir, "brush") == (Object)(object)brushPainter) ? "wired" : "NOT WIRED — the brush would fall back to a search and might find a different one");
+    		}
+    		else
+    		{
+    			why = "Ari has no BrushPainter at all";
+    		}
+    		Check(sb2, ref pass2, ref fail2, "the director knows Ari's brush", ok, why);
+    		Check(sb, ref pass, ref fail, "the brush will actually tell someone", (Object)(object)brushPainter != (Object)null, ((Object)(object)brushPainter != (Object)null) ? "present" : "MISSING");
+    		float num23 = Src(dir, "enterX", 38f);
+    		float num24 = Src(dir, "exitX", 51f);
+    		Check(sb, ref pass, ref fail, "the yard is entered before it is left", num24 > num23 + 5f, num23.ToString("0") + " m in, " + num24.ToString("0") + " m out — " + (num24 - num23).ToString("0") + " m of beat");
+    		Check(sb, ref pass, ref fail, "the crawler starts inside the yard, past the entrance", 49f > num23 + 2f && 49f < num24, "crawler at x " + 49f.ToString("0") + ", yard " + num23.ToString("0") + " to " + num24.ToString("0"));
+    		Check(sb, ref pass, ref fail, "she sees it before it sees her", num < 49f - num23, "notice range " + num.ToString("0.0") + " m against " + (49f - num23).ToString("0") + " m of approach — she gets " + (49f - num23 - num).ToString("0.0") + " m of looking at it first" + ((num >= 49f - num23) ? " — it is already hunting before she is through the gate" : ""));
+    		Check(sb, ref pass, ref fail, "the yard is not wider than the walk is long", 16f >= num24 - num23, "yard " + 16f.ToString("0") + " m for " + (num24 - num23).ToString("0") + " m of beat");
+    	}
+
+    	private static bool Blocked(Vector3 ari, Vector3 crawler, InkCrawler c)
+    	{
+    		//IL_0022: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0023: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0029: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0033: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0034: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0035: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0044: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0049: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004c: Unknown result type (might be due to invalid IL or missing references)
+    		if ((Object)(object)c == (Object)null)
+    		{
+    			return false;
+    		}
+    		float num = Src(c, "bodyHeight", 0.96f) * 0.85f;
+    		Vector3 eye = crawler + Vector3.up * num;
+    		Vector3 ariPoint = ari + Vector3.up * 1.08f;
+    		return c.BlockedFromPost(eye, ariPoint);
+    	}
+
+    	private static bool HasRetireLatch(InkCrawler c)
+    	{
+    		if ((Object)(object)c == (Object)null)
+    		{
+    			return false;
+    		}
+    		PropertyInfo property = ((object)c).GetType().GetProperty("Retired");
+    		if (property == null || !property.CanRead)
+    		{
+    			return false;
+    		}
+    		if (((object)c).GetType().GetMethod("BlockedFromPost") == null)
+    		{
+    			return false;
+    		}
+    		string[] files = Directory.GetFiles(Path.Combine(Directory.GetCurrentDirectory(), "Assets/Painterly/Scripts"), "InkCrawler.cs");
+    		if (files.Length == 0)
+    		{
+    			return false;
+    		}
+    		string text = File.ReadAllText(files[0]);
+    		int num = text.IndexOf("bool SeesHer(", StringComparison.Ordinal);
+    		if (num < 0)
+    		{
+    			return false;
+    		}
+    		int num2 = text.IndexOf("bool ChaseOrGiveUp", num, StringComparison.Ordinal);
+    		if (num2 < 0)
+    		{
+    			num2 = text.Length;
+    		}
+    		string text2 = text.Substring(num, num2 - num);
+    		int num3 = text2.IndexOf("Retired", StringComparison.Ordinal);
+    		int num4 = text2.IndexOf("DistanceToAri", StringComparison.Ordinal);
+    		int num5 = text2.IndexOf("BlockedFromPost", StringComparison.Ordinal);
+    		if (num3 >= 0 && (num4 < 0 || num3 < num4))
+    		{
+    			return num5 > 0;
+    		}
+    		return false;
+    	}
+
+    	private static float AriBody(StringBuilder sb, string property, float fallback)
+    	{
+    		GameObject val = Named("Ari");
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			sb.AppendLine("  no Ari in the scene");
+    			return fallback;
+    		}
+    		AriMover component = val.GetComponent<AriMover>();
+    		if ((Object)(object)component == (Object)null)
+    		{
+    			return fallback;
+    		}
+    		PropertyInfo property2 = ((object)component).GetType().GetProperty(property);
+    		if (property2 != null)
+    		{
+    			return Convert.ToSingle(property2.GetValue(component, null));
+    		}
+    		FieldInfo field = ((object)component).GetType().GetField(CharLower(property), BindingFlags.Instance | BindingFlags.NonPublic);
+    		if (!(field != null))
+    		{
+    			return fallback;
+    		}
+    		return Convert.ToSingle(field.GetValue(component));
+    	}
+
+    	private static string CharLower(string s)
+    	{
+    		return char.ToLowerInvariant(s[0]) + s.Substring(1);
+    	}
+
+    	private static float AriVisible(GameObject go)
+    	{
+    		//IL_0033: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0038: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0054: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0058: Unknown result type (might be due to invalid IL or missing references)
+    		if ((Object)(object)go == (Object)null)
+    		{
+    			return 0f;
+    		}
+    		float num = float.NegativeInfinity;
+    		float num2 = float.PositiveInfinity;
+    		int num3 = 0;
+    		Renderer[] componentsInChildren = go.GetComponentsInChildren<Renderer>(true);
+    		foreach (Renderer val in componentsInChildren)
+    		{
+    			float num4 = num;
+    			Bounds bounds = val.bounds;
+    			num = Mathf.Max(num4, bounds.max.y);
+    			float num5 = num2;
+    			bounds = val.bounds;
+    			num2 = Mathf.Min(num5, bounds.min.y);
+    			num3++;
+    		}
+    		if (num3 != 0)
+    		{
+    			return num - num2;
+    		}
+    		return 0f;
+    	}
+
+    	private static bool AriPosedHeight(GameObject go, out float feetY, out float crownY)
+    	{
+    		//IL_0047: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004d: Expected Obj, but got Unknown
+    		//IL_0061: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0066: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0080: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0085: Unknown result type (might be due to invalid IL or missing references)
+    		feetY = 0f;
+    		crownY = 0f;
+    		if ((Object)(object)go == (Object)null)
+    		{
+    			return false;
+    		}
+    		SkinnedMeshRenderer componentInChildren = go.GetComponentInChildren<SkinnedMeshRenderer>(true);
+    		if ((Object)(object)componentInChildren == (Object)null)
+    		{
+    			return false;
+    		}
+    		Animator componentInParent = ((Component)componentInChildren).GetComponentInParent<Animator>();
+    		if ((Object)(object)componentInParent != (Object)null)
+    		{
+    			componentInParent.Update(0f);
+    		}
+    		Mesh val = new Mesh();
+    		componentInChildren.BakeMesh(val);
+    		Vector3[] vertices = val.vertices;
+    		Matrix4x4 localToWorldMatrix = ((Component)componentInChildren).transform.localToWorldMatrix;
+    		float num = float.MaxValue;
+    		float num2 = float.MinValue;
+    		for (int i = 0; i < vertices.Length; i++)
+    		{
+    			float y = localToWorldMatrix.MultiplyPoint3x4(vertices[i]).y;
+    			if (y < num)
+    			{
+    				num = y;
+    			}
+    			if (y > num2)
+    			{
+    				num2 = y;
+    			}
+    		}
+    		Object.DestroyImmediate((Object)(object)val);
+    		if (num > num2)
+    		{
+    			return false;
+    		}
+    		feetY = num;
+    		crownY = num2;
+    		return true;
+    	}
+
+    	private static float FloorOf(float measured)
+    	{
+    		if (!float.IsNaN(measured))
+    		{
+    			return measured;
+    		}
+    		return 0f;
+    	}
+
+    	private static float GroundUnder(float x, float z)
+    	{
+    		//IL_0007: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_000c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_007d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0069: Unknown result type (might be due to invalid IL or missing references)
+    		RaycastHit[] array = Physics.RaycastAll(new Ray(new Vector3(x, 40f, z), Vector3.down), 400f, -1, (QueryTriggerInteraction)1);
+    		float num = float.NaN;
+    		for (int i = 0; i < array.Length; i++)
+    		{
+    			Collider collider = array[i].collider;
+    			if (!((Object)(object)collider == (Object)null) && !PathOf(((Component)collider).transform).Contains("L1_Beat5") && (float.IsNaN(num) || array[i].point.y > num))
+    			{
+    				num = array[i].point.y;
+    			}
+    		}
+    		return num;
+    	}
+
+    	private static void MakeWall(Transform parent, Wall w, Material mat)
+    	{
+    		//IL_003a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005c: Unknown result type (might be due to invalid IL or missing references)
+    		GameObject val = GameObject.CreatePrimitive((PrimitiveType)3);
+    		((Object)val).name = "Beat5_Cover_" + w.name.Replace(' ', '_');
+    		val.transform.SetParent(parent, false);
+    		val.transform.position = w.Centre;
+    		val.transform.localScale = new Vector3(w.sizeX, w.height, w.sizeZ);
+    		BoxCollider component = val.GetComponent<BoxCollider>();
+    		if ((Object)(object)component != (Object)null)
+    		{
+    			((Collider)component).isTrigger = false;
+    		}
+    		Renderer component2 = val.GetComponent<Renderer>();
+    		if ((Object)(object)component2 != (Object)null && (Object)(object)mat != (Object)null)
+    		{
+    			component2.sharedMaterial = mat;
+    		}
+    	}
+
+    	private static GameObject Prefab(string assetPath, string name, Transform parent, Vector3 at)
+    	{
+    		//IL_0032: Unknown result type (might be due to invalid IL or missing references)
+    		GameObject val = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			return null;
+    		}
+    		GameObject val2 = Object.Instantiate<GameObject>(val);
+    		((Object)val2).name = name;
+    		val2.transform.SetParent(parent, false);
+    		val2.transform.position = at;
+    		return val2;
+    	}
+
+    	private static void SetController(GameObject go, string path)
+    	{
+    		RuntimeAnimatorController val = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(path);
+    		if (!((Object)(object)val == (Object)null))
+    		{
+    			Animator val2 = go.GetComponentInChildren<Animator>(true);
+    			if ((Object)(object)val2 == (Object)null)
+    			{
+    				val2 = go.AddComponent<Animator>();
+    			}
+    			val2.runtimeAnimatorController = val;
+    		}
+    	}
+
+    	private static Material LoadMat(string name)
+    	{
+    		string[] array = AssetDatabase.FindAssets(name + " t:Material");
+    		for (int i = 0; i < array.Length; i++)
+    		{
+    			Material val = AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(array[i]));
+    			if ((Object)(object)val != (Object)null)
+    			{
+    				return val;
+    			}
+    		}
+    		return null;
+    	}
+
+    	private static GameObject Named(string name)
+    	{
+    		Transform[] array = Object.FindObjectsByType<Transform>((FindObjectsInactive)1);
+    		for (int i = 0; i < array.Length; i++)
+    		{
+    			if ((Object)(object)array[i] != (Object)null && ((Object)array[i]).name == name)
+    			{
+    				return ((Component)array[i]).gameObject;
+    			}
+    		}
+    		return null;
+    	}
+
+    	private static GameObject GetOrAdd(string name)
+    	{
+    		//IL_0013: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0019: Expected Obj, but got Unknown
+    		GameObject val = Named(name);
+    		if ((Object)(object)val != (Object)null)
+    		{
+    			return val;
+    		}
+    		return new GameObject(name);
+    	}
+
+    	private static void Clear(GameObject container)
+    	{
+    		//IL_001a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0020: Expected Obj, but got Unknown
+    		List<GameObject> list = new List<GameObject>();
+    		foreach (Transform item in container.transform)
+    		{
+    			Transform val = item;
+    			list.Add(((Component)val).gameObject);
+    		}
+    		foreach (GameObject item2 in list)
+    		{
+    			Object.DestroyImmediate((Object)(object)item2);
+    		}
+    	}
+
+    	private static string PathOf(Transform t)
+    	{
+    		List<string> list = new List<string>();
+    		Transform val = t;
+    		while ((Object)(object)val != (Object)null)
+    		{
+    			list.Insert(0, ((Object)val).name);
+    			val = val.parent;
+    		}
+    		return string.Join(" / ", list.ToArray());
+    	}
+
+    	private static float Gap(Bounds a, Bounds b)
+    	{
+    		//IL_0007: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0013: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0020: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0048: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0054: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0061: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_006d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_008a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0096: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00af: Unknown result type (might be due to invalid IL or missing references)
+    		float num = Mathf.Max(0f, Mathf.Max(a.min.x - b.max.x, b.min.x - a.max.x));
+    		float num2 = Mathf.Max(0f, Mathf.Max(a.min.y - b.max.y, b.min.y - a.max.y));
+    		float num3 = Mathf.Max(0f, Mathf.Max(a.min.z - b.max.z, b.min.z - a.max.z));
+    		return Mathf.Sqrt(num * num + num2 * num2 + num3 * num3);
+    	}
+
+    	private static void Set(object target, string field, object value)
+    	{
+    		if (target != null)
+    		{
+    			FieldInfo field2 = target.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic);
+    			if (field2 == null)
+    			{
+    				Debug.LogError((object)("[Echoes] beat5: " + target.GetType().Name + " has no field '" + field + "' — the beat is not fully wired"));
+    			}
+    			else
+    			{
+    				field2.SetValue(target, value);
+    			}
+    		}
+    	}
+
+    	private static T Src<T>(object target, string field) where T : class
+    	{
+    		if (target == null)
+    		{
+    			return null;
+    		}
+    		FieldInfo field2 = target.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic);
+    		if (!(field2 == null))
+    		{
+    			return field2.GetValue(target) as T;
+    		}
+    		return null;
+    	}
+
+    	private static float Src(object target, string field, float fallback)
+    	{
+    		if (target == null)
+    		{
+    			return fallback;
+    		}
+    		FieldInfo field2 = target.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic);
+    		if (field2 == null)
+    		{
+    			Debug.LogError((object)("[Echoes] beat5: no field '" + field + "' on " + target.GetType().Name + " — using " + fallback));
+    			return fallback;
+    		}
+    		return Convert.ToSingle(field2.GetValue(target));
+    	}
+
+    	private static void Check(StringBuilder sb, ref int pass, ref int fail, string what, bool ok, string why)
+    	{
+    		if (ok)
+    		{
+    			pass++;
+    		}
+    		else
+    		{
+    			fail++;
+    		}
+    		sb.AppendLine("  " + (ok ? "ok   " : "FAIL ") + what + " — " + why);
+    	}
+
+    	private static void Fail(StringBuilder sb, ref int pass, ref int fail, string why)
+    	{
+    		fail++;
+    		sb.AppendLine("  FAIL " + why);
+    	}
+
+    	private static void Warn(StringBuilder sb, ref int warn, string why)
+    	{
+    		warn++;
+    		sb.AppendLine("  warn " + why);
+    	}
+
+    	private static void BuildLines(StringBuilder sb, ref int pass, ref int fail)
+    	{
+    		MonoHintLines asset = AssetDatabase.LoadAssetAtPath<MonoHintLines>("Assets/Painterly/MonoHintLines.asset");
+    		bool flag = false;
+    		if ((Object)(object)asset == (Object)null)
+    		{
+    			asset = ScriptableObject.CreateInstance<MonoHintLines>();
+    			flag = true;
+    		}
+    		asset.lines.RemoveAll((MonoHintLines.Line l) => l?.id.StartsWith("beat5.") ?? false);
+    		Beat("beat5.push", "You moved it. Good. But look — it is getting up. Whatever that was, it was not enough. It will not be enough.");
+    		Beat("beat5.nokill", "You cannot kill it. Not with that. There is nothing here yet that would answer to that, and I have looked.");
+    		Beat("beat5.hits_back", "It reached you. Are you all right? — Good. Then neither of us can end this, and that changes what we do next.");
+    		Beat("beat5.unseen", "It has stopped. It is walking back to where it was sitting, and it has not even turned its head to watch you go. — It lost you. That is a thing you did, not a thing you were spared.");
+    		Beat("beat5.done", "There are more of them. Further in, and closer together. We go slowly, and we go together, or not at all.");
+    		if (flag)
+    		{
+    			AssetDatabase.CreateAsset((Object)(object)asset, "Assets/Painterly/MonoHintLines.asset");
+    			sb.AppendLine("  created Assets/Painterly/MonoHintLines.asset");
+    		}
+    		else
+    		{
+    			EditorUtility.SetDirty((Object)(object)asset);
+    			AssetDatabase.SaveAssets();
+    		}
+    		int count = asset.lines.FindAll((MonoHintLines.Line l) => l?.id.StartsWith("beat5.") ?? false).Count;
+    		sb.AppendLine("  " + count + " Beat 5 line(s) authored, " + asset.lines.Count + " in the asset now");
+    		Check(sb, ref pass, ref fail, "every line the beat can fire exists", count >= 5, count + " beat5.* lines for 5 call sites in Beat5Director");
+    		void Beat(string id, string text)
+    		{
+    			asset.lines.Add(new MonoHintLines.Line
+    			{
+    				id = id,
+    				text = text,
+    				kind = MonoHintLines.LineKind.Beat
+    			});
+    		}
+    	}
+    }
+}

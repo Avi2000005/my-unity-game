@@ -1,0 +1,291 @@
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using UnityEditor;
+using UnityEngine;
+
+namespace Echoes.Painterly.EditorTools
+{
+
+    public static class SquareLayoutProbe
+    {
+    	private const string Report = "Temp/square_layout.txt";
+
+    	private const float FountainClearRadius = 3.5f;
+
+    	private const float FountainHeight = 1.6f;
+
+    	private static readonly string[] FloorHints = new string[9] { "floor", "ground", "paving", "border", "stairs", "step", "holecover", "road", "path" };
+
+    	public static void Run()
+    	{
+    		//IL_009e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0180: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0185: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0189: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_018e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01bc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01c8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01d4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01f6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01fb: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01ff: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0210: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0215: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0219: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_022a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_022f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0233: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0295: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02bd: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02c2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02c6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0367: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_036c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_038e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0393: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03b5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03ba: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03dc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03e1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0427: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0452: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_049b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02d9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02de: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02e2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0646: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04b4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0308: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_030d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02fa: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0626: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04d1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04e3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04e8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04ea: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04f4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04f9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04fe: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_052c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_076c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_077d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_078e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_05fa: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0606: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_05a1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_05a5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_05aa: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_05ae: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_05b0: Unknown result type (might be due to invalid IL or missing references)
+    		StringBuilder stringBuilder = new StringBuilder();
+    		stringBuilder.AppendLine("[Echoes] market square layout");
+    		if (EditorApplication.isPlayingOrWillChangePlaymode)
+    		{
+    			stringBuilder.AppendLine("STOPPED: exit play mode first (Ctrl+P).");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		GameObject val = GameObject.Find("Village_Grey/MarketSquare") ?? GameObject.Find("MarketSquare") ?? GameObject.Find("Square");
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			stringBuilder.AppendLine("FATAL: no MarketSquare found.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("square        : " + PathOf(val.transform));
+    		stringBuilder.AppendLine("square pivot  : " + ((object)val.transform.position/*cast due to constrained. prefix*/).ToString());
+    		stringBuilder.AppendLine();
+    		Renderer[] componentsInChildren = val.GetComponentsInChildren<Renderer>(true);
+    		stringBuilder.AppendLine("children of the square (" + componentsInChildren.Length + " renderers):");
+    		stringBuilder.AppendLine("   " + "name".PadRight(42) + "size (x,y,z)".PadRight(26) + "centre".PadRight(30) + "floor?");
+    		Bounds bounds;
+    		foreach (Renderer item4 in componentsInChildren.OrderByDescending((Renderer x) =>
+    		{
+    			//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+    			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+    			//IL_0009: Unknown result type (might be due to invalid IL or missing references)
+    			//IL_0014: Unknown result type (might be due to invalid IL or missing references)
+    			//IL_0019: Unknown result type (might be due to invalid IL or missing references)
+    			//IL_001c: Unknown result type (might be due to invalid IL or missing references)
+    			Bounds bounds2 = x.bounds;
+    			float x2 = bounds2.size.x;
+    			bounds2 = x.bounds;
+    			return x2 * bounds2.size.z;
+    		}).Take(40))
+    		{
+    			bounds = item4.bounds;
+    			Vector3 size = bounds.size;
+    			string[] array = new string[5]
+    			{
+    				"   ",
+    				PathOf(((Component)item4).transform).PadRight(42),
+    				$"({size.x,5:F1},{size.y,5:F1},{size.z,5:F1})".PadRight(26),
+    				null,
+    				null
+    			};
+    			bounds = item4.bounds;
+    			object arg = bounds.center.x;
+    			bounds = item4.bounds;
+    			object arg2 = bounds.center.y;
+    			bounds = item4.bounds;
+    			array[3] = $"({arg,6:F1},{arg2,6:F1},{bounds.center.z,6:F1})".PadRight(30);
+    			array[4] = (LooksLikeFloor(((Component)item4).transform) ? "yes" : "");
+    			stringBuilder.AppendLine(string.Concat(array));
+    		}
+    		bool flag = false;
+    		Bounds val2 = default;
+    		int num = 0;
+    		Renderer[] array2 = componentsInChildren;
+    		foreach (Renderer val3 in array2)
+    		{
+    			if (!LooksLikeFloor(((Component)val3).transform))
+    			{
+    				continue;
+    			}
+    			bounds = val3.bounds;
+    			if (bounds.size.x < 3f)
+    			{
+    				continue;
+    			}
+    			bounds = val3.bounds;
+    			if (!(bounds.size.z < 3f))
+    			{
+    				if (flag)
+    				{
+    					val2.Encapsulate(val3.bounds);
+    				}
+    				else
+    				{
+    					val2 = val3.bounds;
+    					flag = true;
+    				}
+    				num++;
+    			}
+    		}
+    		stringBuilder.AppendLine();
+    		if (!flag)
+    		{
+    			stringBuilder.AppendLine("no floor pieces found under the square; cannot place by paving.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		stringBuilder.AppendLine("paved area from " + num + " floor piece(s):");
+    		stringBuilder.AppendLine("   centre " + ((object)val2.center/*cast due to constrained. prefix*/).ToString());
+    		stringBuilder.AppendLine("   size   " + ((object)val2.size/*cast due to constrained. prefix*/).ToString());
+    		stringBuilder.AppendLine("   min    " + ((object)val2.min/*cast due to constrained. prefix*/).ToString());
+    		stringBuilder.AppendLine("   max    " + ((object)val2.max/*cast due to constrained. prefix*/).ToString());
+    		stringBuilder.AppendLine("   usable in X/Z after the fountain's " + 3.5f + " m radius is kept off the edge: " + (val2.size.x - 7f).ToString("F2") + " x " + (val2.size.z - 7f).ToString("F2") + " m");
+    		stringBuilder.AppendLine();
+    		float num3 = 0.5f;
+    		List<(Vector3, float, int, string)> list = new List<(Vector3, float, int, string)>();
+    		RaycastHit val5 = default;
+    		for (float num4 = val2.min.x + 3.5f; num4 <= val2.max.x - 3.5f; num4 += num3)
+    		{
+    			for (float num5 = val2.min.z + 3.5f; num5 <= val2.max.z - 3.5f; num5 += num3)
+    			{
+    				Vector3 val4 = new Vector3(num4, val2.center.y + 1.6f, num5);
+    				if (!Physics.Raycast(val4 + Vector3.up * 60f, Vector3.down, ref val5, 200f, -1, (QueryTriggerInteraction)1) || !LooksLikeFloor(((Component)val5.collider).transform))
+    				{
+    					continue;
+    				}
+    				Collider[] array3 = Physics.OverlapSphere(val4, 3.5f, -1, (QueryTriggerInteraction)1);
+    				float num6 = float.MaxValue;
+    				string item = "<none>";
+    				int num7 = 0;
+    				Collider[] array4 = array3;
+    				foreach (Collider val6 in array4)
+    				{
+    					if (!((Object)(object)val6 == (Object)null) && !LooksLikeFloor(((Component)val6).transform) && (((Component)val6).transform.IsChildOf(val.transform) || !(((Object)val6).name == "Ground")))
+    					{
+    						num7++;
+    						bounds = val6.bounds;
+    						float num8 = Vector3.Distance(val4, bounds.ClosestPoint(val4));
+    						if (num8 < num6)
+    						{
+    							num6 = num8;
+    							item = PathOf(((Component)val6).transform);
+    						}
+    					}
+    				}
+    				float item2 = ((num7 == 0) ? 3.5f : num6);
+    				list.Add((new Vector3(num4, val5.point.y, num5), item2, num7, item));
+    			}
+    		}
+    		stringBuilder.AppendLine("grid candidates evaluated : " + list.Count);
+    		if (list.Count == 0)
+    		{
+    			stringBuilder.AppendLine("NONE. The paved area is too small for a " + 7f + " m fountain.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("best spots by clearance (blockers = non-paving colliders inside the radius):");
+    		stringBuilder.AppendLine("   " + "position".PadRight(30) + "clearance".PadRight(12) + "blockers".PadRight(10) + "nearest blocker");
+    		foreach (var item5 in list.OrderByDescending(((Vector3 p, float clearance, int blockers, string nearest) c) => c.clearance).Take(12))
+    		{
+    			string[] array5 = new string[5]
+    			{
+    				"   ",
+    				$"({item5.Item1.x,6:F2},{item5.Item1.y,6:F2},{item5.Item1.z,6:F2})".PadRight(30),
+    				null,
+    				null,
+    				null
+    			};
+    			float item3 = item5.Item2;
+    			array5[2] = item3.ToString("F2").PadRight(12);
+    			int num2 = item5.Item3;
+    			array5[3] = num2.ToString().PadRight(10);
+    			array5[4] = item5.Item4;
+    			stringBuilder.AppendLine(string.Concat(array5));
+    		}
+    		int num9 = list.Count(((Vector3 p, float clearance, int blockers, string nearest) c) => c.blockers == 0);
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("spots with ZERO blockers : " + num9 + " of " + list.Count);
+    		(Vector3, float, int, string) tuple = list.OrderByDescending(((Vector3 p, float clearance, int blockers, string nearest) c) => c.clearance).First();
+    		stringBuilder.AppendLine("best overall             : " + ((object)tuple.Item1/*cast due to constrained. prefix*/).ToString() + "  clearance " + tuple.Item2.ToString("F2") + " m, blockers " + tuple.Item3);
+    		Finish(stringBuilder);
+    	}
+
+    	private static bool LooksLikeFloor(Transform t)
+    	{
+    		Transform val = t;
+    		while ((Object)(object)val != (Object)null)
+    		{
+    			string n = ((Object)val).name.ToLowerInvariant();
+    			if (FloorHints.Any((string h) => n.Contains(h)))
+    			{
+    				return true;
+    			}
+    			val = val.parent;
+    		}
+    		return false;
+    	}
+
+    	private static string PathOf(Transform t)
+    	{
+    		if ((Object)(object)t == (Object)null)
+    		{
+    			return "<none>";
+    		}
+    		StringBuilder stringBuilder = new StringBuilder(((Object)t).name);
+    		Transform parent = t.parent;
+    		while ((Object)(object)parent != (Object)null)
+    		{
+    			stringBuilder.Insert(0, ((Object)parent).name + "/");
+    			parent = parent.parent;
+    		}
+    		return stringBuilder.ToString();
+    	}
+
+    	private static void Finish(StringBuilder sb)
+    	{
+    		Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(Directory.GetCurrentDirectory(), "Temp/square_layout.txt")));
+    		File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), "Temp/square_layout.txt"), sb.ToString());
+    		Debug.Log((object)sb.ToString());
+    	}
+    }
+}

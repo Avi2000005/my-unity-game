@@ -1,0 +1,166 @@
+using System.IO;
+using System.Linq;
+using System.Text;
+using UnityEditor;
+using UnityEngine;
+
+namespace Echoes.Painterly.EditorTools
+{
+
+    public static class AnimatorProbe
+    {
+    	private const string Report = "Temp/animator_probe.txt";
+
+    	public static void Run()
+    	{
+    		StringBuilder stringBuilder = new StringBuilder();
+    		stringBuilder.AppendLine("[Echoes] Animator probe");
+    		stringBuilder.AppendLine();
+    		Animator[] array = Object.FindObjectsByType<Animator>((FindObjectsInactive)1);
+    		stringBuilder.AppendLine($"Animator components in scene: {array.Length}");
+    		if (array.Length == 0)
+    		{
+    			stringBuilder.AppendLine("  NONE - nothing is animating at all");
+    			Write(stringBuilder);
+    			return;
+    		}
+    		Animator[] array2 = array;
+    		for (int i = 0; i < array2.Length; i++)
+    		{
+    			ReportAnimator(array2[i], stringBuilder);
+    		}
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("=== SkinnedMeshRenderers ===");
+    		SkinnedMeshRenderer[] array3 = Object.FindObjectsByType<SkinnedMeshRenderer>((FindObjectsInactive)1);
+    		stringBuilder.AppendLine($"count: {array3.Length}");
+    		SkinnedMeshRenderer[] array4 = array3;
+    		foreach (SkinnedMeshRenderer val in array4)
+    		{
+    			if ((Object)(object)val == (Object)null)
+    			{
+    				continue;
+    			}
+    			Transform[] bones = val.bones;
+    			stringBuilder.AppendLine(string.Format("  '{0}'  bones={1}  rootBone={2}", ((Object)val).name, bones.Length, Object.op_Implicit((Object)(object)val.rootBone) ? ((Object)val.rootBone).name : "NULL"));
+    			if (bones.Length == 0)
+    			{
+    				stringBuilder.AppendLine("    NO BONES BOUND - mesh cannot be animated");
+    				continue;
+    			}
+    			Animator val2 = ((array.Length != 0) ? array[0] : null);
+    			if ((Object)(object)val2 != (Object)null)
+    			{
+    				bool flag = bones[0].IsChildOf(((Component)val2).transform) || (Object)(object)bones[0] == (Object)(object)((Component)val2).transform;
+    				stringBuilder.AppendLine($"    bone[0]='{((Object)bones[0]).name}' under Animator '{((Object)val2).name}': {flag}");
+    			}
+    			StringBuilder stringBuilder2 = new StringBuilder();
+    			for (int j = 0; j < Mathf.Min(6, bones.Length); j++)
+    			{
+    				if (j > 0)
+    				{
+    					stringBuilder2.Append(", ");
+    				}
+    				stringBuilder2.Append(((Object)bones[j]).name);
+    			}
+    			stringBuilder.AppendLine($"    first bones: {stringBuilder2}");
+    		}
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("=== AnimationClips in project ===");
+    		string[] array5 = AssetDatabase.FindAssets("t:AnimationClip");
+    		for (int i = 0; i < array5.Length; i++)
+    		{
+    			string text = AssetDatabase.GUIDToAssetPath(array5[i]);
+    			if (!text.Contains("/Ari/"))
+    			{
+    				continue;
+    			}
+    			Object[] array6 = AssetDatabase.LoadAllAssetsAtPath(text);
+    			foreach (Object obj in array6)
+    			{
+    				AnimationClip val3 = (AnimationClip)(object)((obj is AnimationClip) ? obj : null);
+    				if (val3 != null && !((Object)(object)val3 == (Object)null) && AssetDatabase.Contains((Object)(object)val3))
+    				{
+    					stringBuilder.AppendLine($"  {System.IO.Path.GetFileName(text),-20} '{((Object)val3).name}' {val3.length:F2}s " + $"legacy={val3.legacy} human={((Motion)val3).isHumanMotion} loop={((Motion)val3).isLooping}");
+    				}
+    			}
+    		}
+    		Write(stringBuilder);
+    	}
+
+    	private static void ReportAnimator(Animator a, StringBuilder sb)
+    	{
+    		//IL_01cd: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01e9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01fe: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0204: Invalid comparison between Unknown and I4
+    		sb.AppendLine("--- Animator on '" + ((Object)a).name + "'  path=" + Path(((Component)a).transform) + " ---");
+    		sb.AppendLine($"  enabled          : {((Behaviour)a).enabled}");
+    		sb.AppendLine($"  activeInHierarchy: {((Component)a).gameObject.activeInHierarchy}");
+    		Avatar avatar = a.avatar;
+    		if ((Object)(object)avatar == (Object)null)
+    		{
+    			sb.AppendLine("  avatar           : NULL  <-- nothing to retarget onto, mesh will not animate");
+    		}
+    		else
+    		{
+    			sb.AppendLine($"  avatar           : valid={avatar.isValid} human={avatar.isHuman} " + "name='" + ((Object)avatar).name + "' src='" + AssetDatabase.GetAssetPath((Object)(object)avatar) + "'");
+    		}
+    		RuntimeAnimatorController runtimeAnimatorController = a.runtimeAnimatorController;
+    		if ((Object)(object)runtimeAnimatorController == (Object)null)
+    		{
+    			sb.AppendLine("  controller       : NULL  <-- no states, nothing will play");
+    		}
+    		else
+    		{
+    			sb.AppendLine("  controller       : '" + ((Object)runtimeAnimatorController).name + "' (" + AssetDatabase.GetAssetPath((Object)(object)runtimeAnimatorController) + ")");
+    			AnimationClip[] animationClips = runtimeAnimatorController.animationClips;
+    			foreach (AnimationClip val in animationClips)
+    			{
+    				sb.AppendLine($"    clip: '{((Object)val).name}' {val.length:F2}s human={((Motion)val).isHumanMotion}");
+    			}
+    		}
+    		sb.AppendLine($"  applyRootMotion   : {a.applyRootMotion}");
+    		sb.AppendLine($"  updateMode        : {a.updateMode}");
+    		sb.AppendLine($"  cullingMode       : {a.cullingMode}  " + "(" + (((int)a.cullingMode == 1) ? "OFFSCREEN = invisible = frozen" : "always simulated") + ")");
+    		sb.AppendLine($"  speed             : {a.speed:F2}");
+    		int num = ((Component)a).GetComponentsInChildren<Animator>(true).Count((Animator x) => ((Behaviour)x).enabled);
+    		if (num > 1)
+    		{
+    			sb.AppendLine($"  WARNING: {num} enabled Animators under this one - they will fight");
+    		}
+    		Animator componentInParent = ((Component)a).GetComponentInParent<Animator>();
+    		if ((Object)(object)componentInParent != (Object)null && (Object)(object)componentInParent != (Object)(object)a && ((Behaviour)componentInParent).enabled)
+    		{
+    			sb.AppendLine("  WARNING: enabled parent '" + ((Object)componentInParent).name + "' also has an Animator");
+    		}
+    	}
+
+    	private static string Path(Transform t)
+    	{
+    		if ((Object)(object)t == (Object)null)
+    		{
+    			return "<none>";
+    		}
+    		StringBuilder stringBuilder = new StringBuilder(((Object)t).name);
+    		Transform parent = t.parent;
+    		while ((Object)(object)parent != (Object)null)
+    		{
+    			stringBuilder.Insert(0, ((Object)parent).name + "/");
+    			parent = parent.parent;
+    		}
+    		return stringBuilder.ToString();
+    	}
+
+    	private static void Write(StringBuilder sb)
+    	{
+    		Directory.CreateDirectory(Path2("Temp/animator_probe.txt"));
+    		File.WriteAllText("Temp/animator_probe.txt", sb.ToString());
+    		Debug.Log((object)sb.ToString());
+    	}
+
+    	private static string Path2(string p)
+    	{
+    		return System.IO.Path.GetDirectoryName(p);
+    	}
+    }
+}

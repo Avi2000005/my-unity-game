@@ -1,0 +1,202 @@
+using System.IO;
+using System.Linq;
+using System.Text;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.Events;
+using UnityEngine.UI;
+
+namespace Echoes.Painterly.EditorTools
+{
+
+    public static class ButtonsLiveProbe
+    {
+    	[MenuItem("Tools/Echoes/Probe Screen Buttons", priority = 100)]
+    	public static void Run()
+    	{
+    		//IL_00cf: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02af: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02b4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02f0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0315: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0324: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_032e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0361: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0366: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0368: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_036a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03ed: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0412: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0417: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_041f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0448: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0450: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04d8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04f9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_05d2: Unknown result type (might be due to invalid IL or missing references)
+    		StringBuilder stringBuilder = new StringBuilder();
+    		if (!EditorApplication.isPlaying)
+    		{
+    			stringBuilder.AppendLine("Not in play mode.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		GameObject val = GameObject.Find("ScreenControls");
+    		GameObject val2 = GameObject.Find("Ari");
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			stringBuilder.AppendLine("No ScreenControls in the scene.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		if ((Object)(object)val2 == (Object)null)
+    		{
+    			stringBuilder.AppendLine("No Ari in the scene.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		AriMover component = val2.GetComponent<AriMover>();
+    		Animator component2 = val2.GetComponent<Animator>();
+    		Canvas component3 = val.GetComponent<Canvas>();
+    		EventSystem eventSystem = Object.FindAnyObjectByType<EventSystem>();
+    		stringBuilder.AppendLine("--- wiring ---");
+    		stringBuilder.AppendLine($"  canvas present={(Object)(object)component3 != (Object)null} " + "mode=" + (((Object)(object)component3 == (Object)null) ? "-" : ((object)component3.renderMode/*cast due to constrained. prefix*/).ToString()) + " " + $"active={(Object)(object)component3 != (Object)null && ((Component)component3).gameObject.activeInHierarchy}");
+    		string[] array = (((Object)(object)eventSystem == (Object)null) ? new string[0] : (from m in ((Component)eventSystem).GetComponents<BaseInputModule>()
+    			select ((object)m).GetType().Name).ToArray());
+    		string arg = ((array.Length == 0) ? "<none>" : string.Join(" + ", array));
+    		stringBuilder.AppendLine($"  EventSystem present={(Object)(object)eventSystem != (Object)null} inputModule={arg}");
+    		stringBuilder.AppendLine($"  AriMover.UseScreenControls = {component?.UseScreenControls}");
+    		Button[] componentsInChildren = val.GetComponentsInChildren<Button>(true);
+    		stringBuilder.AppendLine($"  {componentsInChildren.Length} button(s): " + string.Join(", ", componentsInChildren.Select((Button b) => ((Object)b).name)));
+    		if ((Object)(object)component == (Object)null || (Object)(object)component2 == (Object)null)
+    		{
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		Button button = componentsInChildren.FirstOrDefault((Button b) => ((Object)b).name == "Up");
+    		if ((Object)(object)button == (Object)null)
+    		{
+    			stringBuilder.AppendLine("\nNo 'Up' button found.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		bool enabled = ((Behaviour)component).enabled;
+    		((Behaviour)component).enabled = false;
+    		stringBuilder.AppendLine("\n--- pressing UP ---");
+    		Vector3 position = val2.transform.position;
+    		SetPressed(button, pressed: true);
+    		OnScreenControls component4 = val.GetComponent<OnScreenControls>();
+    		SendUpdate(component4);
+    		stringBuilder.AppendLine($"  button.IsPressed = {button.IsPressed()}");
+    		stringBuilder.AppendLine($"  AriMover.ScreenMove = {AriMover.ScreenMove} " + "(expect 0,1 for up)");
+    		for (int num = 0; num < 120; num++)
+    		{
+    			component.Step(new Vector3(AriMover.ScreenMove.x, 0f, AriMover.ScreenMove.y), AriMover.ScreenRun, 1f / 60f);
+    			component2.Update(1f / 60f);
+    		}
+    		Vector3 position2 = val2.transform.position;
+    		float num2 = Vector3.Distance(position, position2);
+    		stringBuilder.AppendLine($"  travelled {num2:F3} in 2.0s while UP held " + "(walk 2.2 => about 4.4)");
+    		stringBuilder.AppendLine($"  moved: {num2 > 0.5f}");
+    		stringBuilder.AppendLine("  animator now: " + ClipNow(component2));
+    		stringBuilder.AppendLine("\n--- releasing ---");
+    		SetPressed(button, pressed: false);
+    		SendUpdate(component4);
+    		stringBuilder.AppendLine($"  AriMover.ScreenMove = {AriMover.ScreenMove} " + "(expect 0,0)");
+    		Vector3 position3 = val2.transform.position;
+    		for (int num3 = 0; num3 < 60; num3++)
+    		{
+    			component.Step(Vector3.zero, running: false, 1f / 60f);
+    			component2.Update(1f / 60f);
+    		}
+    		float num4 = Vector3.Distance(position3, val2.transform.position);
+    		stringBuilder.AppendLine($"  moved {num4:F4} after release (expect ~0)");
+    		stringBuilder.AppendLine("  animator now: " + ClipNow(component2));
+    		stringBuilder.AppendLine("\n--- STOP button ---");
+    		Button button2 = componentsInChildren.FirstOrDefault((Button b) => ((Object)b).name == "STOP");
+    		if ((Object)(object)button2 == (Object)null)
+    		{
+    			stringBuilder.AppendLine("  no STOP button");
+    		}
+    		else
+    		{
+    			AriMover.ScreenMove = Vector2.up;
+    			((UnityEvent)button2.onClick).Invoke();
+    			stringBuilder.AppendLine("  after clicking STOP: ScreenMove = " + $"{AriMover.ScreenMove}, " + $"ScreenRun = {AriMover.ScreenRun} " + "(expect 0,0 and False)");
+    		}
+    		stringBuilder.AppendLine("\n--- RUN button ---");
+    		Button button3 = componentsInChildren.FirstOrDefault((Button b) => ((Object)b).name == "Run");
+    		if ((Object)(object)button3 == (Object)null)
+    		{
+    			stringBuilder.AppendLine("  no RUN button");
+    		}
+    		else
+    		{
+    			((UnityEvent)button3.onClick).Invoke();
+    			bool screenRun = AriMover.ScreenRun;
+    			((UnityEvent)button3.onClick).Invoke();
+    			bool screenRun2 = AriMover.ScreenRun;
+    			stringBuilder.AppendLine($"  ScreenRun after 1st click = {screenRun}, " + $"after 2nd = {screenRun2} (expect True then False — a toggle)");
+    		}
+    		val2.transform.position = position;
+    		((Behaviour)component).enabled = enabled;
+    		Finish(stringBuilder);
+    	}
+
+    	private static void SetPressed(Button b, bool pressed)
+    	{
+    		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_000c: Expected Obj, but got Unknown
+    		//IL_0032: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0037: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0044: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0049: Unknown result type (might be due to invalid IL or missing references)
+    		RectTransform val = (RectTransform)((Component)b).transform;
+    		PointerEventData pointerEventData = new PointerEventData(EventSystem.current)
+    		{
+    			button = PointerEventData.InputButton.Left,
+    			pointerPress = (pressed ? ((Component)b).gameObject : null)
+    		};
+    		Rect rect = val.rect;
+    		pointerEventData.position = Vector2.op_Implicit(((Transform)val).TransformPoint(Vector2.op_Implicit(rect.center)));
+    		PointerEventData eventData = pointerEventData;
+    		if (pressed)
+    		{
+    			ExecuteEvents.Execute(((Component)b).gameObject, eventData, ExecuteEvents.pointerDownHandler);
+    		}
+    		else
+    		{
+    			ExecuteEvents.Execute(((Component)b).gameObject, eventData, ExecuteEvents.pointerUpHandler);
+    		}
+    	}
+
+    	private static void SendUpdate(OnScreenControls oc)
+    	{
+    		oc?.Tick();
+    	}
+
+    	private static string ClipNow(Animator anim)
+    	{
+    		//IL_0009: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
+    		AnimatorStateInfo info = anim.GetCurrentAnimatorStateInfo(0);
+    		var anon = anim.runtimeAnimatorController.animationClips.Select((AnimationClip c) => new
+    		{
+    			((Object)c).name,
+    			c.length
+    		}).FirstOrDefault(c => Animator.StringToHash(c.name) == info.shortNameHash);
+    		return "clip=" + ((anon == null) ? "?" : anon.name) + " " + $"t={info.normalizedTime:F2} transitioning={anim.IsInTransition(0)}";
+    	}
+
+    	private static void Finish(StringBuilder sb)
+    	{
+    		string text = sb.ToString();
+    		File.WriteAllText("Temp/buttons_live.txt", text);
+    		Debug.Log((object)("[Echoes] Screen buttons probe\n" + text));
+    	}
+    }
+}

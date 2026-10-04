@@ -1,0 +1,647 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using Object = UnityEngine.Object;
+using UnityEngine.SceneManagement;
+
+namespace Echoes.Painterly.EditorTools
+{
+
+    public static class CastPlacement
+    {
+    	private const string Dir = "Assets/Art/L1";
+
+    	private const string Report = "Temp/cast_placement.txt";
+
+    	private static readonly Vector3 Square = Vector3.zero;
+
+    	private const float BodyRadius = 0.4f;
+
+    	private const float BodyHeight = 1.8f;
+
+    	private const float ReachableHeightTolerance = 1f;
+
+    	private const float GroundProbeHeight = 30f;
+
+    	private const float GroundProbeDepth = 60f;
+
+    	private static readonly Collider[] Overlap = new Collider[24];
+
+    	private static readonly (string Name, string Model, string Controller, Vector3 Wanted, float SearchRadius, float MinFromSquare, float TargetHeight, string Group)[] Cast = new (string, string, string, Vector3, float, float, float, string)[4]
+    	{
+    		("Mono", "Mono.fbx", "Mono.controller", new Vector3(9f, 0f, 7f), 7f, 6f, 0.75f, ""),
+    		("InkCrawler_Back", "InkCrawler.fbx", "InkCrawler.controller", new Vector3(-8f, 0f, -14f), 8f, 8f, 1.1f, ""),
+    		("InkCrawler_AlleyA", "InkCrawler.fbx", "InkCrawler.controller", new Vector3(-2.5f, 0f, 12f), 6f, 5f, 1.1f, "Alley"),
+    		("InkCrawler_AlleyB", "InkCrawler.fbx", "InkCrawler.controller", new Vector3(2.5f, 0f, 12f), 4f, 5f, 1.1f, "Alley")
+    	};
+
+    	[MenuItem("Tools/Echoes/Place Level 1 Cast", priority = 65)]
+    	public static void Run()
+    	{
+    		StringBuilder stringBuilder = new StringBuilder();
+    		string path = PathOf(Directory.GetCurrentDirectory(), "Temp/cast_placement.txt");
+    		if (File.Exists(path))
+    		{
+    			File.Delete(path);
+    		}
+    		try
+    		{
+    			Body(stringBuilder);
+    		}
+    		catch (Exception ex)
+    		{
+    			stringBuilder.AppendLine();
+    			stringBuilder.AppendLine("THREW: " + ex.GetType().Name + ": " + ex.Message);
+    			stringBuilder.AppendLine(ex.StackTrace);
+    			Debug.LogError((object)("[Echoes] cast placement threw: " + ex));
+    		}
+    		finally
+    		{
+    			Finish(stringBuilder);
+    		}
+    	}
+
+    	private static void Body(StringBuilder sb)
+    	{
+    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0051: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0044: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0079: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_007e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0127: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_012c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0510: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0517: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0209: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_029b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02a0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0247: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02f6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0364: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_036b: Expected Obj, but got Unknown
+    		//IL_0382: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0395: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_039a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02d8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02da: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_042a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04b7: Unknown result type (might be due to invalid IL or missing references)
+    		Scene activeScene = SceneManager.GetActiveScene();
+    		if (!activeScene.isLoaded)
+    		{
+    			sb.AppendLine("No scene is open.");
+    			return;
+    		}
+    		Physics.SyncTransforms();
+    		GameObject val = GameObject.Find("Ari");
+    		float squareGround = GroundHeight((Vector3)(((Object)(object)val != (Object)null) ? val.transform.position : new Vector3(6f, 0f, 6f)), out var _);
+    		string text;
+    		Vector3 position;
+    		if (!((Object)(object)val != (Object)null))
+    		{
+    			text = "at (6, 0, 6), the fallback, because there is no Ari in the scene";
+    		}
+    		else
+    		{
+    			position = val.transform.position;
+    			text = "under Ari at " + position.ToString("F2");
+    		}
+    		string text2 = text;
+    		sb.AppendLine("reference ground y = " + squareGround.ToString("F2") + ", measured " + text2 + " (the floor, not the roof or prop above it)");
+    		sb.AppendLine("house at (25, 0, -8); fountain at (0.01, 0.05, 0); Ari's capsule is r 0.30 h 1.80, walls ~0, clearance capsule here is r " + 0.4f.ToString("0.00") + " h " + 1.8f.ToString("0.00"));
+    		sb.AppendLine();
+    		string value;
+    		if (!((Object)(object)val == (Object)null))
+    		{
+    			position = val.transform.position;
+    			value = "Ari is at " + position.ToString("F2");
+    		}
+    		else
+    		{
+    			value = "no Ari in the scene — clearance is measured against village geometry only";
+    		}
+    		sb.AppendLine(value);
+    		sb.AppendLine();
+    		GameObject val2 = Container(sb);
+    		int placed = 0;
+    		int problems = 0;
+    		Dictionary<string, Vector3> dictionary = new Dictionary<string, Vector3>();
+    		(string, string, string, Vector3, float, float, float, string)[] cast = Cast;
+    		for (int i = 0; i < cast.Length; i++)
+    		{
+    			(string, string, string, Vector3, float, float, float, string) who = cast[i];
+    			string text3 = "Assets/Art/L1/" + who.Item2;
+    			string text4 = "Assets/Art/L1/" + who.Item3;
+    			RuntimeAnimatorController val3 = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(text4);
+    			if ((Object)(object)val3 == (Object)null)
+    			{
+    				sb.AppendLine(who.Item1 + ": NO CONTROLLER at " + text4 + " — skipped");
+    				problems++;
+    				continue;
+    			}
+    			Transform val4 = val2.transform.Find(who.Item1);
+    			if ((Object)(object)val4 != (Object)null)
+    			{
+    				Describe(sb, who, val4.position, ((Component)val4).gameObject, "already placed, left alone");
+    				if (who.Item8 != "")
+    				{
+    					dictionary[who.Item8] = val4.position;
+    				}
+    				placed++;
+    				continue;
+    			}
+    			GameObject val5 = AssetDatabase.LoadAssetAtPath<GameObject>(text3);
+    			if ((Object)(object)val5 == (Object)null)
+    			{
+    				sb.AppendLine(who.Item1 + ": NO MODEL at " + text3 + " — skipped");
+    				problems++;
+    				continue;
+    			}
+    			Vector3 wanted = who.Item4;
+    			string text5 = "";
+    			if (who.Item8 != "" && dictionary.TryGetValue(who.Item8, out var value2))
+    			{
+    				wanted = value2;
+    				text5 = "searched around its group mate at " + value2.ToString("F1");
+    			}
+    			Vector3? val6 = FindSpot(who, wanted, squareGround, out var why);
+    			if (!val6.HasValue)
+    			{
+    				sb.AppendLine(who.Item1 + ": NO SPOT FOUND near " + wanted.ToString("F1") + ". " + why);
+    				problems++;
+    				continue;
+    			}
+    			GameObject val7 = (GameObject)PrefabUtility.InstantiatePrefab((Object)(object)val5, val2.transform);
+    			((Object)val7).name = who.Item1;
+    			val7.transform.position = val6.Value;
+    			val7.transform.rotation = FaceSquare(val6.Value);
+    			Animator componentInChildren = val7.GetComponentInChildren<Animator>();
+    			if ((Object)(object)componentInChildren == (Object)null)
+    			{
+    				sb.AppendLine(who.Item1 + ": no Animator on the model at all — it will not move");
+    				problems++;
+    			}
+    			else
+    			{
+    				componentInChildren.runtimeAnimatorController = val3;
+    				componentInChildren.applyRootMotion = false;
+    				componentInChildren.updateMode = (AnimatorUpdateMode)0;
+    				componentInChildren.cullingMode = (AnimatorCullingMode)0;
+    			}
+    			EnsureCollider(val7);
+    			Physics.SyncTransforms();
+    			float num = HeightOf(val7);
+    			FitHeight(val7, who.Item7);
+    			Physics.SyncTransforms();
+    			Describe(sb, who, val7.transform.position, val7, why + text5 + ", scaled from " + num.ToString("0.00") + " m to " + HeightOf(val7).ToString("0.00") + " m tall");
+    			if (who.Item8 != "")
+    			{
+    				dictionary[who.Item8] = val7.transform.position;
+    			}
+    			placed++;
+    		}
+    		PlaceThief(sb, val2, squareGround, ref placed, ref problems);
+    		sb.AppendLine();
+    		sb.AppendLine(placed + " placed, " + problems + " problem(s)");
+    		EditorSceneManager.MarkSceneDirty(activeScene);
+    		EditorSceneManager.SaveScene(activeScene);
+    	}
+
+    	private static GameObject Container(StringBuilder sb)
+    	{
+    		//IL_001b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0021: Expected Obj, but got Unknown
+    		GameObject val = GameObject.Find("L1_Cast");
+    		if ((Object)(object)val != (Object)null)
+    		{
+    			return val;
+    		}
+    		val = new GameObject("L1_Cast");
+    		sb.AppendLine("created container 'L1_Cast'");
+    		return val;
+    	}
+
+    	private static Vector3? FindSpot((string Name, string Model, string Controller, Vector3 Wanted, float SearchRadius, float MinFromSquare, float TargetHeight, string Group) who, Vector3 wanted, float squareGround, out string why)
+    	{
+    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0097: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ac: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00bc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00da: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0130: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0139: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0140: Unknown result type (might be due to invalid IL or missing references)
+    		if (Vector3.Distance(Flat(wanted), Square) < who.MinFromSquare)
+    		{
+    			why = "wanted point is inside the " + who.MinFromSquare + " m exclusion around the square";
+    			return null;
+    		}
+    		string text = "no candidates were tested";
+    		for (float num = 0f; num <= who.SearchRadius + 0.01f; num += 0.5f)
+    		{
+    			int num2 = ((num < 0.01f) ? 1 : Mathf.Max(8, Mathf.RoundToInt(num * 8f)));
+    			for (int i = 0; i < num2; i++)
+    			{
+    				float num3 = ((num2 == 1) ? 0f : ((float)i / (float)num2 * (float)Math.PI * 2f));
+    				Vector3 val = new Vector3(wanted.x + Mathf.Cos(num3) * num, 0f, wanted.z + Mathf.Sin(num3) * num);
+    				if (!(Vector3.Distance(Flat(val), Square) < who.MinFromSquare))
+    				{
+    					if (Fits(val, squareGround, out var groundY, out var no))
+    					{
+    						why = ((num < 0.01f) ? "the wanted point itself" : ("closest spot that fits, " + num.ToString("0.0") + " m out (last rejection was: " + no + ")"));
+    						return new Vector3(val.x, groundY, val.z);
+    					}
+    					text = no;
+    				}
+    			}
+    		}
+    		why = "nothing within " + who.SearchRadius.ToString("0.0") + " m had clear standing room. Every rejection was the same: " + text;
+    		return null;
+    	}
+
+    	private static bool Fits(Vector3 at, float squareGround, out float groundY, out string no)
+    	{
+    		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0030: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0036: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ab: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00cc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d7: Unknown result type (might be due to invalid IL or missing references)
+    		groundY = 0f;
+    		no = "";
+    		if (!GroundHeight(at, out groundY, out var normalY))
+    		{
+    			no = "no ground under it";
+    			return false;
+    		}
+    		if (normalY < 0.7f)
+    		{
+    			no = "ground tilts " + Vector3.Angle(Vector3.up * normalY, Vector3.up).ToString("0") + " deg";
+    			return false;
+    		}
+    		if (Mathf.Abs(groundY - squareGround) > 1f)
+    		{
+    			no = "floor is " + (groundY - squareGround).ToString("+0.0;-0.0") + " m from the square's height — a ledge or a gallery, not a path";
+    			return false;
+    		}
+    		float num = 0.1f;
+    		Vector3 val = new Vector3(at.x, groundY + 0.4f + num, at.z);
+    		Vector3 val2 = new Vector3(at.x, groundY + 1.8f - 0.4f, at.z);
+    		int num2 = Physics.OverlapCapsuleNonAlloc(val, val2, 0.4f, Overlap, -1, (QueryTriggerInteraction)1);
+    		if (num2 > 0)
+    		{
+    			no = num2 + " collider(s) in the capsule, nearest: ";
+    			for (int i = 0; i < num2 && i < 3; i++)
+    			{
+    				if (i > 0)
+    				{
+    					no += ", ";
+    				}
+    				no += (((Object)(object)Overlap[i] == (Object)null) ? "null" : ((Object)Overlap[i]).name);
+    			}
+    			return false;
+    		}
+    		return true;
+    	}
+
+    	private static bool GroundHeight(Vector3 at, out float height, out float normalY)
+    	{
+    		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_000f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0019: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0023: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0040: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0045: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0051: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_007e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_008c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_006b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0070: Unknown result type (might be due to invalid IL or missing references)
+    		height = 0f;
+    		normalY = 0f;
+    		RaycastHit[] array = Physics.RaycastAll(at + Vector3.up * 30f, Vector3.down, 60f, -1, (QueryTriggerInteraction)1);
+    		if (array == null || array.Length == 0)
+    		{
+    			return false;
+    		}
+    		RaycastHit val = array[0];
+    		for (int i = 1; i < array.Length; i++)
+    		{
+    			if (array[i].point.y < val.point.y)
+    			{
+    				val = array[i];
+    			}
+    		}
+    		height = val.point.y;
+    		normalY = val.normal.y;
+    		return true;
+    	}
+
+    	private static float GroundHeight(Vector3 at, out float normalY)
+    	{
+    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+    		if (!GroundHeight(at, out var height, out normalY))
+    		{
+    			return float.NaN;
+    		}
+    		return height;
+    	}
+
+    	private static Quaternion FaceSquare(Vector3 at)
+    	{
+    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0010: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0027: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0031: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001f: Unknown result type (might be due to invalid IL or missing references)
+    		Vector3 val = Flat(Square - at);
+    		if (val.sqrMagnitude < 0.0001f)
+    		{
+    			return Quaternion.identity;
+    		}
+    		return Quaternion.LookRotation(val.normalized, Vector3.up);
+    	}
+
+    	private static Vector3 Flat(Vector3 v)
+    	{
+    		//IL_000c: Unknown result type (might be due to invalid IL or missing references)
+    		v.y = 0f;
+    		return v;
+    	}
+
+    	private static float HeightOf(GameObject go)
+    	{
+    		//IL_0019: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0023: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0037: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004d: Unknown result type (might be due to invalid IL or missing references)
+    		Renderer[] componentsInChildren = go.GetComponentsInChildren<Renderer>();
+    		if (componentsInChildren.Length == 0)
+    		{
+    			return 0f;
+    		}
+    		Bounds val = new Bounds(go.transform.position, Vector3.zero);
+    		Renderer[] array = componentsInChildren;
+    		foreach (Renderer val2 in array)
+    		{
+    			val.Encapsulate(val2.bounds);
+    		}
+    		return val.size.y;
+    	}
+
+    	private static void FitHeight(GameObject go, float target)
+    	{
+    		//IL_0017: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001f: Unknown result type (might be due to invalid IL or missing references)
+    		float num = HeightOf(go);
+    		if (!(num < 0.01f))
+    		{
+    			Transform transform = go.transform;
+    			transform.localScale *= target / num;
+    		}
+    	}
+
+    	private static void EnsureCollider(GameObject go)
+    	{
+    		//IL_0050: Unknown result type (might be due to invalid IL or missing references)
+    		Collider[] componentsInChildren = go.GetComponentsInChildren<Collider>();
+    		for (int i = 0; i < componentsInChildren.Length; i++)
+    		{
+    			Object.DestroyImmediate((Object)(object)componentsInChildren[i]);
+    		}
+    		CapsuleCollider val = go.AddComponent<CapsuleCollider>();
+    		val.direction = 1;
+    		val.height = 1.8f;
+    		val.radius = 0.4f;
+    		val.center = new Vector3(0f, 0.9f, 0f);
+    		((Collider)val).isTrigger = false;
+    	}
+
+    	private static void PlaceThief(StringBuilder sb, GameObject container, float squareGround, ref int placed, ref int problems)
+    	{
+    		//IL_0100: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0105: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0068: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_006d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0087: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_008c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0091: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_027b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0282: Expected Obj, but got Unknown
+    		//IL_0295: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02a2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02a3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_016a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_016f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0171: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_017b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0180: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0185: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01ca: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01df: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01aa: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01b8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01f2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0201: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_020e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0217: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0221: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0228: Unknown result type (might be due to invalid IL or missing references)
+    		GameObject val = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Art/L1/ColorThief.fbx");
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			sb.AppendLine("ColorThief: NO MODEL at Assets/Art/L1/ColorThief.fbx — Beat 7 has nothing to show");
+    			problems++;
+    			return;
+    		}
+    		Transform val2 = container.transform.Find("ColorThief");
+    		if ((Object)(object)val2 != (Object)null)
+    		{
+    			Renderer[] componentsInChildren = ((Component)val2).GetComponentsInChildren<Renderer>();
+    			sb.AppendLine();
+    			string[] array = new string[9] { "ColorThief: already at ", null, null, null, null, null, null, null, null };
+    			Vector3 position = val2.position;
+    			array[1] = position.ToString("F1");
+    			array[2] = ", ";
+    			array[3] = Vector3.Distance(Flat(val2.position), Square).ToString("0");
+    			array[4] = " m from the square, ";
+    			array[5] = componentsInChildren.Length.ToString();
+    			array[6] = " renderer(s), ";
+    			array[7] = HeightOf(((Component)val2).gameObject).ToString("0.00");
+    			array[8] = " m tall";
+    			sb.AppendLine(string.Concat(array));
+    			placed++;
+    			return;
+    		}
+    		Vector3 val3 = Vector3.zero;
+    		float num = float.NegativeInfinity;
+    		float num2 = 0f;
+    		int num3 = 0;
+    		float num4 = 0f;
+    		float num5 = 0f;
+    		RaycastHit val5 = default;
+    		for (float num6 = 55f; num6 <= 110f; num6 += 5f)
+    		{
+    			for (int i = 0; i < 24; i++)
+    			{
+    				float num7 = (float)i / 24f * (float)Math.PI * 2f;
+    				Vector3 val4 = new Vector3(Mathf.Cos(num7) * num6, 0f, Mathf.Sin(num7) * num6);
+    				if (Physics.Raycast(val4 + Vector3.up * 40f, Vector3.down, ref val5, 90f, -1, (QueryTriggerInteraction)1))
+    				{
+    					num3++;
+    					if (num3 == 1)
+    					{
+    						num4 = val5.point.y;
+    						num5 = val5.point.y;
+    					}
+    					else
+    					{
+    						num4 = Mathf.Max(num4, val5.point.y);
+    						num5 = Mathf.Min(num5, val5.point.y);
+    					}
+    					if (val5.point.y > num)
+    					{
+    						num = val5.point.y;
+    						val3 = new Vector3(val4.x, val5.point.y, val4.z);
+    						num2 = num6;
+    					}
+    				}
+    			}
+    		}
+    		if (num3 == 0)
+    		{
+    			sb.AppendLine("ColorThief: no ground found 55-110 m out. The village may be smaller than Beat 7 assumes.");
+    			problems++;
+    			return;
+    		}
+    		GameObject val6 = (GameObject)PrefabUtility.InstantiatePrefab((Object)(object)val, container.transform);
+    		((Object)val6).name = "ColorThief";
+    		val6.transform.position = val3;
+    		val6.transform.rotation = FaceSquare(val3);
+    		Collider[] componentsInChildren2 = val6.GetComponentsInChildren<Collider>();
+    		for (int j = 0; j < componentsInChildren2.Length; j++)
+    		{
+    			Object.DestroyImmediate((Object)(object)componentsInChildren2[j]);
+    		}
+    		Animator[] componentsInChildren3 = val6.GetComponentsInChildren<Animator>();
+    		for (int j = 0; j < componentsInChildren3.Length; j++)
+    		{
+    			((Behaviour)componentsInChildren3[j]).enabled = false;
+    		}
+    		Physics.SyncTransforms();
+    		FitHeight(val6, 2.4f);
+    		Physics.SyncTransforms();
+    		int num8 = val6.GetComponentsInChildren<Renderer>().Length;
+    		sb.AppendLine();
+    		sb.AppendLine("ColorThief: placed at " + val3.ToString("F1") + ", " + num2.ToString("0") + " m from the square, " + num8 + " renderer(s), " + HeightOf(val6).ToString("0.00") + " m tall, Animator off");
+    		sb.AppendLine("  GROUND OUT 55-110 m: " + num5.ToString("0.0") + " m to " + num4.ToString("0.0") + " m, a range of " + (num4 - num5).ToString("0.00") + " m. The village is flat out here — there is no hill.");
+    		sb.AppendLine("  Best available height was " + (num - squareGround).ToString("+0.0;-0.0") + " m relative to the square, picked from " + num3 + " samples.");
+    		sb.AppendLine("  NEEDS: a raised mound or a distant backdrop, and a light behind the silhouette, before Beat 7 reads. Not built here — it is Beat 7's job, not the cast's.");
+    		placed++;
+    	}
+
+    	private static void Describe(StringBuilder sb, (string Name, string Model, string Controller, Vector3 Wanted, float SearchRadius, float MinFromSquare, float TargetHeight, string Group) who, Vector3 at, GameObject go, string note)
+    	{
+    		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_000f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0014: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0101: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0152: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0153: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0158: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_017b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_017c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0182: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0187: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0231: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0236: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0256: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_025b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_027b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0280: Unknown result type (might be due to invalid IL or missing references)
+    		Physics.SyncTransforms();
+    		Renderer[] componentsInChildren = go.GetComponentsInChildren<Renderer>();
+    		Bounds val = new Bounds(at, Vector3.zero);
+    		Renderer[] array = componentsInChildren;
+    		foreach (Renderer val2 in array)
+    		{
+    			val.Encapsulate(val2.bounds);
+    		}
+    		Animator componentInChildren = go.GetComponentInChildren<Animator>();
+    		Collider componentInChildren2 = go.GetComponentInChildren<Collider>();
+    		string text = "NONE — the player can walk through it";
+    		CapsuleCollider val3 = (CapsuleCollider)(object)((componentInChildren2 is CapsuleCollider) ? componentInChildren2 : null);
+    		if ((Object)(object)val3 != (Object)null)
+    		{
+    			text = "Capsule r=" + val3.radius.ToString("0.00") + " h=" + val3.height.ToString("0.00") + (((Collider)val3).isTrigger ? " TRIGGER" : " solid");
+    		}
+    		else if ((Object)(object)componentInChildren2 != (Object)null)
+    		{
+    			text = ((object)componentInChildren2).GetType().Name + (componentInChildren2.isTrigger ? " TRIGGER" : " solid");
+    		}
+    		float f = GroundHeight(at, out var normalY);
+    		bool flag = !float.IsNaN(f);
+    		sb.AppendLine();
+    		sb.AppendLine(who.Name + "  at " + at.ToString("F2"));
+    		sb.AppendLine("  " + Vector3.Distance(Flat(at), Square).ToString("0.0") + " m from the square, " + Vector3.Distance(Flat(at), Flat(who.Wanted)).ToString("0.0") + " m from where it was wanted");
+    		sb.AppendLine("  " + note);
+    		sb.AppendLine("  " + (flag ? ("ground y " + f.ToString("F2") + " (normal.y " + normalY.ToString("0.00") + ")") : "NO GROUND UNDER IT — this is off the edge of the village") + ", model bounds " + val.size.x.ToString("0.0") + " x " + val.size.y.ToString("0.0") + " x " + val.size.z.ToString("0.0") + " m, " + componentsInChildren.Length + " renderer(s)");
+    		StringBuilder stringBuilder = sb;
+    		string text2;
+    		if ((Object)(object)componentInChildren == (Object)null)
+    		{
+    			text2 = "NONE — will not move";
+    		}
+    		else
+    		{
+    			text2 = (((Object)(object)componentInChildren.runtimeAnimatorController == (Object)null) ? "present but no controller — will not move" : ("'" + ((Object)componentInChildren.runtimeAnimatorController).name + "'" + (((Object)(object)componentInChildren.avatar != (Object)null && componentInChildren.avatar.isValid) ? " (avatar ok)" : " (AVATAR INVALID)")));
+    		}
+    		stringBuilder.AppendLine("  Animator: " + text2);
+    		sb.AppendLine("  collider: " + text);
+    	}
+
+    	private static void Finish(StringBuilder sb)
+    	{
+    		Debug.Log((object)("[Echoes] cast placement\n" + sb));
+    		File.WriteAllText(PathOf(Directory.GetCurrentDirectory(), "Temp/cast_placement.txt"), sb.ToString());
+    	}
+
+    	private static string PathOf(string dir, string file)
+    	{
+    		return Path.Combine(dir, file);
+    	}
+
+    	static CastPlacement()
+    	{
+    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0084: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00cc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0114: Unknown result type (might be due to invalid IL or missing references)
+    	}
+    }
+}

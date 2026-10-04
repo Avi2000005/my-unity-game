@@ -1,0 +1,168 @@
+using System;
+using System.IO;
+using System.Text;
+using UnityEditor;
+using UnityEngine;
+
+using Object = UnityEngine.Object;
+namespace Echoes.Painterly.EditorTools
+{
+
+    public static class BrushProbe
+    {
+    	private const int Grid = 7;
+
+    	private const float Radius = 6f;
+
+    	private const float MaxDistance = 250f;
+
+    	[MenuItem("Tools/Echoes/Probe Brush", priority = 70)]
+    	public static void Run()
+    	{
+    		StringBuilder stringBuilder = new StringBuilder();
+    		try
+    		{
+    			RunInner(stringBuilder);
+    		}
+    		catch (Exception ex)
+    		{
+    			stringBuilder.AppendLine("FAILED: " + ex);
+    		}
+    		finally
+    		{
+    			File.WriteAllText("Temp/brush_probe.txt", stringBuilder.ToString());
+    			Debug.Log((object)("[Echoes] Brush probe\n" + stringBuilder));
+    		}
+    	}
+
+    	private static void RunInner(StringBuilder sb)
+    	{
+    		//IL_0035: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_011c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0122: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0124: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0162: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0171: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01d7: Unknown result type (might be due to invalid IL or missing references)
+    		Camera main = Camera.main;
+    		if ((Object)(object)main == (Object)null)
+    		{
+    			sb.AppendLine("no Camera.main");
+    			return;
+    		}
+    		ColorRestoreTarget[] array = Object.FindObjectsByType<ColorRestoreTarget>((FindObjectsInactive)0);
+    		sb.AppendLine($"camera: {((Object)main).name} pos={((Component)main).transform.position}");
+    		sb.AppendLine($"ColorRestoreTarget count: {array.Length}");
+    		sb.AppendLine($"brush radius: {6f}   max ray: {250f}");
+    		sb.AppendLine($"scene colliders: {Object.FindObjectsByType<Collider>((FindObjectsInactive)0).Length}");
+    		sb.AppendLine();
+    		if (array.Length == 0)
+    		{
+    			sb.AppendLine("NO TARGETS IN SCENE — every stroke returns 0 regardless of aim.");
+    			return;
+    		}
+    		int num = 0;
+    		int num2 = 0;
+    		int num3 = 0;
+    		int num4 = 0;
+    		float num5 = float.MaxValue;
+    		sb.AppendLine("screen(u,v) | hit collider | hit point | nearest target | within r | n");
+    		RaycastHit val2 = default;
+    		for (int i = 0; i < 7; i++)
+    		{
+    			for (int j = 0; j < 7; j++)
+    			{
+    				float num6 = (float)j / 6f;
+    				float num7 = (float)i / 6f;
+    				Vector3 val = new Vector3(num6 * (float)main.pixelWidth, num7 * (float)main.pixelHeight, 0f);
+    				if (!Physics.Raycast(main.ScreenPointToRay(val), ref val2, 250f))
+    				{
+    					num++;
+    					sb.AppendLine($"({num6:0.00},{num7:0.00}) | MISS | - | - | - | 0");
+    					continue;
+    				}
+    				float num8 = NearestDistance(array, val2.point);
+    				int num9 = CountWithin(array, val2.point, 6f);
+    				if (num8 < num5)
+    				{
+    					num5 = num8;
+    				}
+    				if (num9 == 0)
+    				{
+    					num2++;
+    					if (num8 > 6f)
+    					{
+    						num4++;
+    					}
+    				}
+    				else
+    				{
+    					num3++;
+    				}
+    				sb.AppendLine($"({num6:0.00},{num7:0.00}) | {((Object)val2.collider).name} | " + $"{val2.point} | {num8:0.0}m | " + string.Format("{0} | {1}", (num8 <= 6f) ? "YES" : "NO", num9));
+    			}
+    		}
+    		sb.AppendLine();
+    		sb.AppendLine($"raycast MISSED entirely : {num}/{49}");
+    		sb.AppendLine($"hit but 0 targets in r  : {num2}/{49}");
+    		sb.AppendLine($"hit WITH targets in r   : {num3}/{49}");
+    		sb.AppendLine($"nearest was beyond r    : {num4}/{49}");
+    		sb.AppendLine("closest target seen     : " + ((num5 == float.MaxValue) ? "n/a" : (num5 + "m")) + $"   (brush reaches {6f}m)");
+    		sb.AppendLine();
+    		if (num3 > 0)
+    		{
+    			sb.AppendLine("DIAGNIS: painting WORKS on the sampled points above.");
+    		}
+    		else if (num == 49)
+    		{
+    			sb.AppendLine("DIAGNIS: raycast hits nothing — colliders still missing.");
+    		}
+    		else
+    		{
+    			sb.AppendLine("DIAGNIS: raycasts land, but every hit is outside the brush radius.");
+    		}
+    	}
+
+    	private static float NearestDistance(ColorRestoreTarget[] targets, Vector3 point)
+    	{
+    		//IL_0018: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0020: Unknown result type (might be due to invalid IL or missing references)
+    		float num = float.MaxValue;
+    		for (int i = 0; i < targets.Length; i++)
+    		{
+    			if (!((Object)(object)targets[i] == (Object)null))
+    			{
+    				Bounds worldBounds = targets[i].WorldBounds;
+    				float num2 = Mathf.Sqrt(worldBounds.SqrDistance(point));
+    				if (num2 < num)
+    				{
+    					num = num2;
+    				}
+    			}
+    		}
+    		return num;
+    	}
+
+    	private static int CountWithin(ColorRestoreTarget[] targets, Vector3 point, float radius)
+    	{
+    		//IL_0018: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0020: Unknown result type (might be due to invalid IL or missing references)
+    		int num = 0;
+    		float num2 = radius * radius;
+    		for (int i = 0; i < targets.Length; i++)
+    		{
+    			if (!((Object)(object)targets[i] == (Object)null))
+    			{
+    				Bounds worldBounds = targets[i].WorldBounds;
+    				if (worldBounds.SqrDistance(point) <= num2)
+    				{
+    					num++;
+    				}
+    			}
+    		}
+    		return num;
+    	}
+    }
+}

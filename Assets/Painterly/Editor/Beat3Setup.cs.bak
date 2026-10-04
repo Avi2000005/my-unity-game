@@ -1,0 +1,952 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using Object = UnityEngine.Object;
+using UnityEngine.SceneManagement;
+
+namespace Echoes.Painterly.EditorTools
+{
+
+    public static class Beat3Setup
+    {
+    	private const string ContainerName = "L1_Beat3";
+
+    	private const string LinesPath = "Assets/Painterly/MonoHintLines.asset";
+
+    	private const string Report = "Temp/beat3_setup.txt";
+
+    	private const float GullyMaxWidth = 6f;
+
+    	private const float GullyMinWidth = 1.2f;
+
+    	private const float MinWalkableWidth = 0.9f;
+
+    	private static string _reason;
+
+    	private static Vector3 _blockedAt;
+
+    	private static readonly string[] TreeWords = new string[6] { "tree", "trunk", "stump", "log", "deadwood", "root" };
+
+    	private static readonly string[] NotATree = new string[7] { "statue", "fountain", "debris", "chevron", "fragment", "rubble", "marker" };
+
+    	private static readonly Collider[] OverlapBuffer = new Collider[8];
+
+    	private const string StumpMatPath = "Assets/Painterly/Materials/Beat3_Stump.mat";
+
+    	[MenuItem("Tools/Echoes/Build Beat 3 - Mono Awakens", priority = 70)]
+    	public static void Run()
+    	{
+    		StringBuilder stringBuilder = new StringBuilder();
+    		if (File.Exists(PathOf(Directory.GetCurrentDirectory(), "Temp/beat3_setup.txt")))
+    		{
+    			File.Delete(PathOf(Directory.GetCurrentDirectory(), "Temp/beat3_setup.txt"));
+    		}
+    		try
+    		{
+    			Body(stringBuilder);
+    		}
+    		catch (Exception ex)
+    		{
+    			stringBuilder.AppendLine();
+    			stringBuilder.AppendLine("THREW: " + ex.GetType().Name + ": " + ex.Message);
+    			stringBuilder.AppendLine(ex.StackTrace);
+    			Debug.LogError((object)("[Echoes] Beat 3 setup threw: " + ex));
+    		}
+    		finally
+    		{
+    			Debug.Log((object)("[Echoes] Beat 3 setup\n" + stringBuilder));
+    			File.WriteAllText(PathOf(Directory.GetCurrentDirectory(), "Temp/beat3_setup.txt"), stringBuilder.ToString());
+    		}
+    	}
+
+    	private static void Body(StringBuilder sb)
+    	{
+    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_008c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0091: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0099: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00e5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00e7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ec: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ee: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_012f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_016f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_018f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0196: Unknown result type (might be due to invalid IL or missing references)
+    		Scene activeScene = SceneManager.GetActiveScene();
+    		if (!activeScene.isLoaded)
+    		{
+    			sb.AppendLine("No scene is open.");
+    			return;
+    		}
+    		Physics.SyncTransforms();
+    		GameObject val = GameObject.Find("Mono");
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			sb.AppendLine("NO Mono in the scene. Run Tools/Echoes/Place Level 1 Cast first — Beat 3 has nothing to attach to.");
+    			return;
+    		}
+    		MonoCompanion monoCompanion = val.GetComponent<MonoCompanion>();
+    		if ((Object)(object)monoCompanion == (Object)null)
+    		{
+    			monoCompanion = val.AddComponent<MonoCompanion>();
+    			sb.AppendLine("added MonoCompanion to Mono — the cast tool places a body, the beat gives it a mind");
+    		}
+    		GameObject val2 = GameObject.Find("Ari");
+    		if ((Object)(object)val2 == (Object)null)
+    		{
+    			sb.AppendLine("No Ari in the scene.");
+    			return;
+    		}
+    		Vector3 position = val2.transform.position;
+    		Vector3 position2 = val.transform.position;
+    		sb.AppendLine("Ari  at " + position.ToString("F2"));
+    		sb.AppendLine("Mono at " + position2.ToString("F2") + ", " + Vector3.Distance(Flat(position2), Flat(position)).ToString("0.0") + " m from her");
+    		sb.AppendLine();
+    		BuildLines(sb);
+    		SleepingTree tree = BuildTree(sb, Container(sb), position2, monoCompanion);
+    		GameObject orAdd = GetOrAdd("MonoChase", Container(sb));
+    		MonoChase monoChase = orAdd.GetComponent<MonoChase>();
+    		if ((Object)(object)monoChase == (Object)null)
+    		{
+    			monoChase = orAdd.AddComponent<MonoChase>();
+    		}
+    		BuildRoute(sb, orAdd.transform, position2);
+    		Wire(sb, monoCompanion, val, tree, monoChase, val2);
+    		Verify(sb, tree, monoChase, monoCompanion, val2);
+    		EditorSceneManager.MarkSceneDirty(activeScene);
+    		EditorSceneManager.SaveScene(activeScene);
+    	}
+
+    	private static MonoHintLines BuildLines(StringBuilder sb)
+    	{
+    		MonoHintLines monoHintLines = AssetDatabase.LoadAssetAtPath<MonoHintLines>("Assets/Painterly/MonoHintLines.asset");
+    		bool flag = false;
+    		if ((Object)(object)monoHintLines == (Object)null)
+    		{
+    			monoHintLines = ScriptableObject.CreateInstance<MonoHintLines>();
+    			flag = true;
+    		}
+    		List<MonoHintLines.Line> l = new List<MonoHintLines.Line>();
+    		Beat("beat3.wake", "Light. I felt it on the bark, and I thought I was dreaming again. Hello. I'm Mono. I'm not going to leave, if that's all right.");
+    		Beat("beat3.thief", "Someone came through here and took all the colours out of the world. Every one of them. I remember that clearly. I do not remember their face.");
+    		Beat("beat3.follow", "Keep going. The gully is longer than it looks, and it goes somewhere. It always goes somewhere. That is the good news.");
+    		Beat("beat3.leg1", "You paint. I have never seen anyone paint before. I only remember the colour, not the doing of it.");
+    		Beat("beat3.leg2", "Careful here. The stones are loose. I have been asleep a long time, but I remember this path by my knees.");
+    		Beat("beat3.leg3", "There. Through. Was that hard? This part is not supposed to be hard. This part is always not hard.");
+    		Beat("beat3.arrive", "This is as far as I go on my own for now. The rest is yours. I'll be right behind you. I always am.");
+    		Rung(1, "The rim is marked. Those chevrons are the water's own way of running — every one of them points downhill.");
+    		Rung(2, "Start at the top. The highest notch on the rim. From there the water could only ever go one way.");
+    		Rung(3, "Highest notch, then follow the chevrons down, one at a time. Four notches. The fifth will disagree with the water — and that disagreement is your answer. It is the decoy.");
+    		Ambient("amb.grey", "Everything here is grey. It wasn't always. I could tell you what colour it was, but I'd only be guessing, and I'd rather you looked.", 30f);
+    		Ambient("amb.sky", "You could paint the sky, you know. I don't think anyone has tried the sky.", 55f);
+    		Ambient("amb.quiet", "If you're tired, say so. I'll keep quiet. I'm very good at keeping quiet.", 70f);
+    		Ambient("amb.fountain", "There's a fountain a little further on. It used to make a noise. I'd forgotten that noises could do that.", 45f);
+    		monoHintLines.lines = l;
+    		if (flag)
+    		{
+    			if (!Directory.Exists("Assets/Painterly"))
+    			{
+    				Directory.CreateDirectory("Assets/Painterly");
+    			}
+    			AssetDatabase.CreateAsset((Object)(object)monoHintLines, "Assets/Painterly/MonoHintLines.asset");
+    		}
+    		else
+    		{
+    			EditorUtility.SetDirty((Object)(object)monoHintLines);
+    		}
+    		monoHintLines.Tally(out var beat, out var rung, out var ambient, out var muted);
+    		sb.AppendLine("Mono's lines: " + l.Count + " total — " + beat + " beat, " + rung + " hint rungs, " + ambient + " ambient" + ((muted > 0) ? (", " + muted + " muted") : "") + (flag ? " (new asset)" : ""));
+    		sb.AppendLine("  at Assets/Painterly/MonoHintLines.asset");
+    		sb.AppendLine("  beat ids: " + string.Join(", ", Ids(l, MonoHintLines.LineKind.Beat)));
+    		return monoHintLines;
+    		void Ambient(string id, string text, float gap = 25f)
+    		{
+    			l.Add(new MonoHintLines.Line
+    			{
+    				id = id,
+    				text = text,
+    				kind = MonoHintLines.LineKind.Ambient,
+    				minGapSeconds = gap
+    			});
+    		}
+    		void Beat(string id, string text, bool muted2 = false)
+    		{
+    			l.Add(new MonoHintLines.Line
+    			{
+    				id = id,
+    				text = text,
+    				kind = MonoHintLines.LineKind.Beat,
+    				muted = muted2
+    			});
+    		}
+    		void Rung(int n, string text)
+    		{
+    			l.Add(new MonoHintLines.Line
+    			{
+    				id = "beat6.rung" + n,
+    				text = text,
+    				rung = n,
+    				kind = MonoHintLines.LineKind.HintRung
+    			});
+    		}
+    	}
+
+    	private static IEnumerable<string> Ids(List<MonoHintLines.Line> l, MonoHintLines.LineKind k)
+    	{
+    		foreach (MonoHintLines.Line item in l)
+    		{
+    			if (item.kind == k)
+    			{
+    				yield return item.id;
+    			}
+    		}
+    	}
+
+    	private static SleepingTree BuildTree(StringBuilder sb, GameObject container, Vector3 monoPos, MonoCompanion mono)
+    	{
+    		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_000b: Expected Obj, but got Unknown
+    		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0032: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0037: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0162: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_008e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_018d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0192: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01ac: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01b1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01b6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01b7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00f9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0111: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0129: Unknown result type (might be due to invalid IL or missing references)
+    		GameObject val = new GameObject("SleepingTree");
+    		val.transform.SetParent(container.transform, false);
+    		Vector3 val2 = monoPos + new Vector3(-0.9f, 0f, -1.1f);
+    		val.transform.position = val2;
+    		SleepingTree sleepingTree = val.AddComponent<SleepingTree>();
+    		GameObject val3 = FindVillageTree(monoPos, out var name);
+    		if ((Object)(object)val3 != (Object)null)
+    		{
+    			GameObject val4 = Object.Instantiate<GameObject>(val3);
+    			((Object)val4).name = "SleepingTree_Art";
+    			val4.transform.SetParent(val.transform, false);
+    			val4.transform.localPosition = Vector3.zero;
+    			Collider[] componentsInChildren = val4.GetComponentsInChildren<Collider>();
+    			for (int i = 0; i < componentsInChildren.Length; i++)
+    			{
+    				DestroyImmediateCompat((Object)(object)componentsInChildren[i]);
+    			}
+    			componentsInChildren = val3.GetComponentsInChildren<Collider>();
+    			foreach (Collider val5 in componentsInChildren)
+    			{
+    				Component val6 = val4.AddComponent(((object)val5).GetType());
+    				EditorUtility.CopySerialized((Object)(object)val5, (Object)(object)val6);
+    				val6.transform.localPosition = ((Component)val5).transform.localPosition;
+    				val6.transform.localRotation = ((Component)val5).transform.localRotation;
+    				val6.transform.localScale = ((Component)val5).transform.localScale;
+    			}
+    			sb.AppendLine("SleepingTree: reusing village prop '" + name + "'");
+    		}
+    		else
+    		{
+    			BuildStumpArt(sb, val.transform, val2);
+    			sb.AppendLine("SleepingTree: PLACEHOLDER art from primitives, not a tree. Wants replacing with a real dead tree before it ships — but it is grey, it is paintable, and it makes the beat testable today.");
+    		}
+    		sleepingTree.Resolve();
+    		string[] array = new string[9] { "SleepingTree: at ", null, null, null, null, null, null, null, null };
+    		Vector3 touchPoint = sleepingTree.TouchPoint;
+    		array[1] = touchPoint.ToString("F2");
+    		array[2] = ", ";
+    		array[3] = Vector3.Distance(Flat(sleepingTree.TouchPoint), Flat(monoPos)).ToString("0.00");
+    		array[4] = " m from Mono, burst radius ";
+    		array[5] = sleepingTree.BurstRadius.ToString("0.0");
+    		array[6] = " m, touch distance ";
+    		array[7] = sleepingTree.TouchDistance.ToString("0.0");
+    		array[8] = " m";
+    		sb.AppendLine(string.Concat(array));
+    		return sleepingTree;
+    	}
+
+    	private static GameObject FindVillageTree(Vector3 near, out string name)
+    	{
+    		//IL_00f5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00fa: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ff: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0100: Unknown result type (might be due to invalid IL or missing references)
+    		name = "";
+    		GameObject val = null;
+    		float num = float.MaxValue;
+    		GameObject[] array = Object.FindObjectsByType<GameObject>();
+    		foreach (GameObject val2 in array)
+    		{
+    			if (((Object)val2.transform.root).name == "L1_Cast" || ((Object)val2.transform.root).name == "L1_Beat3")
+    			{
+    				continue;
+    			}
+    			string text = ((Object)val2).name.ToLowerInvariant();
+    			bool flag = false;
+    			string[] treeWords = TreeWords;
+    			foreach (string value in treeWords)
+    			{
+    				if (text.Contains(value))
+    				{
+    					flag = true;
+    					break;
+    				}
+    			}
+    			if (!flag)
+    			{
+    				continue;
+    			}
+    			bool flag2 = false;
+    			treeWords = NotATree;
+    			foreach (string value2 in treeWords)
+    			{
+    				if (text.Contains(value2))
+    				{
+    					flag2 = true;
+    					break;
+    				}
+    			}
+    			if (!flag2 && !((Object)(object)val2.GetComponentInChildren<Renderer>() == (Object)null))
+    			{
+    				float num2 = Vector3.Distance(Flat(val2.transform.position), Flat(near));
+    				if (num2 < num)
+    				{
+    					num = num2;
+    					val = val2;
+    				}
+    			}
+    		}
+    		if ((Object)(object)val != (Object)null)
+    		{
+    			name = ((Object)val).name;
+    		}
+    		return val;
+    	}
+
+    	private static void BuildRoute(StringBuilder sb, Transform parent, Vector3 start)
+    	{
+    		//IL_0025: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00e9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00f0: Expected Obj, but got Unknown
+    		//IL_0129: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_012a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0175: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0176: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_017b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_017c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0102: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0103: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0108: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_010a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_010b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0112: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0117: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_011c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0068: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0235: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0236: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_023b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0240: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0263: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0264: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0269: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_026a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0083: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0084: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0085: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0089: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_008e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00bd: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0319: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_031a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_031d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0322: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0335: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_033c: Expected Obj, but got Unknown
+    		//IL_0357: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0359: Unknown result type (might be due to invalid IL or missing references)
+    		List<MonoChase.Leg> list = new List<MonoChase.Leg>();
+    		string[] array = new string[3] { "beat3.leg1", "beat3.leg2", "beat3.leg3" };
+    		Vector3 val = Vector3.zero;
+    		float num = float.MaxValue;
+    		bool flag = false;
+    		for (int i = 0; i < 16; i++)
+    		{
+    			if (flag)
+    			{
+    				break;
+    			}
+    			float num2 = (float)i / 16f * (float)Math.PI * 2f;
+    			Vector3 val2 = new Vector3(Mathf.Cos(num2), 0f, Mathf.Sin(num2));
+    			for (int j = 0; j < 4; j++)
+    			{
+    				float num3 = 16f + (float)j * 5f;
+    				if (Walkable(start, start + val2 * num3, out var median, out var _))
+    				{
+    					float num4 = median + num3 * 0.05f;
+    					if (!(num4 >= num))
+    					{
+    						num = num4;
+    						val = start + val2 * num3;
+    						flag = true;
+    					}
+    				}
+    			}
+    		}
+    		GameObject val3 = new GameObject("Gully");
+    		val3.transform.SetParent(parent, false);
+    		if (!flag)
+    		{
+    			Vector3 val4 = LeastObstructed(start);
+    			val = start + val4 * 18f;
+    			sb.AppendLine("Gully: no route scored as narrow. Falling back to the least obstructed direction, MEASURED BELOW — treat the chase as unbuilt until a real gully exists.");
+    		}
+    		bool flag2 = Walkable(start, val, out var median2, out var max2);
+    		sb.AppendLine("Gully: " + start.ToString("F1") + " -> " + val.ToString("F1") + ", " + Vector3.Distance(Flat(start), Flat(val)).ToString("0.0") + " m");
+    		if (flag2)
+    		{
+    			sb.AppendLine("  free width median " + median2.ToString("0.0") + " m, widest " + max2.ToString("0.0") + " m");
+    		}
+    		else
+    		{
+    			sb.AppendLine("  NOT WALKABLE end to end. " + _reason + " at " + _blockedAt.ToString("F1") + ", after " + Vector3.Distance(Flat(start), Flat(_blockedAt)).ToString("0.0") + " m of the " + Vector3.Distance(Flat(start), Flat(val)).ToString("0.0") + " m planned.");
+    			sb.AppendLine("  The width below is where the search gave up, not the width of the gully.");
+    		}
+    		if (median2 > 6f)
+    		{
+    			sb.AppendLine("  WARNING: median free width is over " + 6f.ToString("0.0") + " m. This is a lane between two buildings, not a gully. The follow camera will pull IN and the beat will not read. Needs geometry, not a setting.");
+    		}
+    		if (median2 < 1.2f)
+    		{
+    			sb.AppendLine("  WARNING: median free width is under " + 1.2f.ToString("0.0") + " m. Too tight to frame two characters, and possibly too tight for Ari's 0.30 m capsule to pass without catching on both walls at once.");
+    		}
+    		for (int k = 1; k <= 3; k++)
+    		{
+    			float num5 = (float)k / 3f;
+    			Vector3 at = Vector3.Lerp(start, val, num5);
+    			GameObject val5 = new GameObject("GullyLeg" + k);
+    			val5.transform.SetParent(val3.transform, false);
+    			val5.transform.position = GroundAt(at);
+    			list.Add(new MonoChase.Leg
+    			{
+    				point = val5.transform,
+    				triggerRadius = 3f,
+    				lineId = ((k <= array.Length) ? array[k - 1] : "")
+    			});
+    		}
+    		GameObject val6 = GameObject.Find("MonoChase");
+    		if ((Object)(object)val6 != (Object)null)
+    		{
+    			MonoChase component = val6.GetComponent<MonoChase>();
+    			if ((Object)(object)component != (Object)null)
+    			{
+    				component.SetLegs(list);
+    			}
+    		}
+    		else
+    		{
+    			sb.AppendLine("  NOTE: no MonoChase in the scene yet, so the route was measured but not assigned.");
+    		}
+    	}
+
+    	private static bool Walkable(Vector3 a, Vector3 b, out float median, out float max)
+    	{
+    		//IL_0020: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0021: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0037: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0049: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0060: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0061: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0123: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0124: Unknown result type (might be due to invalid IL or missing references)
+    		List<float> list = new List<float>(21);
+    		median = 0f;
+    		max = 0f;
+    		_reason = "";
+    		_blockedAt = a;
+    		for (int i = 0; i < 21; i++)
+    		{
+    			Vector3 val = Vector3.Lerp(a, b, (float)i / 20f);
+    			float y = GroundAt(val).y;
+    			if (!FreeWidth(val, y, out var left, out var right))
+    			{
+    				_reason = "no floor or no wall to measure against (a ray left the village, or the ground is missing)";
+    				_blockedAt = val;
+    				return false;
+    			}
+    			float num = left + right;
+    			if (num < 0.9f)
+    			{
+    				_reason = "free width " + num.ToString("0.00") + " m is under the " + 0.9f.ToString("0.00") + " m minimum at sample " + i + " of " + 21 + " (clear " + left.ToString("0.00") + " m left, " + right.ToString("0.00") + " m right)";
+    				_blockedAt = val;
+    				median = num;
+    				max = num;
+    				return false;
+    			}
+    			list.Add(num);
+    		}
+    		list.Sort();
+    		median = list[list.Count / 2];
+    		max = list[list.Count - 1];
+    		return true;
+    	}
+
+    	private static bool FreeWidth(Vector3 at, float groundY, out float left, out float right)
+    	{
+    		//IL_0002: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_000f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0015: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0026: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0031: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0034: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0039: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0049: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004b: Unknown result type (might be due to invalid IL or missing references)
+    		Vector3 val = new Vector3(at.x, groundY + 1.1f, at.z);
+    		Vector3 val2 = new Vector3(0f - at.z, 0f, at.x);
+    		Vector3 normalized = val2.normalized;
+    		left = RayReach(val, normalized, 6f);
+    		right = RayReach(val, -normalized, 6f);
+    		if (!(left < 6f))
+    		{
+    			return right < 6f;
+    		}
+    		return true;
+    	}
+
+    	private static float RayReach(Vector3 from, Vector3 dir, float reach)
+    	{
+    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+    		RaycastHit val = default;
+    		if (!Physics.Raycast(from, dir, ref val, reach, -1, (QueryTriggerInteraction)1))
+    		{
+    			return reach;
+    		}
+    		return val.distance;
+    	}
+
+    	private static Vector3 LeastObstructed(Vector3 from)
+    	{
+    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00f5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0050: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0060: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0065: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0067: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0069: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0086: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0088: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0092: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0097: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ad: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00e6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00e8: Unknown result type (might be due to invalid IL or missing references)
+    		Vector3 result = Vector3.forward;
+    		float num = float.MaxValue;
+    		for (int i = 0; i < 16; i++)
+    		{
+    			float num2 = (float)i / 16f * (float)Math.PI * 2f;
+    			Vector3 val = new Vector3(Mathf.Cos(num2), 0f, Mathf.Sin(num2));
+    			float num3 = 0f;
+    			for (int j = 1; j <= 6; j++)
+    			{
+    				Vector3 val2 = from + val * ((float)j * 3f);
+    				if (GroundAt(val2).y < -900f)
+    				{
+    					num3++;
+    				}
+    				else if (Physics.OverlapCapsuleNonAlloc(val2 + Vector3.up * 0.5f, val2 + Vector3.up * 1.3f, 0.3f, OverlapBuffer, -1, (QueryTriggerInteraction)1) > 0)
+    				{
+    					num3++;
+    				}
+    			}
+    			if (num3 < num)
+    			{
+    				num = num3;
+    				result = val;
+    			}
+    		}
+    		return result;
+    	}
+
+    	private static Vector3 GroundAt(Vector3 at)
+    	{
+    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0010: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0015: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0032: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0043: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
+    		RaycastHit val = default;
+    		if (Physics.Raycast(at + Vector3.up * 6f, Vector3.down, ref val, 12f, -1, (QueryTriggerInteraction)1))
+    		{
+    			return val.point;
+    		}
+    		return new Vector3(at.x, -1000f, at.z);
+    	}
+
+    	private static void Wire(StringBuilder sb, MonoCompanion mono, GameObject monoGo, SleepingTree tree, MonoChase chase, GameObject ariGo)
+    	{
+    		//IL_000c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0022: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0040: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0045: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0056: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0070: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0076: Expected Obj, but got Unknown
+    		MonoHintLines monoHintLines = AssetDatabase.LoadAssetAtPath<MonoHintLines>("Assets/Painterly/MonoHintLines.asset");
+    		SerializedObject val = new SerializedObject((Object)(object)mono);
+    		val.FindProperty("lines").objectReferenceValue = (Object)(object)monoHintLines;
+    		val.FindProperty("ari").objectReferenceValue = (Object)(object)ariGo.transform;
+    		val.ApplyModifiedPropertiesWithoutUndo();
+    		SerializedObject val2 = new SerializedObject((Object)(object)tree);
+    		val2.FindProperty("mono").objectReferenceValue = (Object)(object)mono;
+    		val2.FindProperty("chase").objectReferenceValue = (Object)(object)chase;
+    		val2.ApplyModifiedPropertiesWithoutUndo();
+    		SerializedObject val3 = new SerializedObject((Object)(object)chase);
+    		val3.FindProperty("mono").objectReferenceValue = (Object)(object)mono;
+    		Camera main = Camera.main;
+    		if ((Object)(object)main != (Object)null)
+    		{
+    			AriFollowCamera ariFollowCamera = ((Component)main).GetComponent<AriFollowCamera>();
+    			if ((Object)(object)ariFollowCamera == (Object)null)
+    			{
+    				ariFollowCamera = Object.FindAnyObjectByType<AriFollowCamera>();
+    			}
+    			if ((Object)(object)ariFollowCamera != (Object)null)
+    			{
+    				val3.FindProperty("followCamera").objectReferenceValue = (Object)(object)ariFollowCamera;
+    			}
+    			else
+    			{
+    				sb.AppendLine("Wiring: no AriFollowCamera found. The chase will run but the camera will not be guided.");
+    			}
+    		}
+    		val3.ApplyModifiedPropertiesWithoutUndo();
+    		if ((Object)(object)ariGo.GetComponent<BeatHud>() == (Object)null)
+    		{
+    			ariGo.AddComponent<BeatHud>();
+    		}
+    		else
+    		{
+    			sb.AppendLine("Ari already has a BeatHud — left alone.");
+    		}
+    		if (monoGo.activeSelf)
+    		{
+    			monoGo.SetActive(false);
+    			sb.AppendLine("Mono: deactivated — asleep and invisible until the tree's brush stroke wakes him");
+    		}
+    		else
+    		{
+    			sb.AppendLine("Mono: already deactivated, left alone");
+    		}
+    		EditorUtility.SetDirty((Object)(object)mono);
+    		EditorUtility.SetDirty((Object)(object)tree);
+    		EditorUtility.SetDirty((Object)(object)chase);
+    		sb.AppendLine("Wiring: Mono.lines = " + (((Object)(object)monoHintLines == (Object)null) ? "NOTHING" : ((Object)monoHintLines).name) + ", Mono.ari = " + ((Object)ariGo).name);
+    		sb.AppendLine("        SleepingTree.mono = Mono, .chase = MonoChase, BeatHud on Ari");
+    	}
+
+    	private static void Verify(StringBuilder sb, SleepingTree tree, MonoChase chase, MonoCompanion mono, GameObject ariGo)
+    	{
+    		//IL_001c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0021: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0047: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0060: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0074: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0079: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_007e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0080: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_008e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0090: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0158: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0163: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0168: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_016d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_016f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0171: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_017e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0180: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0181: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0183: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0188: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_018c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0193: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0195: Unknown result type (might be due to invalid IL or missing references)
+    		sb.AppendLine();
+    		sb.AppendLine("--- can the beat actually be played? ---");
+    		AriMover component = ariGo.GetComponent<AriMover>();
+    		Vector3 touchPoint = tree.TouchPoint;
+    		float num = 0f;
+    		for (int i = 0; i < 8; i++)
+    		{
+    			float num2 = (float)i / 8f * (float)Math.PI * 2f;
+    			Vector3 val = GroundAt(new Vector3(touchPoint.x + Mathf.Cos(num2) * 1.6f, 0f, touchPoint.z + Mathf.Sin(num2) * 1.6f));
+    			if (val.y > -900f && Physics.OverlapCapsuleNonAlloc(val + Vector3.up * 0.4f, val + Vector3.up * 1.5f, 0.3f, OverlapBuffer, -1, (QueryTriggerInteraction)1) == 0)
+    			{
+    				num += 0.125f;
+    			}
+    		}
+    		sb.AppendLine("ground she can stand on within 1.6 m of the tree: " + (num * 100f).ToString("0") + "% (a body of Ari's size, 8 directions)");
+    		if (num < 0.5f)
+    		{
+    			sb.AppendLine("  BAD: she cannot get next to it. The stroke test needs her inside " + tree.TouchDistance.ToString("0.0") + " m, and she cannot stand there.");
+    		}
+    		Camera main = Camera.main;
+    		if ((Object)(object)main != (Object)null)
+    		{
+    			Vector3 val2 = ((Component)main).transform.position + ((Component)main).transform.forward;
+    			if (Physics.Linecast(val2, touchPoint, -1, (QueryTriggerInteraction)1))
+    			{
+    				Vector3 val3 = touchPoint - val2;
+    				RaycastHit val4 = default;
+    				Physics.Raycast(val2, val3.normalized, ref val4, Vector3.Distance(val2, touchPoint), -1, (QueryTriggerInteraction)1);
+    				sb.AppendLine("from Camera.main the tree is behind '" + (((Object)(object)val4.collider == (Object)null) ? "?" : ((Object)val4.collider).name) + "'");
+    			}
+    			else
+    			{
+    				sb.AppendLine("from Camera.main the tree is in clear view (she will have to walk to it)");
+    			}
+    		}
+    		List<string> list = new List<string>();
+    		if ((Object)(object)mono == (Object)null)
+    		{
+    			list.Add("MonoCompanion");
+    		}
+    		if ((Object)(object)mono != (Object)null && ((Component)mono).gameObject.activeSelf)
+    		{
+    			list.Add("Mono is still ACTIVE in the scene — he will be standing in the village before the tree wakes him");
+    		}
+    		if ((Object)(object)mono != (Object)null && (Object)(object)((Component)mono).GetComponent<Animator>() != (Object)null && (Object)(object)((Component)mono).GetComponent<Animator>().runtimeAnimatorController == (Object)null)
+    		{
+    			list.Add("Mono's Animator has no controller");
+    		}
+    		if ((Object)(object)tree == (Object)null)
+    		{
+    			list.Add("SleepingTree");
+    		}
+    		if ((Object)(object)chase == (Object)null)
+    		{
+    			list.Add("MonoChase");
+    		}
+    		if ((Object)(object)ariGo.GetComponent<BeatHud>() == (Object)null)
+    		{
+    			list.Add("BeatHud on Ari");
+    		}
+    		if ((Object)(object)ariGo.GetComponent<AriMover>() == (Object)null)
+    		{
+    			list.Add("AriMover on Ari");
+    		}
+    		if ((Object)(object)ariGo.GetComponentInChildren<BrushPainter>() == (Object)null && ((Object)(object)Camera.main == (Object)null || (Object)(object)((Component)Camera.main).GetComponent<BrushPainter>() == (Object)null))
+    		{
+    			list.Add("BrushPainter — the stroke that wakes the tree has no brush");
+    		}
+    		if (list.Count == 0)
+    		{
+    			sb.AppendLine("every piece is wired. Keys: WASD walk, Shift run, Space jump, LMB swing the brush at the tree.");
+    		}
+    		else
+    		{
+    			sb.AppendLine("MISSING:");
+    			foreach (string item in list)
+    			{
+    				sb.AppendLine("  - " + item);
+    			}
+    		}
+    		sb.AppendLine("chase: " + chase.PhaseName + ", " + chase.LegsTotal + " leg(s), next corner " + chase.DistanceToNextLeg.ToString("0.0") + " m");
+    		if ((Object)(object)component == (Object)null)
+    		{
+    			sb.AppendLine("NOTE: no AriMover, so the tree's reach test cannot run");
+    		}
+    	}
+
+    	private static void BuildStumpArt(StringBuilder sb, Transform parent, Vector3 at)
+    	{
+    		//IL_000c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0012: Expected Obj, but got Unknown
+    		//IL_0025: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0047: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0060: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0087: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00db: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ef: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0116: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_012a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_013e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_017f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0184: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0188: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0192: Unknown result type (might be due to invalid IL or missing references)
+    		Material val = StumpMaterial(sb);
+    		GameObject val2 = new GameObject("SleepingTree_Art");
+    		val2.transform.SetParent(parent, false);
+    		val2.transform.position = at;
+    		StumpPart(sb, val2.transform, "Stump_Flare", (PrimitiveType)2, new Vector3(0f, 0.13f, 0f), new Vector3(0.68f, 0.13f, 0.68f), Quaternion.identity, val);
+    		StumpPart(sb, val2.transform, "Stump_Trunk", (PrimitiveType)2, new Vector3(0f, 0.72f, 0f), new Vector3(0.46f, 0.74f, 0.46f), Quaternion.identity, val);
+    		StumpPart(sb, val2.transform, "Stump_LimbA", (PrimitiveType)2, new Vector3(0.26f, 1.08f, 0.04f), new Vector3(0.15f, 0.26f, 0.15f), Quaternion.Euler(0f, 0f, -64f), val);
+    		StumpPart(sb, val2.transform, "Stump_LimbB", (PrimitiveType)2, new Vector3(-0.2f, 0.9f, -0.16f), new Vector3(0.12f, 0.2f, 0.12f), Quaternion.Euler(26f, 40f, 52f), val);
+    		val2.AddComponent<ColorRestoreTarget>().SetRestoreImmediate(0f);
+    		int num = val2.GetComponentsInChildren<Renderer>().Length;
+    		float num2 = 0f;
+    		Renderer[] componentsInChildren = val2.GetComponentsInChildren<Renderer>();
+    		foreach (Renderer val3 in componentsInChildren)
+    		{
+    			float num3 = num2;
+    			Bounds bounds = val3.bounds;
+    			num2 = Mathf.Max(num3, bounds.max.y - at.y);
+    		}
+    		sb.AppendLine("  built from " + num + " primitives, " + num2.ToString("0.00") + " m tall, material " + (((Object)(object)val == (Object)null) ? "NONE — the stump will NOT change colour when painted" : ("'" + ((Object)val).name + "' (Echoes/PainterlyLit)")));
+    		sb.AppendLine("  one ColorRestoreTarget on the root, covering all " + num + " renderers; it will be coloured by the burst, and the colours it already has are grey because the burst is what brings them back");
+    	}
+
+    	private static void StumpPart(StringBuilder sb, Transform parent, string name, PrimitiveType type, Vector3 localPos, Vector3 localScale, Quaternion localRot, Material mat)
+    	{
+    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0021: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003b: Unknown result type (might be due to invalid IL or missing references)
+    		GameObject val = GameObject.CreatePrimitive(type);
+    		((Object)val).name = name;
+    		val.transform.SetParent(parent, false);
+    		val.transform.localPosition = localPos;
+    		val.transform.localRotation = localRot;
+    		val.transform.localScale = localScale;
+    		if ((Object)(object)mat != (Object)null)
+    		{
+    			val.GetComponent<Renderer>().sharedMaterial = mat;
+    		}
+    	}
+
+    	private static Material StumpMaterial(StringBuilder sb)
+    	{
+    		//IL_0050: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0055: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0061: Expected Obj, but got Unknown
+    		//IL_0072: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_008a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a3: Unknown result type (might be due to invalid IL or missing references)
+    		Material val = AssetDatabase.LoadAssetAtPath<Material>("Assets/Painterly/Materials/Beat3_Stump.mat");
+    		if ((Object)(object)val != (Object)null)
+    		{
+    			return val;
+    		}
+    		Shader val2 = Shader.Find("Echoes/PainterlyLit");
+    		if ((Object)(object)val2 == (Object)null)
+    		{
+    			sb.AppendLine("  shader 'Echoes/PainterlyLit' NOT FOUND. Using Unity's default material, which has no _ColorRestore, so the stump will stay grey through the whole of Beat 3.");
+    			return null;
+    		}
+    		if (!Directory.Exists("Assets/Painterly/Materials"))
+    		{
+    			Directory.CreateDirectory("Assets/Painterly/Materials");
+    		}
+    		val = new Material(val2)
+    		{
+    			name = "Beat3_Stump"
+    		};
+    		Color val3 = new Color(0.4f, 0.37f, 0.33f);
+    		if (val.HasProperty("_Color"))
+    		{
+    			val.SetColor("_Color", val3);
+    		}
+    		if (val.HasProperty("_BaseColor"))
+    		{
+    			val.SetColor("_BaseColor", val3);
+    		}
+    		AssetDatabase.CreateAsset((Object)(object)val, "Assets/Painterly/Materials/Beat3_Stump.mat");
+    		sb.AppendLine("  created Assets/Painterly/Materials/Beat3_Stump.mat");
+    		return val;
+    	}
+
+    	private static GameObject Container(StringBuilder sb)
+    	{
+    		//IL_001b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0021: Expected Obj, but got Unknown
+    		GameObject val = GameObject.Find("L1_Beat3");
+    		if ((Object)(object)val != (Object)null)
+    		{
+    			return val;
+    		}
+    		val = new GameObject("L1_Beat3");
+    		sb.AppendLine("created container 'L1_Beat3'");
+    		return val;
+    	}
+
+    	private static GameObject GetOrAdd(string componentName, GameObject parent)
+    	{
+    		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0019: Expected Obj, but got Unknown
+    		GameObject val = new GameObject(componentName);
+    		val.transform.SetParent(parent.transform, false);
+    		return val;
+    	}
+
+    	private static void DestroyImmediateCompat(Object o)
+    	{
+    		Object.DestroyImmediate(o);
+    	}
+
+    	private static Vector3 Flat(Vector3 v)
+    	{
+    		//IL_000c: Unknown result type (might be due to invalid IL or missing references)
+    		v.y = 0f;
+    		return v;
+    	}
+
+    	private static string PathOf(string dir, string file)
+    	{
+    		return Path.Combine(dir, file);
+    	}
+    }
+}

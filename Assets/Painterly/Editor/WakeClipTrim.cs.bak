@@ -1,0 +1,541 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using UnityEditor;
+using UnityEngine;
+
+using Object = UnityEngine.Object;
+namespace Echoes.Painterly.EditorTools
+{
+
+    public static class WakeClipTrim
+    {
+    	private const string Fbx = "Assets/Art/L1/Mono_Wake.fbx";
+
+    	private const string Report = "Temp/wake_clip_trim.txt";
+
+    	private const float StillEpsilon = 0.001f;
+
+    	private const float TailKeep = 0.25f;
+
+    	private const float ChosenStart = 5.07f;
+
+    	private const float ChosenEnd = 8.03f;
+
+    	private const string WindowReport = "Temp/wake_window.txt";
+
+    	[MenuItem("Tools/Echoes/Measure And Trim Mono's Wake", priority = 72)]
+    	public static void Run()
+    	{
+    		StringBuilder stringBuilder = new StringBuilder();
+    		if (File.Exists("Temp/wake_clip_trim.txt"))
+    		{
+    			File.Delete("Temp/wake_clip_trim.txt");
+    		}
+    		try
+    		{
+    			Body(stringBuilder);
+    		}
+    		catch (Exception ex)
+    		{
+    			stringBuilder.AppendLine();
+    			stringBuilder.AppendLine("THREW: " + ex.GetType().Name + ": " + ex.Message);
+    			stringBuilder.AppendLine(ex.StackTrace);
+    			Debug.LogError((object)("[Echoes] wake trim threw: " + ex));
+    		}
+    		finally
+    		{
+    			Debug.Log((object)("[Echoes] wake trim\n" + stringBuilder));
+    			File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), "Temp/wake_clip_trim.txt"), stringBuilder.ToString());
+    		}
+    	}
+
+    	[MenuItem("Tools/Echoes/Trim Mono's Wake To The Chosen Window", priority = 73)]
+    	public static void RunChosen()
+    	{
+    		StringBuilder stringBuilder = new StringBuilder();
+    		if (File.Exists("Temp/wake_window.txt"))
+    		{
+    			File.Delete("Temp/wake_window.txt");
+    		}
+    		try
+    		{
+    			BodyChosen(stringBuilder);
+    		}
+    		catch (Exception ex)
+    		{
+    			stringBuilder.AppendLine();
+    			stringBuilder.AppendLine("THREW: " + ex.GetType().Name + ": " + ex.Message);
+    			stringBuilder.AppendLine(ex.StackTrace);
+    			Debug.LogError((object)("[Echoes] wake window trim threw: " + ex));
+    		}
+    		finally
+    		{
+    			Debug.Log((object)("[Echoes] wake window trim\n" + stringBuilder));
+    			File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), "Temp/wake_window.txt"), stringBuilder.ToString());
+    		}
+    	}
+
+    	private static void BodyChosen(StringBuilder sb)
+    	{
+    		sb.AppendLine("TRIM MONO'S WAKE TO THE CHOSEN WINDOW");
+    		sb.AppendLine();
+    		AssetImporter atPath = AssetImporter.GetAtPath("Assets/Art/L1/Mono_Wake.fbx");
+    		ModelImporter val = (ModelImporter)(object)((atPath is ModelImporter) ? atPath : null);
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			sb.AppendLine("No ModelImporter at Assets/Art/L1/Mono_Wake.fbx. Nothing changed.");
+    			return;
+    		}
+    		AnimationClip val2 = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Art/L1/Mono_Wake.fbx");
+    		if ((Object)(object)val2 == (Object)null)
+    		{
+    			sb.AppendLine("No AnimationClip at Assets/Art/L1/Mono_Wake.fbx. Nothing changed.");
+    			return;
+    		}
+    		float num = ((val2.frameRate > 1f) ? val2.frameRate : 30f);
+    		int num2 = Mathf.Max(2, Mathf.RoundToInt(val2.length * num));
+    		int num3 = Mathf.RoundToInt(5.07f * num);
+    		int num4 = Mathf.RoundToInt(8.03f * num);
+    		sb.AppendLine("Assets/Art/L1/Mono_Wake.fbx");
+    		sb.AppendLine("  clip '" + ((Object)val2).name + "' is " + val2.length.ToString("F3") + " s, " + num2 + " frames at " + num.ToString("F2") + " fps");
+    		sb.AppendLine("  chosen window " + 5.07f.ToString("F2") + " s to " + 8.03f.ToString("F2") + " s  ->  frames " + num3 + " .. " + num4);
+    		if (num3 < 0 || num4 >= num2 || num4 - num3 < 2)
+    		{
+    			sb.AppendLine();
+    			sb.AppendLine("  *** WINDOW IS OFF THE CLIP. Frames " + num3 + ".." + num4 + " against " + num2 + " frames in the take. ***");
+    			sb.AppendLine("  NOTHING CHANGED. Trim to a range that exists.");
+    			return;
+    		}
+    		int num5 = num4 - num3 + 1;
+    		float num6 = (float)num5 / num;
+    		sb.AppendLine("  keeps " + num5 + " frames = " + num6.ToString("F2") + " s, which is " + (num6 / val2.length * 100f).ToString("0") + "% of the clip; " + (val2.length - num6).ToString("F2") + " s comes off");
+    		GameObject val3 = null;
+    		try
+    		{
+    			val3 = MakeRig(sb);
+    			if ((Object)(object)val3 == (Object)null)
+    			{
+    				sb.AppendLine("  NOTHING CHANGED — no rig to measure on, and a trim nobody measured is just a guess.");
+    				return;
+    			}
+    			string[] bones = new string[5] { "Hips", "LeftHand", "RightHand", "Head", "Spine" };
+    			SampleFrames(val2, val3, num, num2, bones, out var totals, out var moved);
+    			float num7 = 0f;
+    			float num8 = 0f;
+    			for (int i = 0; i < num2; i++)
+    			{
+    				num7 += totals[i];
+    				if (i >= num3 && i <= num4)
+    				{
+    					num8 += totals[i];
+    				}
+    			}
+    			sb.AppendLine();
+    			sb.AppendLine("--- what the three seconds carry ---");
+    			sb.AppendLine("  movement in the whole take   " + (num7 * 100f).ToString("0.0") + " cm over " + num2 + " frames");
+    			sb.AppendLine("  movement in the kept window " + (num8 * 100f).ToString("0.0") + " cm over " + num5 + " frames");
+    			sb.AppendLine("  the window keeps " + ((num7 > 0f) ? (num8 / num7 * 100f) : 0f).ToString("0.0") + "% of the movement in " + (num6 / val2.length * 100f).ToString("0") + "% of the time");
+    			sb.AppendLine("  density: " + ((num6 > 0f) ? (num8 / num6 / (num7 / val2.length)) : 0f).ToString("0.00") + "x the take's average. Above 1.0 means the window is the action; near 1.0 means the cut has bought nothing but a shorter file");
+    			sb.AppendLine();
+    			sb.AppendLine("--- the two cut points ---");
+    			sb.AppendLine("  frame " + num3 + " (" + ((float)num3 / num).ToString("F2") + " s): this frame moves " + (totals[num3] * 100f).ToString("0.00") + " cm");
+    			sb.AppendLine("  frame " + num4 + " (" + ((float)num4 / num).ToString("F2") + " s): this frame moves " + (totals[num4] * 100f).ToString("0.00") + " cm");
+    			sb.AppendLine("  window average is " + (num8 / (float)num5 * 100f).ToString("0.00") + " cm/frame, so a cut point well under that lands on a settled pose and pops into motion from stillness — visible. Well over means it lands mid-twitch and the gesture is already running.");
+    			int num9 = 0;
+    			for (int j = num3; j <= num4; j++)
+    			{
+    				if (!moved[j])
+    				{
+    					num9++;
+    				}
+    			}
+    			sb.AppendLine("  still frames inside the window: " + num9 + " of " + num5 + ((num9 == 0) ? "  (continuous motion — the clip will play through)" : "  (gaps in the gesture — the clip will visibly stall at each one)"));
+    		}
+    		finally
+    		{
+    			if ((Object)(object)val3 != (Object)null)
+    			{
+    				Object.DestroyImmediate((Object)(object)val3);
+    			}
+    		}
+    		Apply(sb, val, val2, num3, num4, num);
+    	}
+
+    	private static void SampleFrames(AnimationClip clip, GameObject holder, float fps, int frames, string[] bones, out float[] totals, out bool[] moved)
+    	{
+    		//IL_0081: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0083: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_008a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_008c: Unknown result type (might be due to invalid IL or missing references)
+    		totals = new float[frames];
+    		moved = new bool[frames];
+    		AnimationMode.StartAnimationMode();
+    		try
+    		{
+    			for (int i = 0; i < frames; i++)
+    			{
+    				float time = (float)i / fps;
+    				float time2 = Mathf.Min((float)(i + 1) / fps, clip.length);
+    				for (int j = 0; j < bones.Length; j++)
+    				{
+    					Transform val = FindBone(holder.transform, bones[j]);
+    					if (!((Object)(object)val == (Object)null) && TrySample(clip, holder, time, ((Object)val).name, out var pos, out var rot) && TrySample(clip, holder, time2, ((Object)val).name, out var pos2, out var rot2))
+    					{
+    						float num = Vector3.Distance(pos, pos2);
+    						float num2 = Quaternion.Angle(rot, rot2) * ((float)Math.PI / 180f) * 0.2f;
+    						float num3 = num + num2;
+    						totals[i] += num3;
+    						if (num3 > 0.001f)
+    						{
+    							moved[i] = true;
+    						}
+    					}
+    				}
+    			}
+    		}
+    		finally
+    		{
+    			AnimationMode.StopAnimationMode();
+    		}
+    	}
+
+    	private static void Body(StringBuilder sb)
+    	{
+    		AssetImporter atPath = AssetImporter.GetAtPath("Assets/Art/L1/Mono_Wake.fbx");
+    		ModelImporter val = (ModelImporter)(object)((atPath is ModelImporter) ? atPath : null);
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			sb.AppendLine("No ModelImporter at Assets/Art/L1/Mono_Wake.fbx. Nothing to measure — is the asset still there?");
+    			return;
+    		}
+    		AnimationClip val2 = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/Art/L1/Mono_Wake.fbx");
+    		if ((Object)(object)val2 == (Object)null)
+    		{
+    			sb.AppendLine("No AnimationClip at Assets/Art/L1/Mono_Wake.fbx. The FBX imported with no take named Mono_Wake.");
+    			return;
+    		}
+    		sb.AppendLine("Assets/Art/L1/Mono_Wake.fbx");
+    		sb.AppendLine("  clip '" + ((Object)val2).name + "', " + val2.length.ToString("F3") + " s, " + val2.frameRate.ToString("F2") + " fps, " + (((Motion)val2).isLooping ? "LOOPING" : "one-shot"));
+    		ModelImporterClipAnimation val3 = val.clipAnimations.FirstOrDefaultByName(((Object)val2).name);
+    		if (val3 == null)
+    		{
+    			sb.AppendLine("  no clipAnimations override for '" + ((Object)val2).name + "'. Running with the take as imported.");
+    		}
+    		else
+    		{
+    			sb.AppendLine("  importer range: firstFrame " + val3.firstFrame.ToString("F2") + ", lastFrame " + val3.lastFrame.ToString("F2") + ", loop " + val3.loopTime + ", name '" + val3.name + "'");
+    		}
+    		GameObject val4 = null;
+    		try
+    		{
+    			val4 = MakeRig(sb);
+    			if ((Object)(object)val4 == (Object)null)
+    			{
+    				return;
+    			}
+    			float num = ((val2.frameRate > 1f) ? val2.frameRate : 30f);
+    			int num2 = Mathf.Max(2, Mathf.RoundToInt(val2.length * num));
+    			string[] array = new string[5] { "Hips", "LeftHand", "RightHand", "Head", "Spine" };
+    			SampleFrames(val2, val4, num, num2, array, out var totals, out var moved);
+    			int num3 = -1;
+    			int num4 = -1;
+    			int num5 = 0;
+    			for (int i = 0; i < num2; i++)
+    			{
+    				if (moved[i])
+    				{
+    					num5++;
+    					if (num3 < 0)
+    					{
+    						num3 = i;
+    					}
+    					num4 = i;
+    				}
+    			}
+    			sb.AppendLine("  sampled " + num2 + " frames at " + num.ToString("F1") + " fps across " + array.Length + " bones");
+    			sb.AppendLine("  frames with any movement: " + num5 + " of " + num2);
+    			if (num3 < 0)
+    			{
+    				sb.AppendLine("  NO FRAME MOVES. The clip is either empty, a still pose, or the bones named above do not exist in it — in which case trimming to zero would delete the animation, so nothing was changed. Bone names actually present: " + string.Join(", ", BoneNames(val4)));
+    				return;
+    			}
+    			float num6 = (float)num3 / num;
+    			float num7 = (float)num4 / num;
+    			float num8 = num7 - num6 + 0.25f;
+    			sb.AppendLine("  first movement at frame " + num3 + " (" + num6.ToString("F2") + " s)");
+    			sb.AppendLine("  last  movement at frame " + num4 + " (" + num7.ToString("F2") + " s)");
+    			sb.AppendLine("  hold at the front: " + num6.ToString("F2") + " s. hold at the back: " + (val2.length - num7).ToString("F2") + " s");
+    			sb.AppendLine("  loudest frames: " + Loudest(totals, num));
+    			float num9 = 3f;
+    			Profile(sb, totals, num);
+    			(int, int, float) window = BestWindow(totals, num, num9);
+    			sb.AppendLine();
+    			if (num8 > val2.length * 0.9f)
+    			{
+    				sb.AppendLine("  NOT TRIMMING. The whole clip is in motion, so a trim would save less than a tenth of it and would just be a different copy of the source. Restoring the full range.");
+    				Apply(sb, val, val2, 0, Mathf.RoundToInt(val2.length * num), num);
+    				Offer(sb, window, num9, num);
+    				return;
+    			}
+    			sb.AppendLine("  trimmed to " + num8.ToString("F2") + " s (from " + val2.length.ToString("F2") + " s)" + ((num8 < num9) ? (", inside the " + num9.ToString("F0") + " s Beat 3 can afford") : (", STILL LONGER than the " + num9.ToString("F0") + " s Beat 3 can afford — the wake itself is long, and only the level designer can decide to cut into it")));
+    			Apply(sb, val, val2, num3, num4, num);
+    			Offer(sb, window, num9, num);
+    		}
+    		finally
+    		{
+    			if ((Object)(object)val4 != (Object)null)
+    			{
+    				Object.DestroyImmediate((Object)(object)val4);
+    			}
+    		}
+    	}
+
+    	private static void Profile(StringBuilder sb, float[] totals, float fps)
+    	{
+    		int num = Mathf.Max(1, Mathf.RoundToInt(0.5f * fps));
+    		sb.AppendLine();
+    		sb.AppendLine("--- motion over time, " + 0.5f.ToString("0.0") + " s buckets (bar is relative to the busiest bucket) ---");
+    		List<float> list = new List<float>();
+    		for (int i = 0; i < totals.Length; i += num)
+    		{
+    			float num2 = 0f;
+    			for (int j = i; j < Math.Min(i + num, totals.Length); j++)
+    			{
+    				num2 += totals[j];
+    			}
+    			list.Add(num2);
+    		}
+    		float num3 = ((list.Count > 0) ? list.Max() : 0f);
+    		for (int k = 0; k < list.Count; k++)
+    		{
+    			int count = ((num3 > 0f) ? Mathf.Clamp(Mathf.RoundToInt(list[k] / num3 * 40f), 0, 40) : 0);
+    			sb.AppendLine("  " + ((float)(k * num) / fps).ToString("F1").PadLeft(5) + "s |" + new string('#', count) + " " + (list[k] * 100f).ToString("0.0") + " cm");
+    		}
+    	}
+
+    	private static (int first, int last, float amount) BestWindow(float[] totals, float fps, float seconds)
+    	{
+    		int num = Mathf.Max(2, Mathf.RoundToInt(seconds * fps));
+    		if (totals.Length < num)
+    		{
+    			return (first: 0, last: Math.Max(0, totals.Length - 1), amount: 0f);
+    		}
+    		int num2 = 0;
+    		float num3 = -1f;
+    		for (int i = 0; i + num <= totals.Length; i++)
+    		{
+    			float num4 = 0f;
+    			for (int j = i; j < i + num; j++)
+    			{
+    				num4 += totals[j];
+    			}
+    			if (num4 > num3)
+    			{
+    				num3 = num4;
+    				num2 = i;
+    			}
+    		}
+    		return (first: num2, last: num2 + num - 1, amount: num3);
+    	}
+
+    	private static void Offer(StringBuilder sb, (int first, int last, float amount) window, float budget, float fps)
+    	{
+    		sb.AppendLine();
+    		sb.AppendLine("  BUSIEST " + budget.ToString("0.0") + " s WINDOW: frames " + window.first + " to " + window.last + "  (" + ((float)window.first / fps).ToString("F2") + " s to " + ((float)window.last / fps).ToString("F2") + " s), " + (window.amount * 100f).ToString("0.0") + " cm of movement.");
+    		sb.AppendLine("  NOT applied. Cutting here is a judgement about which gesture the wake should end on, and a designer who has watched it is the only one who can make that call. Say the frame range and it will be set.");
+    		sb.AppendLine("  The other option is not to cut at all: leave the clip whole and let the Animator play it at speed, or have Beat 3 hand over to Idle after " + budget.ToString("0.0") + " s regardless of where the clip has got to. The beat should not be gated on an animation finishing.");
+    	}
+
+    	private static GameObject MakeRig(StringBuilder sb)
+    	{
+    		//IL_005c: Unknown result type (might be due to invalid IL or missing references)
+    		GameObject val = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Art/L1/Mono_Wake.fbx");
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			sb.AppendLine("  no GameObject at Assets/Art/L1/Mono_Wake.fbx, so there is no rig to sample the clip on. NOT being trimmed.");
+    			return null;
+    		}
+    		GameObject rig = Object.Instantiate<GameObject>(val);
+    		((Object)rig).name = "WakeTrimRig";
+    		((Object)rig).hideFlags = (HideFlags)61;
+    		rig.transform.position = Vector3.zero;
+    		Animator val2 = rig.GetComponent<Animator>();
+    		if ((Object)(object)val2 == (Object)null)
+    		{
+    			val2 = rig.AddComponent<Animator>();
+    		}
+    		Avatar val3 = AssetDatabase.LoadAllAssetsAtPath("Assets/Art/L1/Mono_Wake.fbx").OfType<Avatar>().FirstOrDefault((Avatar a) => a.isValid);
+    		if ((Object)(object)val3 == (Object)null)
+    		{
+    			sb.AppendLine("  Assets/Art/L1/Mono_Wake.fbx has no valid Avatar, so the clip's Humanoid motion cannot be retargeted onto a rig and every frame would sample as still. Import it as Humanoid (Create From This Model) first. NOT being trimmed — an unmeasured trim is a guess.");
+    			Object.DestroyImmediate((Object)(object)rig);
+    			return null;
+    		}
+    		val2.avatar = val3;
+    		val2.applyRootMotion = true;
+    		((Behaviour)val2).enabled = false;
+    		int num = rig.GetComponentsInChildren<Transform>(true).Length;
+    		sb.AppendLine("  sampling on an instance of the FBX: " + num + " transform(s), avatar '" + ((Object)val3).name + "'" + (val3.isHuman ? ", human" : ", NOT human"));
+    		string[] array = new string[5] { "Hips", "LeftHand", "RightHand", "Head", "Spine" };
+    		string[] array2 = array.Where((string b) => (Object)(object)FindBone(rig.transform, b) != (Object)null).ToArray();
+    		if (array2.Length == 0)
+    		{
+    			sb.AppendLine("  WARNING: none of " + string.Join(", ", array) + " exist in this rig. Transforms present: " + string.Join(", ", BoneNames(rig).Take(12)));
+    		}
+    		else if (array2.Length < array.Length)
+    		{
+    			sb.AppendLine("  note: only " + string.Join(", ", array2) + " of the watched bones exist in this rig");
+    		}
+    		return rig;
+    	}
+
+    	private static void Apply(StringBuilder sb, ModelImporter importer, AnimationClip clip, int firstFrame, int lastFrame, float fps)
+    	{
+    		//IL_0017: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0028: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0035: Expected Obj, but got Unknown
+    		ModelImporterClipAnimation[] array = importer.clipAnimations;
+    		ModelImporterClipAnimation val = array.FirstOrDefaultByName(((Object)clip).name);
+    		if (val == null)
+    		{
+    			val = new ModelImporterClipAnimation
+    			{
+    				name = ((Object)clip).name,
+    				takeName = ((Object)clip).name
+    			};
+    			array = new ModelImporterClipAnimation[1] { val };
+    		}
+    		int num = ((val.firstFrame > 0f) ? Mathf.RoundToInt(val.firstFrame) : 0);
+    		int num2 = ((val.lastFrame > 0f) ? Mathf.RoundToInt(val.lastFrame) : 0);
+    		val.firstFrame = firstFrame;
+    		val.lastFrame = lastFrame;
+    		val.loopTime = false;
+    		val.name = ((Object)clip).name;
+    		importer.clipAnimations = array;
+    		((AssetImporter)importer).SaveAndReimport();
+    		Settle("Assets/Art/L1/Mono_Wake.fbx");
+    		AssetImporter atPath = AssetImporter.GetAtPath("Assets/Art/L1/Mono_Wake.fbx");
+    		ModelImporter val2 = (ModelImporter)(object)((atPath is ModelImporter) ? atPath : null);
+    		if ((Object)(object)val2 == (Object)null)
+    		{
+    			sb.AppendLine("  the importer is still null after settling. The reimport has not landed yet; re-run this tool rather than trusting this report.");
+    			return;
+    		}
+    		ModelImporterClipAnimation val3 = val2.clipAnimations.FirstOrDefaultByName(((Object)clip).name);
+    		if (val3 == null)
+    		{
+    			sb.AppendLine("  after reimport there is no clip called '" + ((Object)clip).name + "'. The name may have been changed by the import. NOT OK.");
+    			return;
+    		}
+    		sb.AppendLine();
+    		sb.AppendLine("  APPLIED: firstFrame " + num + " -> " + Mathf.RoundToInt(val3.firstFrame) + ", lastFrame " + num2 + " -> " + Mathf.RoundToInt(val3.lastFrame) + ", loop " + val3.loopTime);
+    		sb.AppendLine("  read back off disk, so this is what the asset now is and not what was asked for");
+    		float num3 = (val3.lastFrame - val3.firstFrame) / fps;
+    		sb.AppendLine("  new sampled length " + num3.ToString("F2") + " s");
+    		if (num3 < 0.05f)
+    		{
+    			sb.AppendLine("  BAD: the trimmed clip is effectively zero length. Undo this in source control and report it.");
+    		}
+    	}
+
+    	private static void Settle(string path)
+    	{
+    		for (int i = 0; i < 40; i++)
+    		{
+    			AssetDatabase.ImportAsset(path, (ImportAssetOptions)1);
+    			AssetImporter atPath = AssetImporter.GetAtPath(path);
+    			ModelImporter val = (ModelImporter)(object)((atPath is ModelImporter) ? atPath : null);
+    			if ((Object)(object)val != (Object)null && val.clipAnimations != null && val.clipAnimations.Length != 0)
+    			{
+    				break;
+    			}
+    			Thread.Sleep(50);
+    		}
+    	}
+
+    	private static bool TrySample(AnimationClip clip, GameObject holder, float time, string boneName, out Vector3 pos, out Quaternion rot)
+    	{
+    		//IL_0002: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0007: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0013: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0040: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0048: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004d: Unknown result type (might be due to invalid IL or missing references)
+    		pos = Vector3.zero;
+    		rot = Quaternion.identity;
+    		Transform val = FindBone(holder.transform, boneName);
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			return false;
+    		}
+    		AnimationMode.SampleAnimationClip(holder, clip, time);
+    		pos = val.position;
+    		rot = val.rotation;
+    		return true;
+    	}
+
+    	private static Transform FindBone(Transform root, string name)
+    	{
+    		if (((Object)root).name == name)
+    		{
+    			return root;
+    		}
+    		for (int i = 0; i < root.childCount; i++)
+    		{
+    			Transform val = FindBone(root.GetChild(i), name);
+    			if ((Object)(object)val != (Object)null)
+    			{
+    				return val;
+    			}
+    		}
+    		return null;
+    	}
+
+    	private static IEnumerable<string> BoneNames(GameObject go)
+    	{
+    		Transform[] componentsInChildren = go.GetComponentsInChildren<Transform>(true);
+    		foreach (Transform val in componentsInChildren)
+    		{
+    			if ((Object)(object)val != (Object)(object)go.transform)
+    			{
+    				yield return ((Object)val).name;
+    			}
+    		}
+    	}
+
+    	private static string Loudest(float[] totals, float fps)
+    	{
+    		List<int> list = new List<int>();
+    		for (int i = 0; i < totals.Length; i++)
+    		{
+    			list.Add(i);
+    		}
+    		list.Sort((int a, int b) =>
+    		{
+    			int num2 = totals[b].CompareTo(totals[a]);
+    			return (num2 == 0) ? a.CompareTo(b) : num2;
+    		});
+    		StringBuilder stringBuilder = new StringBuilder();
+    		for (int num = 0; num < 3 && num < list.Count; num++)
+    		{
+    			if (num > 0)
+    			{
+    				stringBuilder.Append(", ");
+    			}
+    			stringBuilder.Append(((float)list[num] / fps).ToString("F2") + "s (moved " + (totals[list[num]] * 100f).ToString("0.0") + " cm)");
+    		}
+    		if (stringBuilder.Length <= 0)
+    		{
+    			return "nothing moved at all";
+    		}
+    		return stringBuilder.ToString();
+    	}
+    }
+}

@@ -1,0 +1,299 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text;
+using UnityEditor;
+using UnityEngine;
+
+using Object = UnityEngine.Object;
+namespace Echoes.Painterly.EditorTools
+{
+
+    public static class L1AssetImport
+    {
+    	private const string SourceFolderHint = "painter_game_assests";
+
+    	private const string DestDir = "Assets/Art/L1";
+
+    	private const string Report = "Temp/l1_import.txt";
+
+    	private const string Log = "Temp/l1_import_log.txt";
+
+    	private const double BudgetSeconds = 34.0;
+
+    	private static readonly (string Source, string Dest, string Group, bool Loop)[] Files = new (string, string, string, bool)[21]
+    	{
+    		("mono character.fbx", "Mono.fbx", null, false),
+    		("Mono Idle.fbx", "Mono_Idle.fbx", "Mono", true),
+    		("Mono Walking.fbx", "Mono_Walk.fbx", "Mono", true),
+    		("mono_talking_to_ari.fbx", "Mono_Talk.fbx", "Mono", false),
+    		("Mono_waking_up.fbx", "Mono_Wake.fbx", "Mono", false),
+    		("ink_crwaller_character.fbx", "InkCrawler.fbx", null, false),
+    		("Ink Crwaller Zombie Idle.fbx", "InkCrawler_Idle.fbx", "Crawler", true),
+    		("Ink_crwaller_Idle.fbx", "InkCrawler_Idle2.fbx", "Crawler", true),
+    		("Ink crawller Running Crawl.fbx", "InkCrawler_Crawl.fbx", "Crawler", true),
+    		("Ink crawller Running.fbx", "InkCrawler_Run.fbx", "Crawler", true),
+    		("Ink crawller Swagger Walk.fbx", "InkCrawler_Walk.fbx", "Crawler", true),
+    		("Ink crawller Sword And Shield Attack.fbx", "InkCrawler_Attack.fbx", "Crawler", false),
+    		("Ink Crawller Standing Death Forward 01.fbx", "InkCrawler_Death.fbx", "Crawler", false),
+    		("villian_character.fbx", "ColorThief.fbx", null, false),
+    		("Ari_Running.fbx", "Ari_Run.fbx", "Ari", true),
+    		("ari_Talking.fbx", "Ari_Talk.fbx", "Ari", true),
+    		("ari_attack.fbx", "Ari_Attack.fbx", "Ari", false),
+    		("ari on hit reaction.fbx", "Ari_HitReact.fbx", "Ari", false),
+    		("Ari Magic Attack on enemy.fbx", "Ari_MagicAttack.fbx", "Ari", false),
+    		("Ari collecting fragments.fbx", "Ari_Collect.fbx", "Ari", false),
+    		("Ari Death.fbx", "Ari_Death.fbx", "Ari", false)
+    	};
+
+    	[MenuItem("Tools/Echoes/Import Level 1 Cast", priority = 61)]
+    	public static void Run()
+    	{
+    		StringBuilder stringBuilder = new StringBuilder();
+    		string path = Path.Combine(Directory.GetCurrentDirectory(), "Temp/l1_import.txt");
+    		if (File.Exists(path))
+    		{
+    			File.Delete(path);
+    		}
+    		string text = ResolveSourceFolder(stringBuilder);
+    		if (text == null)
+    		{
+    			Finish(stringBuilder, "could not find the asset folder");
+    			return;
+    		}
+    		stringBuilder.AppendLine("source: " + text);
+    		stringBuilder.AppendLine("dest:   Assets/Art/L1");
+    		Directory.CreateDirectory("Assets/Art/L1");
+    		Stopwatch stopwatch = Stopwatch.StartNew();
+    		int changed = 0;
+    		int untouched = 0;
+    		int problems = 0;
+    		(string, string, string, bool)[] files = Files;
+    		for (int i = 0; i < files.Length; i++)
+    		{
+    			var (text2, text3, text4, loop) = files[i];
+    			if (changed > 0 && stopwatch.Elapsed.TotalSeconds > 34.0)
+    			{
+    				stringBuilder.AppendLine($"-- stopped on the clock after {changed} change(s); " + "run again to continue");
+    				break;
+    			}
+    			string text5 = Path.Combine(text, text2);
+    			string text6 = "Assets/Art/L1/" + text3;
+    			string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(text3);
+    			if (!File.Exists(text5))
+    			{
+    				stringBuilder.AppendLine("MISSING  " + text2);
+    				problems++;
+    				continue;
+    			}
+    			if (CopyIfDifferent(text5, text6))
+    			{
+    				stringBuilder.AppendLine(fileNameWithoutExtension + ": copied, importing for the first time");
+    				AssetDatabase.ImportAsset(text6, (ImportAssetOptions)9);
+    			}
+    			if (text4 == null)
+    			{
+    				DoModel(text6, fileNameWithoutExtension, ref changed, ref untouched, ref problems, stringBuilder);
+    			}
+    			else
+    			{
+    				DoAnim(text6, fileNameWithoutExtension, text4, loop, ref changed, ref untouched, ref problems, stringBuilder);
+    			}
+    		}
+    		stringBuilder.AppendLine($"-- {changed} changed, {untouched} already correct, " + $"{problems} problem(s), {stopwatch.Elapsed.TotalSeconds:0.0}s");
+    		AssetDatabase.SaveAssets();
+    		Finish(stringBuilder, "done");
+    	}
+
+    	private static void DoModel(string path, string name, ref int changed, ref int untouched, ref int problems, StringBuilder sb)
+    	{
+    		//IL_0032: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0038: Invalid comparison between Unknown and I4
+    		//IL_003b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0041: Invalid comparison between Unknown and I4
+    		AssetImporter atPath = AssetImporter.GetAtPath(path);
+    		ModelImporter val = (ModelImporter)(object)((atPath is ModelImporter) ? atPath : null);
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			sb.AppendLine(name + ": NO IMPORTER");
+    			problems++;
+    			return;
+    		}
+    		bool flag = (int)val.animationType != 3 || (int)val.avatarSetup != 1 || val.importAnimation || val.addCollider;
+    		if (flag)
+    		{
+    			val.animationType = (ModelImporterAnimationType)3;
+    			val.avatarSetup = (ModelImporterAvatarSetup)1;
+    			val.importAnimation = false;
+    			val.addCollider = false;
+    			val.isReadable = false;
+    			val.materialImportMode = (ModelImporterMaterialImportMode)1;
+    			((AssetImporter)val).SaveAndReimport();
+    			changed++;
+    		}
+    		else
+    		{
+    			untouched++;
+    		}
+    		Settle(path);
+    		AssetImporter atPath2 = AssetImporter.GetAtPath(path);
+    		val = (ModelImporter)(object)((atPath2 is ModelImporter) ? atPath2 : null);
+    		Avatar val2 = AssetDatabase.LoadAllAssetsAtPath(path).OfType<Avatar>().FirstOrDefault();
+    		Mesh val3 = AssetDatabase.LoadAllAssetsAtPath(path).OfType<Mesh>().FirstOrDefault();
+    		int num = ((!((Object)(object)val3 == (Object)null)) ? val3.vertexCount : 0);
+    		bool flag2 = (Object)(object)val2 != (Object)null && val2.isValid && val2.isHuman;
+    		if (!flag2)
+    		{
+    			problems++;
+    		}
+    		sb.AppendLine("MODEL " + name + ": avatar=" + (((Object)(object)val2 == (Object)null) ? "NONE" : $"valid={val2.isValid} human={val2.isHuman}") + " " + string.Format("mesh={0}v {1}", num, flag ? "(reconfigured)" : "(already correct)") + (flag2 ? "" : "   <-- NOT USABLE"));
+    	}
+
+    	private static void DoAnim(string path, string name, string group, bool loop, ref int changed, ref int untouched, ref int problems, StringBuilder sb)
+    	{
+    		//IL_0059: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005f: Invalid comparison between Unknown and I4
+    		//IL_0065: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_006b: Invalid comparison between Unknown and I4
+    		string clipName = group + "_" + name.Substring(name.IndexOf('_') + 1);
+    		AssetImporter atPath = AssetImporter.GetAtPath(path);
+    		ModelImporter val = (ModelImporter)(object)((atPath is ModelImporter) ? atPath : null);
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			sb.AppendLine(name + ": NO IMPORTER");
+    			problems++;
+    			return;
+    		}
+    		if ((int)val.animationType == 3 && (int)val.avatarSetup == 1 && val.importAnimation && val.clipAnimations.Length == 1 && val.clipAnimations[0].name == clipName && val.clipAnimations[0].loopTime == loop)
+    		{
+    			untouched++;
+    			AnimationClip val2 = AssetDatabase.LoadAllAssetsAtPath(path).OfType<AnimationClip>().FirstOrDefault((AnimationClip c) => ((Object)c).name == clipName);
+    			sb.AppendLine("ANIM " + name + ": '" + clipName + "' already correct" + (((Object)(object)val2 == (Object)null) ? "  <-- BUT NOT ON DISK" : $" {val2.length:0.00}s"));
+    			if ((Object)(object)val2 == (Object)null)
+    			{
+    				problems++;
+    			}
+    			return;
+    		}
+    		val.animationType = (ModelImporterAnimationType)3;
+    		val.avatarSetup = (ModelImporterAvatarSetup)1;
+    		val.sourceAvatar = null;
+    		val.materialImportMode = (ModelImporterMaterialImportMode)0;
+    		val.importAnimation = true;
+    		val.animationCompression = (ModelImporterAnimationCompression)3;
+    		val.addCollider = false;
+    		val.isReadable = false;
+    		((AssetImporter)val).SaveAndReimport();
+    		Settle(path);
+    		AssetImporter atPath2 = AssetImporter.GetAtPath(path);
+    		val = (ModelImporter)(object)((atPath2 is ModelImporter) ? atPath2 : null);
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			sb.AppendLine(name + ": importer lost after reimport");
+    			problems++;
+    			return;
+    		}
+    		ModelImporterClipAnimation[] defaultClipAnimations = val.defaultClipAnimations;
+    		if (defaultClipAnimations == null || defaultClipAnimations.Length == 0)
+    		{
+    			sb.AppendLine("ANIM " + name + ": no takes at all  <-- CHECK");
+    			problems++;
+    			return;
+    		}
+    		ModelImporterClipAnimation[] array = defaultClipAnimations.Where((ModelImporterClipAnimation t) => !IsBaselayer(t.takeName)).ToArray();
+    		sb.Append($"ANIM {name}: {defaultClipAnimations.Length} take(s)");
+    		ModelImporterClipAnimation[] array2 = defaultClipAnimations;
+    		foreach (ModelImporterClipAnimation val3 in array2)
+    		{
+    			sb.Append($" [{val3.takeName} f{val3.firstFrame:0}-{val3.lastFrame:0}]");
+    		}
+    		if (array.Length != 1)
+    		{
+    			sb.AppendLine($"  <-- {array.Length} non-baselayer take(s); left unconfigured");
+    			problems++;
+    			return;
+    		}
+    		ModelImporterClipAnimation val4 = array[0];
+    		val4.name = clipName;
+    		val4.loopTime = loop;
+    		val4.loopPose = loop;
+    		val.clipAnimations = new ModelImporterClipAnimation[1] { val4 };
+    		((AssetImporter)val).SaveAndReimport();
+    		Settle(path);
+    		changed++;
+    		AssetImporter atPath3 = AssetImporter.GetAtPath(path);
+    		val = (ModelImporter)(object)((atPath3 is ModelImporter) ? atPath3 : null);
+    		AnimationClip val5 = AssetDatabase.LoadAllAssetsAtPath(path).OfType<AnimationClip>().FirstOrDefault((AnimationClip c) => ((Object)c).name == clipName);
+    		bool flag = (Object)(object)val != (Object)null && val.clipAnimations.Length == 1 && val.clipAnimations[0].name == clipName && val.clipAnimations[0].loopTime == loop;
+    		bool flag2 = (Object)(object)val5 != (Object)null;
+    		if (!flag || !flag2)
+    		{
+    			problems++;
+    		}
+    		sb.AppendLine("  -> '" + clipName + "' " + (flag ? "verified" : "RENAME NOT CONFIRMED") + ", " + (flag2 ? $"{val5.length:0.00}s on disk" : "NOT ON DISK") + (loop ? ", looping" : ", one-shot"));
+    	}
+
+    	private static void Settle(string path)
+    	{
+    		AssetDatabase.ImportAsset(path, (ImportAssetOptions)9);
+    	}
+
+    	private static bool IsBaselayer(string takeName)
+    	{
+    		if (string.IsNullOrEmpty(takeName))
+    		{
+    			return true;
+    		}
+    		return takeName.IndexOf("baselayer", StringComparison.OrdinalIgnoreCase) >= 0;
+    	}
+
+    	private static string ResolveSourceFolder(StringBuilder sb)
+    	{
+    		string folderPath = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
+    		if (!Directory.Exists(folderPath))
+    		{
+    			return null;
+    		}
+    		string text = (from p in Directory.GetDirectories(folderPath, "painter_game_assests*")
+    			orderby p.Length descending
+    			select p).FirstOrDefault();
+    		if (text != null)
+    		{
+    			return text;
+    		}
+    		string text2 = (from p in Directory.GetDirectories(folderPath)
+    			where File.Exists(Path.Combine(p, "ink_crwaller_character.fbx"))
+    			select p).FirstOrDefault();
+    		if (text2 != null)
+    		{
+    			sb.AppendLine("NOTE: no folder named 'painter_game_assests*'; used " + text2 + " because it holds the Ink Crawler");
+    			return text2;
+    		}
+    		sb.AppendLine("SCANNED: " + folderPath);
+    		return null;
+    	}
+
+    	private static bool CopyIfDifferent(string from, string to)
+    	{
+    		FileInfo fileInfo = new FileInfo(from);
+    		if (File.Exists(to))
+    		{
+    			FileInfo fileInfo2 = new FileInfo(to);
+    			if (fileInfo.Length == fileInfo2.Length && fileInfo.LastWriteTimeUtc == fileInfo2.LastWriteTimeUtc)
+    			{
+    				return false;
+    			}
+    		}
+    		File.Copy(from, to, overwrite: true);
+    		return true;
+    	}
+
+    	private static void Finish(StringBuilder sb, string tail)
+    	{
+    		Debug.Log((object)("[Echoes] L1 import " + tail + "\n" + sb));
+    		File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), "Temp/l1_import.txt"), sb.ToString());
+    		File.AppendAllText(Path.Combine(Directory.GetCurrentDirectory(), "Temp/l1_import_log.txt"), sb.ToString());
+    	}
+    }
+}

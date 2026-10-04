@@ -6,116 +6,134 @@ using UnityEngine;
 
 namespace Echoes.Painterly.EditorTools
 {
-    /// <summary>
-    /// Reports everything the character FBX actually brought with it.
-    /// Writes Temp/ari_assets.txt.
-    ///
-    /// The FBX is 17 MB, which is far too heavy for a single untextured mesh,
-    /// so the media is almost certainly in there somewhere. But the earlier
-    /// probe looked only for _BaseMap and _MainTex and found neither, and an FBX
-    /// is free to name its texture slot anything at all. So every sub-asset and
-    /// every texture-valued shader property is listed instead of assuming.
-    ///
-    /// This matters before any PainterlyLit material can be made, because that
-    /// shader desaturates an albedo. If Ari arrives with no albedo, the
-    /// desaturation has nothing to act on and she renders flat white — which
-    /// looks identical to a working grey, and would be easy to mistake for one.
-    /// </summary>
+
     public static class AriAssetProbe
     {
-        const string Dir = "Assets/Art/Ari/Models";
+    	private const string Dir = "Assets/Art/Ari/Models";
 
-        [MenuItem("Tools/Echoes/Probe Ari Assets", priority = 93)]
-        public static void Run()
-        {
-            var sb = new StringBuilder();
+    	[MenuItem("Tools/Echoes/Probe Ari Assets", priority = 93)]
+    	public static void Run()
+    	{
+    		StringBuilder stringBuilder = new StringBuilder();
+    		string[] array = new string[3] { "Ari_character", "Idle", "Walking" };
+    		foreach (string model in array)
+    		{
+    			Probe(stringBuilder, model);
+    		}
+    		stringBuilder.AppendLine("=== files on disk ===");
+    		foreach (string item in from x in Directory.GetFiles("Assets/Art/Ari/Models", "*", SearchOption.AllDirectories)
+    			orderby x
+    			select x)
+    		{
+    			FileInfo fileInfo = new FileInfo(item);
+    			stringBuilder.AppendLine($"  {fileInfo.Name,-42} {fileInfo.Length / 1024} KB");
+    		}
+    		File.WriteAllText("Temp/ari_assets.txt", stringBuilder.ToString());
+    		Debug.Log((object)("[Echoes] Ari asset probe -> Temp/ari_assets.txt\n" + stringBuilder));
+    	}
 
-            foreach (var model in new[] { "Ari_character", "Idle", "Walking" })
-                Probe(sb, model);
-
-            sb.AppendLine("=== files on disk ===");
-            foreach (var f in Directory.GetFiles(Dir, "*", SearchOption.AllDirectories)
-                                       .OrderBy(x => x))
-            {
-                var info = new FileInfo(f);
-                sb.AppendLine($"  {info.Name,-42} {info.Length / 1024} KB");
-            }
-
-            File.WriteAllText("Temp/ari_assets.txt", sb.ToString());
-            Debug.Log("[Echoes] Ari asset probe -> Temp/ari_assets.txt\n" + sb);
-        }
-
-        static void Probe(StringBuilder sb, string model)
-        {
-            string path = $"{Dir}/{model}.fbx";
-            sb.AppendLine($"=== {model} ===");
-
-            var root = AssetDatabase.LoadAssetAtPath<GameObject>(path);
-            if (root == null) { sb.AppendLine("  NOT IMPORTED\n"); return; }
-
-            // ---- every sub-asset the importer produced ----
-            var sub = AssetDatabase.LoadAllAssetsAtPath(path);
-            foreach (var group in sub.GroupBy(a => a.GetType().Name).OrderBy(g => g.Key))
-            {
-                sb.AppendLine($"  {group.Count()}x {group.Key}");
-                foreach (var a in group.Take(6)) sb.AppendLine($"      {a.name}");
-                if (group.Count() > 6) sb.AppendLine($"      ... +{group.Count() - 6} more");
-            }
-
-            // ---- every texture-valued property on every material ----
-            var importer = AssetImporter.GetAtPath(path) as ModelImporter;
-            var materialMode = importer == null
-                ? "n/a"
-                : importer.materialImportMode.ToString();
-            sb.AppendLine($"  materialImportMode={materialMode}");
-
-            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
-            {
-                sb.AppendLine($"  renderer {r.GetType().Name} '{r.name}' " +
-                              $"enabled={r.enabled}");
-
-                foreach (var m in r.sharedMaterials)
-                {
-                    if (m == null) { sb.AppendLine("      material <null>"); continue; }
-                    sb.AppendLine($"      material '{m.name}' shader={m.shader?.name}");
-
-                    foreach (var pname in m.GetTexturePropertyNames())
-                    {
-                        var tex = m.GetTexture(pname);
-                        sb.AppendLine($"        {pname} = " +
-                                      (tex == null ? "<none>"
-                                       : $"{tex.name} {tex.width}x{tex.height} " +
-                                         $"fmt={tex.graphicsFormat}"));
-                    }
-
-                    if (m.HasProperty("_BaseColor"))
-                        sb.AppendLine($"        _BaseColor = {m.GetColor("_BaseColor")}");
-                }
-            }
-
-            // ---- mesh detail, including vertex colour ----
-            var smr = root.GetComponentInChildren<SkinnedMeshRenderer>(true);
-            var mesh = smr != null ? smr.sharedMesh
-                                   : root.GetComponentInChildren<MeshFilter>(true)?.sharedMesh;
-            if (mesh != null)
-            {
-                var colors = mesh.colors;
-                bool anyColor = false;
-                if (colors != null && colors.Length == mesh.vertexCount)
-                {
-                    foreach (var c in colors)
-                        if (c.r > 0.01f || c.g > 0.01f || c.b > 0.01f) { anyColor = true; break; }
-                }
-
-                sb.AppendLine($"  mesh '{mesh.name}' verts={mesh.vertexCount} " +
-                              $"tris={mesh.triangles.Length / 3} " +
-                              $"uv0={mesh.uv.Length} colors={colors?.Length ?? 0} " +
-                              $"coloursUsed={anyColor}");
-                sb.AppendLine($"  bounds {mesh.bounds.size} " +
-                              $"(FBX root scale {root.transform.localScale})");
-            }
-
-            sb.AppendLine();
-        }
+    	private static void Probe(StringBuilder sb, string model)
+    	{
+    		//IL_016e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0173: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0496: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_049b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_049f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04b9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03ce: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03d3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03d5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02dd: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_032f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03e3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03f1: Unknown result type (might be due to invalid IL or missing references)
+    		string text = "Assets/Art/Ari/Models/" + model + ".fbx";
+    		sb.AppendLine("=== " + model + " ===");
+    		GameObject val = AssetDatabase.LoadAssetAtPath<GameObject>(text);
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			sb.AppendLine("  NOT IMPORTED\n");
+    			return;
+    		}
+    		foreach (IGrouping<string, Object> item in from a in AssetDatabase.LoadAllAssetsAtPath(text)
+    			group a by ((object)a).GetType().Name into g
+    			orderby g.Key
+    			select g)
+    		{
+    			sb.AppendLine($"  {item.Count()}x {item.Key}");
+    			foreach (Object item2 in item.Take(6))
+    			{
+    				sb.AppendLine("      " + item2.name);
+    			}
+    			if (item.Count() > 6)
+    			{
+    				sb.AppendLine($"      ... +{item.Count() - 6} more");
+    			}
+    		}
+    		AssetImporter atPath = AssetImporter.GetAtPath(text);
+    		ModelImporter val2 = (ModelImporter)(object)((atPath is ModelImporter) ? atPath : null);
+    		string text2 = (((Object)(object)val2 == (Object)null) ? "n/a" : ((object)val2.materialImportMode/*cast due to constrained. prefix*/).ToString());
+    		sb.AppendLine("  materialImportMode=" + text2);
+    		Renderer[] componentsInChildren = val.GetComponentsInChildren<Renderer>(true);
+    		foreach (Renderer val3 in componentsInChildren)
+    		{
+    			sb.AppendLine("  renderer " + ((object)val3).GetType().Name + " '" + ((Object)val3).name + "' " + $"enabled={val3.enabled}");
+    			Material[] sharedMaterials = val3.sharedMaterials;
+    			foreach (Material val4 in sharedMaterials)
+    			{
+    				if ((Object)(object)val4 == (Object)null)
+    				{
+    					sb.AppendLine("      material <null>");
+    					continue;
+    				}
+    				string name = ((Object)val4).name;
+    				Shader shader = val4.shader;
+    				sb.AppendLine("      material '" + name + "' shader=" + ((shader != null) ? ((Object)shader).name : null));
+    				string[] texturePropertyNames = val4.GetTexturePropertyNames();
+    				foreach (string text3 in texturePropertyNames)
+    				{
+    					Texture texture = val4.GetTexture(text3);
+    					sb.AppendLine("        " + text3 + " = " + (((Object)(object)texture == (Object)null) ? "<none>" : ($"{((Object)texture).name} {texture.width}x{texture.height} " + $"fmt={texture.graphicsFormat}")));
+    				}
+    				if (val4.HasProperty("_BaseColor"))
+    				{
+    					sb.AppendLine(string.Format("        _BaseColor = {0}", val4.GetColor("_BaseColor")));
+    				}
+    			}
+    		}
+    		SkinnedMeshRenderer componentInChildren = val.GetComponentInChildren<SkinnedMeshRenderer>(true);
+    		object obj;
+    		if (!((Object)(object)componentInChildren != (Object)null))
+    		{
+    			MeshFilter componentInChildren2 = val.GetComponentInChildren<MeshFilter>(true);
+    			obj = ((componentInChildren2 != null) ? componentInChildren2.sharedMesh : null);
+    		}
+    		else
+    		{
+    			obj = componentInChildren.sharedMesh;
+    		}
+    		Mesh val5 = (Mesh)obj;
+    		if ((Object)(object)val5 != (Object)null)
+    		{
+    			Color[] colors = val5.colors;
+    			bool flag = false;
+    			if (colors != null && colors.Length == val5.vertexCount)
+    			{
+    				Color[] array = colors;
+    				foreach (Color val6 in array)
+    				{
+    					if (val6.r > 0.01f || val6.g > 0.01f || val6.b > 0.01f)
+    					{
+    						flag = true;
+    						break;
+    					}
+    				}
+    			}
+    			sb.AppendLine($"  mesh '{((Object)val5).name}' verts={val5.vertexCount} " + $"tris={val5.triangles.Length / 3} " + $"uv0={val5.uv.Length} colors={colors?.Length ?? 0} " + $"coloursUsed={flag}");
+    			Bounds bounds = val5.bounds;
+    			sb.AppendLine($"  bounds {bounds.size} " + $"(FBX root scale {val.transform.localScale})");
+    		}
+    		sb.AppendLine();
+    	}
     }
 }

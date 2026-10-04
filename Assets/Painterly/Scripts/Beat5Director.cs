@@ -1,309 +1,574 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
-
+
+using Object = UnityEngine.Object;
 namespace Echoes.Painterly
 {
-    /// <summary>
-    /// Beat 5 — the Ink Crawler. How she learns the brush is not a weapon.
-    ///
-    /// <para><b>The beat has two endings and the game does not choose between
-    /// them.</b> She can fight the crawler with the brush and push it back, or
-    /// she can go round it and never be seen. Both reach the far wall. What
-    /// differs is recorded on this component rather than scored, because the
-    /// brief asks for an optional stealth route and a route that quietly
-    /// corrects itself into the only ending is not optional.
-    ///
-    /// <para><b>There is no way to lose this beat.</b> Nothing here can kill
-    /// Ari, damage her, or fail. A crawler lunge pushes her along the ground
-    /// and that is the whole of the consequence. This is the teaching beat, and
-    /// a tutorial that can be failed is a tutorial the player has to reload.
-    ///
-    /// <para><b>The stroke is connected through <see cref="BrushPainter.Stroked"/>,
-    /// not through a second input path.</b> The brush already raises an event
-    /// whenever a stroke genuinely lands — not when a paint was performed
-    /// programmatically, which is the distinction Beat 3's tree needed. Opening
-    /// a parallel "combat input" here would have meant a second thing that has
-    /// to agree with the first about when a swing happened, and the two would
-    /// have disagreed the first time something painted without swinging.
-    ///
-    /// <para><b>Reach is measured from Ari, not from the click.</b> The brush
-    /// resolves a click to a world point up to 250 m away, and its colour
-    /// radius is 6 m because paint should be generous. Neither number is about
-    /// how far her arm reaches, so neither is used. The crawler's own
-    /// <c>SplashRadius</c> is a third thing, sized to her arm.
-    /// </summary>
+
     [AddComponentMenu("Echoes/Beat 5 Director")]
-    public sealed class Beat5Director : MonoBehaviour
+    public sealed class Beat5Director : MonoBehaviour, IResettable
     {
-        [Header("Parts")]
-        [Tooltip("The crawler. Found in the level if left empty.")]
-        [SerializeField] InkCrawler crawler;
+    	public enum Phase
+    	{
+    		Waiting,
+    		Rising,
+    		Engaging,
+    		Done
+    	}
 
-        [Tooltip("Ari's brush. Found on Ari if left empty.")]
-        [SerializeField] BrushPainter brush;
+    	[Header("Parts")]
+    	[Tooltip("The crawlers. Found under this beat if left empty. A beat with one entry is a duel, not this beat — the number is reported by the setup tool either way.")]
+    	[SerializeField]
+    	private List<InkCrawler> crawlers = new List<InkCrawler>(3);
 
-        [Tooltip("Mono, for the commentary. He is awake by now.")]
-        [SerializeField] MonoCompanion mono;
+    	[Tooltip("Ari's brush. Found on Ari if left empty.")]
+    	[SerializeField]
+    	private BrushPainter brush;
 
-        [Header("The beat")]
-        [Tooltip("She has entered the yard past this x. The beat waits for " +
-                 "this before it starts reacting, so walking past the beat's " +
-                 "west edge is enough to trigger it.")]
-        [SerializeField] float enterX = 38f;
+    	[Tooltip("Mono, for the commentary. He is awake by now.")]
+    	[SerializeField]
+    	private MonoCompanion mono;
 
-        [Tooltip("She has finished the beat past this x.")]
-        [SerializeField] float exitX = 48f;
+    	[Header("The beat")]
+    	[Tooltip("Start the beat the moment Mono opens his eyes, wherever she is standing. This is the trigger the brief asks for, and it is on by default: an entrance tied to a place is an entrance she can walk past without ever seeing.")]
+    	[SerializeField]
+    	private bool huntOnMonoWake = true;
 
-        [Tooltip("How far east of enterX the crawler starts. Far enough that " +
-                 "she gets a clear look at it before it moves, which is what " +
-                 "makes the stealth route a decision rather than a coin toss.")]
-        [SerializeField] float crawlerOffset = 8f;
+    	[Tooltip("Fallback only, used when there is no Mono in the level to wake. She has entered the yard past this x.")]
+    	[SerializeField]
+    	private float enterX = 38f;
 
-        [Tooltip("Staggers needed before Mono concedes that the brush works. " +
-                 "One teaches that it happened; two teaches that it is the " +
-                 "answer. He says nothing after that.")]
-        [Min(1)] [SerializeField] int staggersToExplain = 2;
+    	[Tooltip("She has finished the beat past this x.")]
+    	[SerializeField]
+    	private float exitX = 51f;
 
-        [SerializeField] bool log = true;
+    	[Tooltip("Staggers in total before Mono concedes that the brush works. One teaches that it happened; two teaches that it is the answer. He says nothing after that.")]
+    	[Min(1f)]
+    	[SerializeField]
+    	private int staggersToExplain = 2;
 
-        // --- public read-only -------------------------------------------------
+    	[Header("The entrance")]
+    	[Tooltip("Rise them this many seconds apart. Simultaneous is a wall coming up; staggered is three things arriving, which is legible.")]
+    	[Min(0f)]
+    	[SerializeField]
+    	private float emergeStagger = 0.35f;
 
-        /// <summary>Where the beat is. Read by the setup tool and the probes.</summary>
-        public enum Phase { Waiting, Engaging, Done }
+    	[Tooltip("Wait this long after she crosses enterX before the first one rises. Long enough for her to see an empty yard and start walking into it — the beat's premise is that it looks safe.")]
+    	[Min(0f)]
+    	[SerializeField]
+    	private float emergeDelay = 1.2f;
 
-        public Phase Now { get; private set; } = Phase.Waiting;
-        public InkCrawler Crawler => crawler;
-        public float EnterX => enterX;
-        public float ExitX => exitX;
-        public int Staggers => crawler == null ? 0 : crawler.Staggers;
-        public int Lunges => crawler == null ? 0 : crawler.Lunges;
-        public bool EverNoticed => crawler != null && crawler.EverNoticed;
-        public bool BeatStarted { get; private set; }
-        public float Seconds { get; private set; }
+    	[SerializeField]
+    	private bool log = true;
 
-        /// <summary>
-        /// How she got through. Only meaningful once <see cref="Now"/> is Done.
-        ///
-        /// <para>Measured on what happened to her, not on whether the crawler
-        /// ever turned its head.</para>
-        ///
-        /// The first version keyed this on <c>EverNoticed</c> alone, which is
-        /// the wrong question and quietly made the stealth route impossible to
-        /// report: the yard's exit is under three metres from the crawler's post
-        /// and its notice radius is seven, so she is going to be seen on her way
-        /// out no matter which side of the wall she walked. A classification
-        /// that can only ever say "seen" is a classification measuring nothing.
-        ///
-        /// So it counts what she had to do instead — how many times the brush
-        /// connected, how many lunges she took — and the stealth route is the
-        /// one where she had to do neither. A crawler that spots her and then
-        /// loses her behind a wall has not failed the route; it has made it
-        /// interesting.
-        /// </summary>
-        public string Route
-        {
-            get
-            {
-                if (Now != Phase.Done)
-                    return crawler != null && crawler.Retired
-                        ? "in progress, it has given her up"
-                        : EverNoticed
-                            ? "in progress, it has seen her"
-                            : "in progress, unseen";
+    	private const float YardMargin = 12f;
 
-                int staggers = Staggers, lunges = Lunges;
+    	private Vector3 _entry;
 
-                if (staggers == 0 && lunges == 0)
-                    return "stealth — she was never in a fight";
+    	private bool _saidStagger;
 
-                if (lunges == 0)
-                    return "brush — " + staggers + " stagger(s), never touched";
+    	private bool _saidNoKill;
 
-                return "brush — " + staggers + " stagger(s), " + lunges +
-                       " lunge(s) taken";
-            }
-        }
+    	private bool _saidLunge;
 
-        /// <summary>
-        /// Did she get through without ever having to fight.
-        ///
-        /// The one bit of this the beat's design actually turns on, and
-        /// separate from <see cref="Route"/> so a reader is not left inferring
-        /// it out of a sentence.
-        /// </summary>
-        public bool WentUnfought => Now == Phase.Done && Staggers == 0 && Lunges == 0;
+    	private bool _saidUnseen;
 
-        Vector3 _entry;
-        bool _saidStagger, _saidNoKill, _saidLunge, _saidUnseen;
-        BrushPainter _subscribed;
+    	private bool _beganOnWake;
 
-        void Awake()
-        {
-            if (crawler == null)
-                crawler = FindAnyObjectByType<InkCrawler>(FindObjectsInactive.Include);
-            if (mono == null)
-                mono = MonoCompanion.FindInLevel();
-        }
+    	private BrushPainter _subscribed;
 
-        void OnEnable() => Subscribe();
-        void OnDisable() => Unsubscribe();
+    	public Phase Now { get; private set; }
 
-        void Subscribe()
-        {
-            if (brush == null)
-            {
-                var ari = FindAnyObjectByType<AriMover>(FindObjectsInactive.Include);
-                if (ari != null) brush = ari.GetComponent<BrushPainter>();
-            }
+    	public InkCrawler Crawler
+    	{
+    		get
+    		{
+    			if (crawlers == null || crawlers.Count <= 0)
+    			{
+    				return null;
+    			}
+    			return crawlers[0];
+    		}
+    	}
 
-            if (brush == null || _subscribed == brush) return;
-            brush.Stroked += OnStroke;
-            _subscribed = brush;
-        }
+    	public int CrawlerCount
+    	{
+    		get
+    		{
+    			if (crawlers != null)
+    			{
+    				return crawlers.Count;
+    			}
+    			return 0;
+    		}
+    	}
 
-        void Unsubscribe()
-        {
-            if (_subscribed == null) return;
-            _subscribed.Stroked -= OnStroke;
-            _subscribed = null;
-        }
+    	public IReadOnlyList<InkCrawler> Crawlers => crawlers;
 
-        void Update()
-        {
-            if (Now == Phase.Done) return;
-            Seconds += Time.deltaTime;
+    	public float EnterX => enterX;
 
-            var ari = AriNow();
-            if (ari == null) return;
+    	public float ExitX => exitX;
 
-            float x = ari.transform.position.x;
+    	public int Staggers => Sum((InkCrawler c) => c.Staggers);
 
-            if (!BeatStarted)
-            {
-                if (x < enterX) return;
-                BeatStarted = true;
-                _entry = ari.transform.position;
-                Now = Phase.Engaging;
-                if (log) Debug.Log("[Echoes] beat 5 begun at " + _entry.ToString("F2"), this);
-            }
+    	public int Lunges => Sum((InkCrawler c) => c.Lunges);
 
-            if (x >= exitX)
-            {
-                Now = Phase.Done;
-                Say(mono, "beat5.done");
-                if (log) Debug.Log("[Echoes] beat 5 done after " +
-                                   Seconds.ToString("0.0") + " s — " + Route, this);
-                return;
-            }
+    	public bool EverNoticed => Any((InkCrawler c) => c.EverNoticed);
 
-            Commentary();
-        }
+    	public bool BeatStarted { get; private set; }
 
-        /// <summary>
-        /// The two lines that are about what is *not* happening.
-        ///
-        /// Both are deliberate silences made audible. Nothing in the beat tells
-        /// the player that being hit is survivable or that going unseen is
-        /// allowed, because neither is true until something says it — and a
-        /// player who does not know the crawler cannot kill her will either
-        /// refuse to fight it or expect to die, and both make the beat worse.
-        /// </summary>
-        void Commentary()
-        {
-            if (crawler == null) return;
+    	public float Seconds { get; private set; }
 
-            // Fires the moment a lunge actually reaches her, not when one starts — a
-            // line that fires on the wind-up tells her she has been hit for
-            // something that has not happened yet.
-            SayOnce(crawler.Lunges > 0 && crawler.LastPushMetres > 0f,
-                    ref _saidLunge, "beat5.hits_back");
+    	public int Emerged
+    	{
+    		get
+    		{
+    			int num = 0;
+    			if (crawlers == null)
+    			{
+    				return num;
+    			}
+    			for (int i = 0; i < crawlers.Count; i++)
+    			{
+    				InkCrawlerEmerge inkCrawlerEmerge = (((Object)(object)crawlers[i] != (Object)null) ? ((Component)crawlers[i]).GetComponent<InkCrawlerEmerge>() : null);
+    				if ((Object)(object)inkCrawlerEmerge != (Object)null && inkCrawlerEmerge.IsReady)
+    				{
+    					num++;
+    				}
+    			}
+    			return num;
+    		}
+    	}
 
-            // The moment it gives her up. This used to key on "still unseen at twelve
-            // seconds", which fired while she was walking through the first
-            // stretch of the yard before the crawler had any chance to see her,
-            // and congratulated her for a route she had not chosen yet. It also
-            // stopped firing entirely once she took the fight, because by then
-            // she had been seen — so the only beat in this level with an
-            // optional route had no line for taking it.
-            SayOnce(crawler.Retired, ref _saidUnseen, "beat5.unseen");
-        }
+    	public string Route
+    	{
+    		get
+    		{
+    			if (Now != Phase.Done)
+    			{
+    				if (!crawlerRetired())
+    				{
+    					if (!EverNoticed)
+    					{
+    						return "in progress, unseen";
+    					}
+    					return "in progress, they have seen her";
+    				}
+    				return "in progress, they have given her up";
+    			}
+    			int staggers = Staggers;
+    			int lunges = Lunges;
+    			if (staggers == 0 && lunges == 0)
+    			{
+    				return "stealth — she was never in a fight";
+    			}
+    			if (lunges == 0)
+    			{
+    				return "brush — " + staggers + " stagger(s), never touched";
+    			}
+    			return "brush — " + staggers + " stagger(s), " + lunges + " lunge(s) taken";
+    		}
+    	}
 
-        AriMover AriNow()
-        {
-            var a = FindAnyObjectByType<AriMover>(FindObjectsInactive.Include);
-            return a;
-        }
+    	public bool WentUnfought
+    	{
+    		get
+    		{
+    			if (Now == Phase.Done && Staggers == 0)
+    			{
+    				return Lunges == 0;
+    			}
+    			return false;
+    		}
+    	}
 
-        /// <summary>
-        /// Ari swung the brush and it landed.
-        ///
-        /// The only place the crawler can be hurt, by the only verb the player
-        /// has. Nothing is subtracted from anything — this returns a bool and
-        /// calls <c>Splash</c>, and there is deliberately no damage, no health
-        /// and no kill behind it.
-        /// </summary>
-        void OnStroke(Vector3 point, int painted)
-        {
-            if (crawler == null || Now == Phase.Done) return;
+    	public bool BeganOnWake => _beganOnWake;
 
-            var ari = AriNow();
-            if (ari == null) return;
+    	public void SetCrawlers(IEnumerable<InkCrawler> set)
+    	{
+    		crawlers = new List<InkCrawler>(3);
+    		if (set == null)
+    		{
+    			return;
+    		}
+    		foreach (InkCrawler item in set)
+    		{
+    			if (!((Object)(object)item == (Object)null) && !crawlers.Contains(item))
+    			{
+    				crawlers.Add(item);
+    			}
+    		}
+    	}
 
-            bool hit = crawler.Splash(point, ari.transform.position);
-            if (!hit) return;
+    	private int Sum(Func<InkCrawler, int> read)
+    	{
+    		int num = 0;
+    		if (crawlers == null)
+    		{
+    			return num;
+    		}
+    		for (int i = 0; i < crawlers.Count; i++)
+    		{
+    			if ((Object)(object)crawlers[i] != (Object)null)
+    			{
+    				num += read(crawlers[i]);
+    			}
+    		}
+    		return num;
+    	}
 
-            // He comments on the second one, not the first. The first stagger
-            // is the player finding out; the second is the game confirming, and
-            // a line that fires on every hit turns the beat into a narration
-            // machine.
-            if (!_saidStagger && crawler.Staggers >= Mathf.Max(1, staggersToExplain))
-            {
-                _saidStagger = true;
-                Say(mono, "beat5.push");
-            }
+    	private bool Any(Func<InkCrawler, bool> read)
+    	{
+    		if (crawlers == null)
+    		{
+    			return false;
+    		}
+    		for (int i = 0; i < crawlers.Count; i++)
+    		{
+    			if ((Object)(object)crawlers[i] != (Object)null && read(crawlers[i]))
+    			{
+    				return true;
+    			}
+    		}
+    		return false;
+    	}
 
-            if (!_saidNoKill && crawler.Staggers >= 1)
-            {
-                _saidNoKill = true;
-                Say(mono, "beat5.nokill");
-            }
-        }
+    	private bool crawlerRetired()
+    	{
+    		if (crawlers == null)
+    		{
+    			return false;
+    		}
+    		for (int i = 0; i < crawlers.Count; i++)
+    		{
+    			if ((Object)(object)crawlers[i] != (Object)null && crawlers[i].Retired)
+    			{
+    				return true;
+    			}
+    		}
+    		return false;
+    	}
 
-        /// <summary>
-        /// Say a line at most once, and only while <paramref name="when"/>
-        /// holds.
-        ///
-        /// The parameter is the *condition*, not a flag meaning "only once" —
-        /// the latching is the point and it is what <paramref name="said"/>
-        /// carries. The first version took a bool called `once` and returned
-        /// when it was true, which meant the one line that had a real trigger
-        /// condition could never fire and the two that did not were the only
-        /// ones that worked.
-        /// </summary>
-        void SayOnce(bool when, ref bool said, string line)
-        {
-            if (!when || said) return;
-            said = true;
-            Say(mono, line);
-        }
+    	private void Awake()
+    	{
+    		//IL_006a: Unknown result type (might be due to invalid IL or missing references)
+    		if (crawlers == null)
+    		{
+    			crawlers = new List<InkCrawler>(3);
+    		}
+    		if (crawlers.Count == 0)
+    		{
+    			InkCrawler[] componentsInChildren = ((Component)this).GetComponentsInChildren<InkCrawler>(true);
+    			for (int i = 0; i < componentsInChildren.Length; i++)
+    			{
+    				crawlers.Add(componentsInChildren[i]);
+    			}
+    		}
+    		if (crawlers.Count == 0)
+    		{
+    			InkCrawler[] array = Object.FindObjectsByType<InkCrawler>((FindObjectsInactive)1);
+    			for (int j = 0; j < array.Length; j++)
+    			{
+    				float x = ((Component)array[j]).transform.position.x;
+    				if (!(x < enterX - 12f) && !(x > exitX + 12f))
+    				{
+    					crawlers.Add(array[j]);
+    				}
+    			}
+    			if (crawlers.Count > 0)
+    			{
+    				Debug.LogWarning((object)("[Echoes] beat 5: nothing is a child of " + ((Object)this).name + ", so the crawlers in the yard (x " + (enterX - 12f).ToString("0") + " to " + (exitX + 12f).ToString("0") + ") were adopted by position instead. Run Tools/Echoes/Beat 5 - Three Crawlers so the list is set explicitly."), (Object)(object)this);
+    			}
+    		}
+    		List<InkCrawler> list = new List<InkCrawler>(crawlers.Count);
+    		for (int k = 0; k < crawlers.Count; k++)
+    		{
+    			InkCrawler inkCrawler = crawlers[k];
+    			if ((Object)(object)inkCrawler == (Object)null)
+    			{
+    				continue;
+    			}
+    			if (list.Contains(inkCrawler))
+    			{
+    				if (log)
+    				{
+    					Debug.LogWarning((object)("[Echoes] beat 5: '" + ((Object)inkCrawler).name + "' was in the list twice; using it once"), (Object)(object)this);
+    				}
+    			}
+    			else
+    			{
+    				list.Add(inkCrawler);
+    			}
+    		}
+    		if (list.Count != crawlers.Count)
+    		{
+    			if (log && list.Count != crawlers.Count)
+    			{
+    				Debug.Log((object)("[Echoes] beat 5: " + crawlers.Count + " listed, " + list.Count + " usable"), (Object)(object)this);
+    			}
+    			crawlers = list;
+    		}
+    		if ((Object)(object)mono == (Object)null)
+    		{
+    			mono = MonoCompanion.FindInLevel();
+    		}
+    		if (crawlers.Count == 0)
+    		{
+    			Debug.LogError((object)("[Echoes] beat 5 has NO crawlers. It will never start, they will never rise, and nothing in the yard will attack. Run Tools/Echoes/Beat 5 - Three Crawlers, and check that the three InkCrawler components are between x " + (enterX - 12f).ToString("0") + " and " + (exitX + 12f).ToString("0") + "."), (Object)(object)this);
+    		}
+    		else if (log)
+    		{
+    			Debug.Log((object)("[Echoes] beat 5 has " + crawlers.Count + " crawler(s) — this beat is written for three"), (Object)(object)this);
+    		}
+    	}
 
-        static void Say(MonoCompanion speaker, string id)
-        {
-            if (speaker != null && !string.IsNullOrEmpty(id)) speaker.SayBeat(id);
-        }
+    	private void OnEnable()
+    	{
+    		Subscribe();
+    	}
 
-        /// <summary>Put the beat back to the start. For a checkpoint reload.</summary>
-        public void ResetBeat()
-        {
-            Now = Phase.Waiting;
-            BeatStarted = false;
-            Seconds = 0f;
-            _saidStagger = _saidNoKill = _saidLunge = _saidUnseen = false;
-            if (crawler != null) crawler.ResetCrawler();
-        }
+    	private void OnDisable()
+    	{
+    		Unsubscribe();
+    	}
 
-        /// <summary>Where the crawler stands. Placed by the setup tool so it is
-        /// measured off the yard rather than typed in twice.</summary>
-        public Vector3 WantedCrawlerPoint => new Vector3(enterX + crawlerOffset, 0f, transform.position.z);
+    	private void Subscribe()
+    	{
+    		if ((Object)(object)brush == (Object)null)
+    		{
+    			AriMover ariMover = Object.FindAnyObjectByType<AriMover>((FindObjectsInactive)1);
+    			if ((Object)(object)ariMover != (Object)null)
+    			{
+    				brush = ((Component)ariMover).GetComponent<BrushPainter>();
+    			}
+    		}
+    		if (!((Object)(object)brush == (Object)null) && !((Object)(object)_subscribed == (Object)(object)brush))
+    		{
+    			brush.Stroked += OnStroke;
+    			_subscribed = brush;
+    		}
+    	}
+
+    	private void Unsubscribe()
+    	{
+    		if (!((Object)(object)_subscribed == (Object)null))
+    		{
+    			_subscribed.Stroked -= OnStroke;
+    			_subscribed = null;
+    		}
+    	}
+
+    	private void Update()
+    	{
+    		//IL_0033: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a0: Unknown result type (might be due to invalid IL or missing references)
+    		if (Now == Phase.Done)
+    		{
+    			return;
+    		}
+    		Seconds += Time.deltaTime;
+    		AriMover ariMover = AriNow();
+    		if ((Object)(object)ariMover == (Object)null)
+    		{
+    			return;
+    		}
+    		float x = ((Component)ariMover).transform.position.x;
+    		if (!BeatStarted)
+    		{
+    			bool flag = huntOnMonoWake && (Object)(object)mono != (Object)null && mono.IsAwake;
+    			bool flag2 = !huntOnMonoWake && x >= enterX;
+    			if (!flag && !flag2)
+    			{
+    				return;
+    			}
+    			BeatStarted = true;
+    			_entry = ((Component)ariMover).transform.position;
+    			_beganOnWake = flag;
+    			Now = Phase.Rising;
+    			BeginEntrance();
+    			if (log)
+    			{
+    				Debug.Log((object)("[Echoes] beat 5 begun at " + _entry.ToString("F2") + (flag ? " — Mono is awake, so they are coming up now" : (" — she reached x " + x.ToString("0.0"))) + "; the yard looks empty for " + emergeDelay.ToString("0.0") + " s, then they come up"), (Object)(object)this);
+    			}
+    		}
+    		if (Now == Phase.Rising && Emerged >= CrawlerCount)
+    		{
+    			Now = Phase.Engaging;
+    		}
+    		if (x >= exitX)
+    		{
+    			Now = Phase.Done;
+    			Say(mono, "beat5.done");
+    			if (log)
+    			{
+    				Debug.Log((object)("[Echoes] beat 5 done after " + Seconds.ToString("0.0") + " s — " + Route), (Object)(object)this);
+    			}
+    		}
+    		else
+    		{
+    			Commentary();
+    		}
+    	}
+
+    	private void BeginEntrance()
+    	{
+    		if (crawlers == null || crawlers.Count == 0)
+    		{
+    			return;
+    		}
+    		for (int i = 0; i < crawlers.Count; i++)
+    		{
+    			if ((Object)(object)crawlers[i] == (Object)null)
+    			{
+    				continue;
+    			}
+    			InkCrawlerEmerge component = ((Component)crawlers[i]).GetComponent<InkCrawlerEmerge>();
+    			if ((Object)(object)component == (Object)null)
+    			{
+    				Debug.LogWarning((object)("[Echoes] beat 5: '" + ((Object)crawlers[i]).name + "' has no InkCrawlerEmerge, so it cannot come out of the ground. It will be visible from the moment she walks in."), (Object)(object)crawlers[i]);
+    				continue;
+    			}
+    			InkCrawler mine = crawlers[i];
+    			InkCrawlerEmerge mineEmerge = component;
+    			LevelRunner.RunAfter(emergeDelay + emergeStagger * (float)i, () =>
+    			{
+    				RiseOne(mine, mineEmerge);
+    			});
+    		}
+    	}
+
+    	private void RiseOne(InkCrawler c, InkCrawlerEmerge e)
+    	{
+    		if ((Object)(object)c == (Object)null || (Object)(object)e == (Object)null)
+    		{
+    			return;
+    		}
+    		if (e.Now != InkCrawlerEmerge.Phase.Up)
+    		{
+    			Debug.LogWarning((object)("[Echoes] beat 5: '" + ((Object)c).name + "' was due to rise and finish hunting but its emerge phase is " + e.Now.ToString() + ", not Up. It will be told to hunt late, or not at all."), (Object)(object)c);
+    			return;
+    		}
+    		c.Aggro();
+    		if (log)
+    		{
+    			Debug.Log((object)("[Echoes] beat 5: '" + ((Object)c).name + "' is up and hunting, " + c.MeasuredSpeed.ToString("0.00") + " m/s so far, " + c.AnimatorSpeed.ToString("0.00") + " m/s on the Animator"), (Object)(object)c);
+    		}
+    	}
+
+    	private void Commentary()
+    	{
+    		SayOnce(Lunges > 0 && anyReachedHer(), ref _saidLunge, "beat5.hits_back");
+    		SayOnce(crawlerRetired(), ref _saidUnseen, "beat5.unseen");
+    	}
+
+    	private bool anyReachedHer()
+    	{
+    		if (crawlers == null)
+    		{
+    			return false;
+    		}
+    		for (int i = 0; i < crawlers.Count; i++)
+    		{
+    			if ((Object)(object)crawlers[i] != (Object)null && crawlers[i].LastPushMetres > 0f)
+    			{
+    				return true;
+    			}
+    		}
+    		return false;
+    	}
+
+    	private AriMover AriNow()
+    	{
+    		return Object.FindAnyObjectByType<AriMover>((FindObjectsInactive)1);
+    	}
+
+    	private void OnStroke(Vector3 point, int painted)
+    	{
+    		//IL_0049: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0050: Unknown result type (might be due to invalid IL or missing references)
+    		if (Now == Phase.Done || crawlers == null)
+    		{
+    			return;
+    		}
+    		AriMover ariMover = AriNow();
+    		if ((Object)(object)ariMover == (Object)null)
+    		{
+    			return;
+    		}
+    		int num = 0;
+    		for (int i = 0; i < crawlers.Count; i++)
+    		{
+    			if (!((Object)(object)crawlers[i] == (Object)null) && crawlers[i].Splash(point, ((Component)ariMover).transform.position))
+    			{
+    				num++;
+    			}
+    		}
+    		if (num != 0)
+    		{
+    			if (!_saidStagger && Staggers >= Mathf.Max(1, staggersToExplain))
+    			{
+    				_saidStagger = true;
+    				Say(mono, "beat5.push");
+    			}
+    			if (!_saidNoKill && Staggers >= 1)
+    			{
+    				_saidNoKill = true;
+    				Say(mono, "beat5.nokill");
+    			}
+    		}
+    	}
+
+    	private void SayOnce(bool when, ref bool said, string line)
+    	{
+    		if (!(!when | said))
+    		{
+    			said = true;
+    			Say(mono, line);
+    		}
+    	}
+
+    	private static void Say(MonoCompanion speaker, string id)
+    	{
+    		if ((Object)(object)speaker != (Object)null && !string.IsNullOrEmpty(id))
+    		{
+    			speaker.SayBeat(id);
+    		}
+    	}
+
+    	public void ResetForCheckpoint()
+    	{
+    		ResetBeat();
+    	}
+
+    	public void ResetBeat()
+    	{
+    		//IL_001a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001f: Unknown result type (might be due to invalid IL or missing references)
+    		Now = Phase.Waiting;
+    		BeatStarted = false;
+    		Seconds = 0f;
+    		_entry = Vector3.zero;
+    		_saidStagger = (_saidNoKill = (_saidLunge = (_saidUnseen = false)));
+    		if (crawlers == null)
+    		{
+    			return;
+    		}
+    		for (int i = 0; i < crawlers.Count; i++)
+    		{
+    			InkCrawler inkCrawler = crawlers[i];
+    			if (!((Object)(object)inkCrawler == (Object)null))
+    			{
+    				inkCrawler.ResetCrawler();
+    				InkCrawlerEmerge component = ((Component)inkCrawler).GetComponent<InkCrawlerEmerge>();
+    				if ((Object)(object)component != (Object)null)
+    				{
+    					component.ResetForCheckpoint();
+    				}
+    			}
+    		}
+    		LevelRunner.CancelAll();
+    	}
     }
 }

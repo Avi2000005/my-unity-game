@@ -1,0 +1,84 @@
+using System;
+using UnityEditor;
+using UnityEngine;
+
+namespace Echoes.Painterly.EditorTools
+{
+
+    public sealed class VillageGeneratorWindow : EditorWindow
+    {
+    	private VillageGenerator.Settings _s = new VillageGenerator.Settings
+    	{
+    		seed = 20260926,
+    		houseCount = 24,
+    		minCells = 2,
+    		maxCells = 3,
+    		minStoreys = 1,
+    		maxStoreys = 3,
+    		spacing = 3f,
+    		addProps = true,
+    		addFences = true,
+    		addGround = true,
+    		addSquare = true,
+    		addPaths = true
+    	};
+
+    	private Vector2 _scroll;
+
+    	[MenuItem("Window/Echoes/Grey Village Generator", priority = 20)]
+    	private static void Open()
+    	{
+    		EditorWindow.GetWindow<VillageGeneratorWindow>("Grey Village");
+    	}
+
+    	private void OnGUI()
+    	{
+    		//IL_0002: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_000c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_027f: Unknown result type (might be due to invalid IL or missing references)
+    		_scroll = EditorGUILayout.BeginScrollView(_scroll, Array.Empty<GUILayoutOption>());
+    		EditorGUILayout.LabelField("Layout", EditorStyles.boldLabel, Array.Empty<GUILayoutOption>());
+    		_s.seed = EditorGUILayout.IntField("Seed", _s.seed, Array.Empty<GUILayoutOption>());
+    		_s.houseCount = Mathf.Clamp(EditorGUILayout.IntField("Building count", _s.houseCount, Array.Empty<GUILayoutOption>()), 1, 60);
+    		_s.minCells = Mathf.Clamp(EditorGUILayout.IntField("Min cells/side", _s.minCells, Array.Empty<GUILayoutOption>()), 1, 8);
+    		_s.maxCells = Mathf.Clamp(EditorGUILayout.IntField("Max cells/side", _s.maxCells, Array.Empty<GUILayoutOption>()), _s.minCells, 8);
+    		_s.spacing = EditorGUILayout.FloatField("Spacing (m)", _s.spacing, Array.Empty<GUILayoutOption>());
+    		EditorGUILayout.Space();
+    		EditorGUILayout.LabelField("Storeys", EditorStyles.boldLabel, Array.Empty<GUILayoutOption>());
+    		_s.minStoreys = Mathf.Clamp(EditorGUILayout.IntField("Min storeys", _s.minStoreys, Array.Empty<GUILayoutOption>()), 1, 5);
+    		_s.maxStoreys = Mathf.Clamp(EditorGUILayout.IntField("Max storeys", _s.maxStoreys, Array.Empty<GUILayoutOption>()), _s.minStoreys, 5);
+    		if (_s.maxStoreys > _s.minStoreys)
+    		{
+    			EditorGUILayout.HelpBox("Multi-storey buildings place a real stair piece between floors, so upper storeys are reachable. This is the main thing that stops the village reading as a row of sheds.", (MessageType)0);
+    		}
+    		EditorGUILayout.Space();
+    		EditorGUILayout.LabelField("Contents", EditorStyles.boldLabel, Array.Empty<GUILayoutOption>());
+    		_s.addGround = EditorGUILayout.Toggle("Ground plane", _s.addGround, Array.Empty<GUILayoutOption>());
+    		_s.addSquare = EditorGUILayout.Toggle("Market square + landmark", _s.addSquare, Array.Empty<GUILayoutOption>());
+    		_s.addPaths = EditorGUILayout.Toggle("Paths to square", _s.addPaths, Array.Empty<GUILayoutOption>());
+    		_s.addFences = EditorGUILayout.Toggle("Fences", _s.addFences, Array.Empty<GUILayoutOption>());
+    		_s.addProps = EditorGUILayout.Toggle("Props (crates, vines, chimneys)", _s.addProps, Array.Empty<GUILayoutOption>());
+    		EditorGUILayout.Space();
+    		DisabledScope val = new DisabledScope(EditorApplication.isPlaying);
+    		try
+    		{
+    			if (GUILayout.Button("Generate Village", new GUILayoutOption[1] { GUILayout.Height(30f) }))
+    			{
+    				VillageGenerator.Generate(_s);
+    			}
+    			if (GUILayout.Button("Delete Generated Village", Array.Empty<GUILayoutOption>()))
+    			{
+    				VillageGenerator.Delete();
+    			}
+    		}
+    		finally
+    		{
+    			((IDisposable)val/*cast due to constrained. prefix*/).Dispose();
+    		}
+    		EditorGUILayout.Space();
+    		EditorGUILayout.HelpBox("Every house gets a ColorRestoreTarget, so the whole village starts grey (Color Restore = 0). Add a BrushPainter to any GameObject and enter play mode: left click paints colour back, G greys everything, R restores all.", (MessageType)1);
+    		EditorGUILayout.EndScrollView();
+    	}
+    }
+}

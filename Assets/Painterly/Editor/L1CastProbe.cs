@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using UnityEditor;
@@ -5,412 +6,498 @@ using UnityEngine;
 
 namespace Echoes.Painterly.EditorTools
 {
-    /// <summary>
-    /// What is actually in the scene for the four things that were asked about:
-    /// the crawler's skin and body, the tree's colour, and Mono's size.
-    ///
-    /// <para>This is a measurement, not a builder. Each of those four is a
-    /// question about the current state of the hierarchy — what child holds the
-    /// crawler's renderer, what Mono's real height in metres is, whether the
-    /// tree's restore targets are at 0 right now — and every one of them has
-    /// been guessed wrong at least once already. A tool that answers them by
-    /// reading the scene costs one round trip; guessing costs a rewrite.</para>
-    ///
-    /// <para><b>Mono's height is measured by baking his skin</b>, the same way
-    /// <c>AriFit</c> and <c>Beat5Setup.AriPosedHeight</c> do it, rather than
-    /// from <c>SkinnedMeshRenderer.bounds</c>. Those bounds span every pose the
-    /// animation reaches, so they always over-report. Reading them here and
-    /// then scaling Mono to hit a chest height would overshoot.</para>
-    /// </summary>
+
     public static class L1CastProbe
     {
-        const string Report = "Temp/l1_cast_probe.txt";
+    	private const string Report = "Temp/l1_cast_probe.txt";
 
-        [MenuItem("Tools/Echoes/Probe L1 Cast", priority = 96)]
-        public static void Run()
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("[Echoes] cast probe");
-            sb.AppendLine("ground check — every number below is read off the " +
-                          "hierarchy, none is a design constant");
+    	[MenuItem("Tools/Echoes/Probe L1 Cast", priority = 96)]
+    	public static void Run()
+    	{
+    		StringBuilder stringBuilder = new StringBuilder();
+    		stringBuilder.AppendLine("[Echoes] cast probe");
+    		stringBuilder.AppendLine("ground check — every number below is read off the hierarchy, none is a design constant");
+    		Crawlers(stringBuilder);
+    		Mono(stringBuilder);
+    		Tree(stringBuilder);
+    		Ari(stringBuilder);
+    		File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), "Temp/l1_cast_probe.txt"), stringBuilder.ToString());
+    		Debug.Log((object)"[Echoes] cast probe written to Temp/l1_cast_probe.txt");
+    	}
 
-            Crawlers(sb);
-            Mono(sb);
-            Tree(sb);
-            Ari(sb);
+    	private static void Crawlers(StringBuilder sb)
+    	{
+    		//IL_0080: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0085: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0104: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0109: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0123: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0128: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0635: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_063a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0655: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_065a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_034e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0353: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0357: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_035c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0553: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0558: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_055c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0561: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0576: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_057b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_057f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0584: Unknown result type (might be due to invalid IL or missing references)
+    		sb.AppendLine();
+    		sb.AppendLine("=== INK CRAWLERS ===");
+    		InkCrawler[] array = Object.FindObjectsByType<InkCrawler>((FindObjectsInactive)1, (FindObjectsSortMode)0);
+    		sb.AppendLine("found " + array.Length + " InkCrawler component(s)");
+    		foreach (InkCrawler inkCrawler in array)
+    		{
+    			GameObject gameObject = ((Component)inkCrawler).gameObject;
+    			sb.AppendLine();
+    			string[] array2 = new string[6]
+    			{
+    				"-- ",
+    				((Object)gameObject).name,
+    				"  at ",
+    				null,
+    				null,
+    				null
+    			};
+    			Vector3 val = gameObject.transform.position;
+    			array2[3] = val.ToString("F2");
+    			array2[4] = "  active=";
+    			array2[5] = gameObject.activeSelf.ToString();
+    			sb.AppendLine(string.Concat(array2));
+    			sb.AppendLine("   parent      : " + (((Object)(object)gameObject.transform.parent == (Object)null) ? "(none — a root)" : ((Object)gameObject.transform.parent).name));
+    			val = gameObject.transform.localScale;
+    			string text = val.ToString("F4");
+    			val = gameObject.transform.localPosition;
+    			sb.AppendLine("   localScale  : " + text + "   localPos    : " + val.ToString("F3"));
+    			sb.AppendLine("   declared    : bodyHeight " + inkCrawler.BodyHeight.ToString("F2") + " m, splashRadius " + inkCrawler.SplashRadius.ToString("F2") + ", notice " + inkCrawler.NoticeRadius.ToString("F1"));
+    			Collider component = gameObject.GetComponent<Collider>();
+    			sb.AppendLine("   collider    : " + Describe(component));
+    			Renderer[] componentsInChildren = gameObject.GetComponentsInChildren<Renderer>(true);
+    			sb.AppendLine("   renderers   : " + componentsInChildren.Length);
+    			if (componentsInChildren.Length == 0)
+    			{
+    				sb.AppendLine("      ^ NO RENDERER ANYWHERE UNDER THIS OBJECT. Nothing is drawn for this crawler — which is a different problem from an untextured one, and the fix is not a texture.");
+    			}
+    			for (int j = 0; j < componentsInChildren.Length; j++)
+    			{
+    				Renderer val2 = componentsInChildren[j];
+    				sb.AppendLine("      [" + j + "] " + ((object)val2).GetType().Name + " '" + ((Object)val2).name + "' enabled=" + val2.enabled + " path=" + PathOf(gameObject.transform, ((Component)val2).transform));
+    				SkinnedMeshRenderer val3 = (SkinnedMeshRenderer)(object)((val2 is SkinnedMeshRenderer) ? val2 : null);
+    				if ((Object)(object)val3 != (Object)null)
+    				{
+    					sb.AppendLine("          skinned, blendShapeCount " + val3.sharedMesh.blendShapeCount);
+    				}
+    				MeshFilter component2 = ((Component)val2).GetComponent<MeshFilter>();
+    				Bounds bounds;
+    				if ((Object)(object)component2 != (Object)null && (Object)(object)component2.sharedMesh != (Object)null)
+    				{
+    					string[] array3 = new string[6]
+    					{
+    						"          mesh       : '",
+    						((Object)component2.sharedMesh).name,
+    						"' ",
+    						component2.sharedMesh.vertexCount.ToString(),
+    						" verts, bounds ",
+    						null
+    					};
+    					bounds = component2.sharedMesh.bounds;
+    					val = bounds.size;
+    					array3[5] = val.ToString("F3");
+    					sb.AppendLine(string.Concat(array3));
+    					sb.AppendLine("          uv0        : " + ((component2.sharedMesh.uv.Length != 0) ? (component2.sharedMesh.uv.Length + " coords") : "NONE — a texture assigned here would sample nothing and the mesh would render as flat colour"));
+    				}
+    				Material[] sharedMaterials = val2.sharedMaterials;
+    				int num = sharedMaterials?.Length ?? 0;
+    				sb.AppendLine("          materials  : " + num);
+    				for (int k = 0; k < num; k++)
+    				{
+    					Material val4 = sharedMaterials[k];
+    					if ((Object)(object)val4 == (Object)null)
+    					{
+    						sb.AppendLine("             [" + k + "] NULL — this slot draws pink");
+    						continue;
+    					}
+    					sb.AppendLine("             [" + k + "] '" + ((Object)val4).name + "' shader=" + (((Object)(object)val4.shader != (Object)null) ? ((Object)val4.shader).name : "NULL SHADER") + " path=" + AssetDatabase.GetAssetPath((Object)(object)val4));
+    					if (val4.HasProperty("_BaseMap"))
+    					{
+    						Texture texture = val4.GetTexture("_BaseMap");
+    						Texture2D val5 = (Texture2D)(object)((texture is Texture2D) ? texture : null);
+    						sb.AppendLine("                   _BaseMap = " + (((Object)(object)val5 == (Object)null) ? "NONE  <-- the flat look" : (((Object)val5).name + " " + ((Texture)val5).width + "x" + ((Texture)val5).height + " @" + AssetDatabase.GetAssetPath((Object)(object)val5))));
+    					}
+    				}
+    				bounds = val2.bounds;
+    				val = bounds.size;
+    				string text2 = val.ToString("F3");
+    				bounds = val2.bounds;
+    				val = bounds.center;
+    				sb.AppendLine("          worldBounds: " + text2 + " at " + val.ToString("F2"));
+    			}
+    			int childCount = gameObject.transform.childCount;
+    			sb.AppendLine("   children    : " + childCount);
+    			for (int l = 0; l < childCount; l++)
+    			{
+    				Transform child = gameObject.transform.GetChild(l);
+    				int num2 = ((Component)child).GetComponentsInChildren<Renderer>(true).Length;
+    				string[] array4 = new string[12]
+    				{
+    					"      ",
+    					((Object)child).name,
+    					" (",
+    					((object)child).GetType().Name,
+    					") localPos ",
+    					null,
+    					null,
+    					null,
+    					null,
+    					null,
+    					null,
+    					null
+    				};
+    				val = child.localPosition;
+    				array4[5] = val.ToString("F3");
+    				array4[6] = " localScale ";
+    				val = child.localScale;
+    				array4[7] = val.ToString("F3");
+    				array4[8] = " renderers=";
+    				array4[9] = num2.ToString();
+    				array4[10] = " active=";
+    				array4[11] = ((Component)child).gameObject.activeSelf.ToString();
+    				sb.AppendLine(string.Concat(array4));
+    			}
+    		}
+    	}
 
-            File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), Report),
-                               sb.ToString());
-            Debug.Log("[Echoes] cast probe written to " + Report);
-        }
+    	private static void Mono(StringBuilder sb)
+    	{
+    		//IL_007d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0082: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00bf: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00de: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ff: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0104: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0125: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_012a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_016c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02b7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02bc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02c0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02c5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01f8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01fd: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0201: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0206: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0359: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_035e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0378: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_037d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03ae: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03b3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03d3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03df: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0405: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0411: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04ab: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04b0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_032f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_031f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0324: Unknown result type (might be due to invalid IL or missing references)
+    		sb.AppendLine();
+    		sb.AppendLine("=== MONO ===");
+    		MonoCompanion[] array = Object.FindObjectsByType<MonoCompanion>((FindObjectsInactive)1, (FindObjectsSortMode)0);
+    		sb.AppendLine("found " + array.Length);
+    		for (int i = 0; i < array.Length; i++)
+    		{
+    			GameObject gameObject = ((Component)array[i]).gameObject;
+    			Transform transform = gameObject.transform;
+    			sb.AppendLine();
+    			string[] array2 = new string[6]
+    			{
+    				"-- ",
+    				((Object)gameObject).name,
+    				" at ",
+    				null,
+    				null,
+    				null
+    			};
+    			Vector3 val = transform.position;
+    			array2[3] = val.ToString("F3");
+    			array2[4] = " active=";
+    			array2[5] = gameObject.activeSelf.ToString();
+    			sb.AppendLine(string.Concat(array2));
+    			val = transform.localScale;
+    			string text = val.ToString("F4");
+    			val = transform.lossyScale;
+    			sb.AppendLine("   localScale  : " + text + "   localScale3 : " + val.ToString("F4"));
+    			val = transform.localPosition;
+    			sb.AppendLine("   localPos    : " + val.ToString("F3"));
+    			val = transform.eulerAngles;
+    			sb.AppendLine("   rotation    : " + val.ToString("F1"));
+    			Renderer[] componentsInChildren = gameObject.GetComponentsInChildren<Renderer>(true);
+    			sb.AppendLine("   renderers   : " + componentsInChildren.Length);
+    			Bounds val2 = default;
+    			bool flag = true;
+    			foreach (Renderer val3 in componentsInChildren)
+    			{
+    				SkinnedMeshRenderer val4 = (SkinnedMeshRenderer)(object)((val3 is SkinnedMeshRenderer) ? val3 : null);
+    				sb.AppendLine("      " + ((object)val3).GetType().Name + " '" + ((Object)val3).name + " enabled=" + val3.enabled);
+    				Bounds val5;
+    				if ((Object)(object)val4 != (Object)null)
+    				{
+    					val5 = ((Renderer)val4).localBounds;
+    					val = val5.size;
+    					sb.AppendLine("         animationBounds " + val.ToString("F3") + "  <- every pose it reaches, NOT its current height");
+    					float num = SkinHeight.Measure(val3, out var worldFeet, out var why);
+    					sb.AppendLine("         measured    : " + ((num > 0.0001f) ? (num.ToString("F3") + " m tall, feet at y " + worldFeet.y.ToString("F3") + "  (" + why + ")") : ("COULD NOT MEASURE — " + why)));
+    				}
+    				else
+    				{
+    					MeshFilter component = ((Component)val3).GetComponent<MeshFilter>();
+    					val5 = val3.bounds;
+    					val = val5.size;
+    					sb.AppendLine("         meshRenderer bounds " + val.ToString("F3") + (((Object)(object)component != (Object)null && (Object)(object)component.sharedMesh != (Object)null) ? (" (mesh " + ((Object)component.sharedMesh).name + ")") : ""));
+    				}
+    				if (flag)
+    				{
+    					val2 = val3.bounds;
+    					flag = false;
+    				}
+    				else
+    				{
+    					val2.Encapsulate(val3.bounds);
+    				}
+    			}
+    			if (!flag)
+    			{
+    				val = val2.size;
+    				string text2 = val.y.ToString("F3");
+    				val = val2.min;
+    				sb.AppendLine("   MEASURED    : Mono stands " + text2 + " m tall, bottom at y " + val.y.ToString("F3"));
+    				string[] array3 = new string[6] { "   his root y  : ", null, null, null, null, null };
+    				val = transform.position;
+    				array3[1] = val.y.ToString("F3");
+    				array3[2] = "  -> bottom is ";
+    				array3[3] = (val2.min.y - transform.position.y).ToString("F3");
+    				array3[4] = " m ";
+    				array3[5] = ((val2.min.y > transform.position.y + 0.02f) ? "ABOVE his root, so he is hovering" : "at or below his root, so he is on the floor");
+    				sb.AppendLine(string.Concat(array3));
+    			}
+    			int childCount = transform.childCount;
+    			sb.AppendLine("   children    : " + childCount);
+    			for (int k = 0; k < childCount; k++)
+    			{
+    				Transform child = transform.GetChild(k);
+    				string[] array4 = new string[8]
+    				{
+    					"      ",
+    					((Object)child).name,
+    					" (",
+    					((object)child).GetType().Name,
+    					") localPos ",
+    					null,
+    					null,
+    					null
+    				};
+    				val = child.localPosition;
+    				array4[5] = val.ToString("F3");
+    				array4[6] = " renderers=";
+    				array4[7] = ((Component)child).GetComponentsInChildren<Renderer>(true).Length.ToString();
+    				sb.AppendLine(string.Concat(array4));
+    			}
+    		}
+    		sb.AppendLine();
+    		AriMover ariMover = Object.FindAnyObjectByType<AriMover>((FindObjectsInactive)1);
+    		if ((Object)(object)ariMover != (Object)null)
+    		{
+    			sb.AppendLine("Ari's bodyHeight  : " + ariMover.BodyHeight.ToString("F3") + " m  (collider authority, unchanged)");
+    			sb.AppendLine("Ari's chest, as InkCrawler measures it : " + (ariMover.BodyHeight * 0.6f).ToString("F3") + " m");
+    			sb.AppendLine("  ^ that is the number to size Mono to. It is the project's existing definition of her chest, so using it means two scripts cannot disagree about where her chest is.");
+    		}
+    	}
 
-        // --- 1. the crawler: skin and body -----------------------------------
+    	private static void Tree(StringBuilder sb)
+    	{
+    		//IL_0050: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0055: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00bf: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0237: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_023d: Unknown result type (might be due to invalid IL or missing references)
+    		sb.AppendLine();
+    		sb.AppendLine("=== SLEEPING TREE / COLOUR STATE ===");
+    		SleepingTree sleepingTree = Object.FindAnyObjectByType<SleepingTree>((FindObjectsInactive)1);
+    		if ((Object)(object)sleepingTree == (Object)null)
+    		{
+    			sb.AppendLine("no SleepingTree in the scene");
+    		}
+    		else
+    		{
+    			string name = ((Object)((Component)sleepingTree).gameObject).name;
+    			Vector3 val = ((Component)sleepingTree).transform.position;
+    			sb.AppendLine("tree " + name + " at " + val.ToString("F2"));
+    			sb.AppendLine("  burstRadius : " + sleepingTree.BurstRadius.ToString("F2") + " m");
+    			sb.AppendLine("  awoken      : " + sleepingTree.IsAwoken);
+    			val = sleepingTree.TouchPoint;
+    			sb.AppendLine("  _point      : " + val.ToString("F2"));
+    		}
+    		ColorRestoreTarget[] array = Object.FindObjectsByType<ColorRestoreTarget>((FindObjectsInactive)1, (FindObjectsSortMode)0);
+    		sb.AppendLine();
+    		sb.AppendLine("ColorRestoreTarget components: " + array.Length);
+    		float num = 0f;
+    		float num2 = 0f;
+    		int num3 = 0;
+    		for (int i = 0; i < array.Length; i++)
+    		{
+    			num += array[i].Restore;
+    			if (array[i].Restore > 0.001f)
+    			{
+    				num3++;
+    			}
+    			if (array[i].Restore > num2)
+    			{
+    				num2 = array[i].Restore;
+    			}
+    		}
+    		if (array.Length != 0)
+    		{
+    			sb.AppendLine("  mean restore " + (num / (float)array.Length).ToString("0.000") + ", highest " + num2.ToString("0.000") + ", coloured now " + num3 + " of " + array.Length);
+    			sb.AppendLine("  " + ((num3 == 0) ? "the whole village is grey, which is what Beat 7 needs to change" : (num3 + " target(s) are ALREADY partly coloured. The brief says no colour until the fountain, so something is restoring early — most likely BrushPainter.PaintAt, which calls RestoreInRadius(1f) on every stroke.")));
+    		}
+    		sb.AppendLine();
+    		sb.AppendLine("targets within 15 m of the tree:");
+    		for (int j = 0; j < array.Length; j++)
+    		{
+    			if ((Object)(object)sleepingTree == (Object)null)
+    			{
+    				break;
+    			}
+    			float num4 = Vector3.Distance(((Component)array[j]).transform.position, sleepingTree.TouchPoint);
+    			if (!(num4 > 15f))
+    			{
+    				sb.AppendLine("   " + ((Object)array[j]).name.PadRight(28) + " " + num4.ToString("F1") + " m  restore " + array[j].Restore.ToString("0.000"));
+    			}
+    		}
+    	}
 
-        static void Crawlers(StringBuilder sb)
-        {
-            sb.AppendLine();
-            sb.AppendLine("=== INK CRAWLERS ===");
+    	private static void Ari(StringBuilder sb)
+    	{
+    		//IL_003c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0041: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a8: Unknown result type (might be due to invalid IL or missing references)
+    		sb.AppendLine();
+    		sb.AppendLine("=== ARI ===");
+    		AriMover ariMover = Object.FindAnyObjectByType<AriMover>((FindObjectsInactive)1);
+    		if ((Object)(object)ariMover == (Object)null)
+    		{
+    			sb.AppendLine("none in the scene");
+    			return;
+    		}
+    		Vector3 val = ((Component)ariMover).transform.position;
+    		sb.AppendLine("at " + val.ToString("F3"));
+    		sb.AppendLine("  bodyHeight " + ariMover.BodyHeight.ToString("F3") + "  bodyRadius " + ariMover.BodyRadius.ToString("F3"));
+    		val = ((Component)ariMover).transform.localScale;
+    		sb.AppendLine("  localScale " + val.ToString("F4"));
+    		AriHealth component = ((Component)ariMover).GetComponent<AriHealth>();
+    		sb.AppendLine("  AriHealth   : " + (((Object)(object)component == (Object)null) ? "NOT ON HER — beats 5-7 have no health" : ("present, at " + component.Fraction.ToString("0.00"))));
+    		AriInteract component2 = ((Component)ariMover).GetComponent<AriInteract>();
+    		sb.AppendLine("  AriInteract : " + (((Object)(object)component2 == (Object)null) ? "NOT ON HER — there is no E button in the level yet" : "present"));
+    	}
 
-            var all = UnityEngine.Object.FindObjectsByType<InkCrawler>(
-                FindObjectsInactive.Include, FindObjectsSortMode.None);
+    	private static string Describe(Collider c)
+    	{
+    		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0033: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0037: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0096: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ce: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_012a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_012f: Unknown result type (might be due to invalid IL or missing references)
+    		if ((Object)(object)c == (Object)null)
+    		{
+    			return "NONE";
+    		}
+    		string[] array = new string[7]
+    		{
+    			((object)c).GetType().Name,
+    			" size=",
+    			null,
+    			null,
+    			null,
+    			null,
+    			null
+    		};
+    		Bounds bounds = c.bounds;
+    		Vector3 val = bounds.size;
+    		array[2] = val.ToString("F2");
+    		array[3] = " enabled=";
+    		array[4] = c.enabled.ToString();
+    		array[5] = " trigger=";
+    		array[6] = c.isTrigger.ToString();
+    		string text = string.Concat(array);
+    		BoxCollider val2 = (BoxCollider)(object)((c is BoxCollider) ? c : null);
+    		if (val2 != null)
+    		{
+    			val = val2.center;
+    			return text + " centre=" + val.ToString("F2");
+    		}
+    		SphereCollider val3 = (SphereCollider)(object)((c is SphereCollider) ? c : null);
+    		if (val3 != null)
+    		{
+    			string[] array2 = new string[5] { text, " centre=", null, null, null };
+    			val = val3.center;
+    			array2[2] = val.ToString("F2");
+    			array2[3] = " radius=";
+    			array2[4] = val3.radius.ToString("F2");
+    			return string.Concat(array2);
+    		}
+    		CapsuleCollider val4 = (CapsuleCollider)(object)((c is CapsuleCollider) ? c : null);
+    		if (val4 != null)
+    		{
+    			string[] array3 = new string[9] { text, " centre=", null, null, null, null, null, null, null };
+    			val = val4.center;
+    			array3[2] = val.ToString("F2");
+    			array3[3] = " r=";
+    			array3[4] = val4.radius.ToString("F2");
+    			array3[5] = " h=";
+    			array3[6] = val4.height.ToString("F2");
+    			array3[7] = " dir=";
+    			array3[8] = val4.direction.ToString();
+    			return string.Concat(array3);
+    		}
+    		return text + " centre=not on this collider type";
+    	}
 
-            sb.AppendLine("found " + all.Length + " InkCrawler component(s)");
-
-            for (int i = 0; i < all.Length; i++)
-            {
-                var c = all[i];
-                var go = c.gameObject;
-
-                sb.AppendLine();
-                sb.AppendLine("-- " + go.name + "  at " + go.transform.position.ToString("F2") +
-                              "  active=" + go.activeSelf);
-                sb.AppendLine("   parent      : " + (go.transform.parent == null
-                    ? "(none — a root)" : go.transform.parent.name));
-                sb.AppendLine("   localScale  : " + go.transform.localScale.ToString("F4") +
-                              "   localPos    : " + go.transform.localPosition.ToString("F3"));
-                sb.AppendLine("   declared    : bodyHeight " + c.BodyHeight.ToString("F2") +
-                              " m, splashRadius " + c.SplashRadius.ToString("F2") +
-                              ", notice " + c.NoticeRadius.ToString("F1"));
-
-                var col = go.GetComponent<Collider>();
-                sb.AppendLine("   collider    : " + Describe(col));
-
-                // The renderer hunt. This is the question that matters: is the
-                // skin on a child, on a grandchild, or not present at all.
-                var rends = go.GetComponentsInChildren<Renderer>(true);
-                sb.AppendLine("   renderers   : " + rends.Length);
-
-                if (rends.Length == 0)
-                {
-                    sb.AppendLine("      ^ NO RENDERER ANYWHERE UNDER THIS OBJECT. Nothing " +
-                                  "is drawn for this crawler — which is a different " +
-                                  "problem from an untextured one, and the fix is not " +
-                                  "a texture.");
-                }
-
-                for (int r = 0; r < rends.Length; r++)
-                {
-                    var rd = rends[r];
-                    sb.AppendLine("      [" + r + "] " + rd.GetType().Name + " '" + rd.name +
-                                  "' enabled=" + rd.enabled +
-                                  " path=" + PathOf(go.transform, rd.transform));
-
-                    var smr = rd as SkinnedMeshRenderer;
-                    if (smr != null)
-                    {
-                        sb.AppendLine("          skinned, blendShapeCount " + smr.sharedMesh.blendShapeCount);
-                    }
-
-                    var mf = rd.GetComponent<MeshFilter>();
-                    if (mf != null && mf.sharedMesh != null)
-                    {
-                        sb.AppendLine("          mesh       : '" + mf.sharedMesh.name +
-                                      "' " + mf.sharedMesh.vertexCount + " verts, " +
-                                      "bounds " + mf.sharedMesh.bounds.size.ToString("F3"));
-                        sb.AppendLine("          uv0        : " +
-                                      (mf.sharedMesh.uv.Length > 0
-                                        ? mf.sharedMesh.uv.Length + " coords"
-                                        : "NONE — a texture assigned here would sample " +
-                                          "nothing and the mesh would render as flat colour"));
-                    }
-
-                    var mats = rd.sharedMaterials;
-                    var slots = mats == null ? 0 : mats.Length;
-                    sb.AppendLine("          materials  : " + slots);
-
-                    for (int m = 0; m < slots; m++)
-                    {
-                        var mat = mats[m];
-                        if (mat == null)
-                        {
-                            sb.AppendLine("             [" + m + "] NULL — this slot draws pink");
-                            continue;
-                        }
-
-                        sb.AppendLine("             [" + m + "] '" + mat.name + "' shader=" +
-                                      (mat.shader != null ? mat.shader.name : "NULL SHADER") +
-                                      " path=" + AssetDatabase.GetAssetPath(mat));
-
-                        if (!mat.HasProperty("_BaseMap")) continue;
-
-                        var tex = mat.GetTexture("_BaseMap") as Texture2D;
-                        sb.AppendLine("                   _BaseMap = " +
-                                      (tex == null
-                                        ? "NONE  <-- the flat look"
-                                        : tex.name + " " + tex.width + "x" + tex.height +
-                                          " @" + AssetDatabase.GetAssetPath(tex)));
-                    }
-
-                    sb.AppendLine("          worldBounds: " + rd.bounds.size.ToString("F3") +
-                                  " at " + rd.bounds.center.ToString("F2"));
-                }
-
-                // Kids, so the emerge animation knows what to sink.
-                var kids = go.transform.childCount;
-                sb.AppendLine("   children    : " + kids);
-                for (int k = 0; k < kids; k++)
-                {
-                    var kid = go.transform.GetChild(k);
-                    int kr = kid.GetComponentsInChildren<Renderer>(true).Length;
-                    sb.AppendLine("      " + kid.name + " (" + kid.GetType().Name +
-                                  ") localPos " + kid.localPosition.ToString("F3") +
-                                  " localScale " + kid.localScale.ToString("F3") +
-                                  " renderers=" + kr + " active=" + kid.gameObject.activeSelf);
-                }
-            }
-        }
-
-        // --- 5. Mono: how big, and is he off the floor -----------------------
-
-        static void Mono(StringBuilder sb)
-        {
-            sb.AppendLine();
-            sb.AppendLine("=== MONO ===");
-
-            var all = UnityEngine.Object.FindObjectsByType<MonoCompanion>(
-                FindObjectsInactive.Include, FindObjectsSortMode.None);
-
-            sb.AppendLine("found " + all.Length);
-
-            for (int i = 0; i < all.Length; i++)
-            {
-                var m = all[i];
-                var go = m.gameObject;
-                var t = go.transform;
-
-                sb.AppendLine();
-                sb.AppendLine("-- " + go.name + " at " + t.position.ToString("F3") +
-                              " active=" + go.activeSelf);
-                sb.AppendLine("   localScale  : " + t.localScale.ToString("F4") +
-                              "   localScale3 : " + t.lossyScale.ToString("F4"));
-                sb.AppendLine("   localPos    : " + t.localPosition.ToString("F3"));
-                sb.AppendLine("   rotation    : " + t.eulerAngles.ToString("F1"));
-
-                var rends = go.GetComponentsInChildren<Renderer>(true);
-                sb.AppendLine("   renderers   : " + rends.Length);
-
-                Bounds allBounds = new Bounds();
-                bool first = true;
-                for (int r = 0; r < rends.Length; r++)
-                {
-                    var rd = rends[r];
-                    var smr = rd as SkinnedMeshRenderer;
-
-                    sb.AppendLine("      " + rd.GetType().Name + " '" + rd.name +
-                                  " enabled=" + rd.enabled);
-
-                    if (smr != null)
-                    {
-                        sb.AppendLine("         animationBounds " +
-                                      smr.localBounds.size.ToString("F3") +
-                                      "  <- every pose it reaches, NOT its current height");
-
-                        // Through SkinHeight, not a local bake. SkinHeight is the
-                        // one implementation of "how tall is this"; a second copy
-                        // in a probe is how two tools end up reporting two
-                        // different heights for the same character.
-                        float h = SkinHeight.Measure(rd, out var feet, out var how);
-
-                        sb.AppendLine("         measured    : " + (h > 0.0001f
-                            ? h.ToString("F3") + " m tall, feet at y " +
-                              feet.y.ToString("F3") + "  (" + how + ")"
-                            : "COULD NOT MEASURE — " + how));
-                    }
-                    else
-                    {
-                        var mf = rd.GetComponent<MeshFilter>();
-                        sb.AppendLine("         meshRenderer bounds " + rd.bounds.size.ToString("F3") +
-                                      (mf != null && mf.sharedMesh != null
-                                        ? " (mesh " + mf.sharedMesh.name + ")"
-                                        : ""));
-                    }
-
-                    if (first) { allBounds = rd.bounds; first = false; }
-                    else allBounds.Encapsulate(rd.bounds);
-                }
-
-                if (!first)
-                {
-                    sb.AppendLine("   MEASURED    : Mono stands " +
-                                  allBounds.size.y.ToString("F3") + " m tall, bottom at y " +
-                                  allBounds.min.y.ToString("F3"));
-                    sb.AppendLine("   his root y  : " + t.position.y.ToString("F3") +
-                                  "  -> bottom is " +
-                                  (allBounds.min.y - t.position.y).ToString("F3") +
-                                  " m " + (allBounds.min.y > t.position.y + 0.02f
-                                     ? "ABOVE his root, so he is hovering"
-                                     : "at or below his root, so he is on the floor"));
-                }
-
-                var kids = t.childCount;
-                sb.AppendLine("   children    : " + kids);
-                for (int k = 0; k < kids; k++)
-                {
-                    var kid = t.GetChild(k);
-                    sb.AppendLine("      " + kid.name + " (" + kid.GetType().Name +
-                                  ") localPos " + kid.localPosition.ToString("F3") +
-                                  " renderers=" + kid.GetComponentsInChildren<Renderer>(true).Length);
-                }
-            }
-
-            // Ari, for the target height.
-            sb.AppendLine();
-            var ari = UnityEngine.Object.FindAnyObjectByType<AriMover>(
-                FindObjectsInactive.Include);
-            if (ari != null)
-            {
-                sb.AppendLine("Ari's bodyHeight  : " + ari.BodyHeight.ToString("F3") +
-                              " m  (collider authority, unchanged)");
-                sb.AppendLine("Ari's chest, as InkCrawler measures it : " +
-                              (ari.BodyHeight * 0.6f).ToString("F3") + " m");
-                sb.AppendLine("  ^ that is the number to size Mono to. It is the project's " +
-                              "existing definition of HIS chest, so using it means " +
-                              "two scripts cannot disagree about where HIS chest is.");
-            }
-        }
-
-        // --- 3. the tree: is anything coloured yet ---------------------------
-
-        static void Tree(StringBuilder sb)
-        {
-            sb.AppendLine();
-            sb.AppendLine("=== SLEEPING TREE / COLOUR STATE ===");
-
-            var tree = UnityEngine.Object.FindAnyObjectByType<SleepingTree>(
-                FindObjectsInactive.Include);
-
-            if (tree == null)
-            {
-                sb.AppendLine("no SleepingTree in the scene");
-            }
-            else
-            {
-                sb.AppendLine("tree " + tree.gameObject.name + " at " +
-                              tree.transform.position.ToString("F2"));
-                sb.AppendLine("  burstRadius : " + tree.BurstRadius.ToString("F2") + " m");
-                sb.AppendLine("  awoken      : " + tree.IsAwoken);
-                sb.AppendLine("  _point      : " + tree.TouchPoint.ToString("F2"));
-            }
-
-            var targets = UnityEngine.Object.FindObjectsByType<ColorRestoreTarget>(
-                FindObjectsInactive.Include, FindObjectsSortMode.None);
-
-            sb.AppendLine();
-            sb.AppendLine("ColorRestoreTarget components: " + targets.Length);
-
-            float sum = 0f, mx = 0f;
-            int coloured = 0;
-            for (int i = 0; i < targets.Length; i++)
-            {
-                sum += targets[i].Restore;
-                if (targets[i].Restore > 0.001f) coloured++;
-                if (targets[i].Restore > mx) mx = targets[i].Restore;
-            }
-
-            if (targets.Length > 0)
-            {
-                sb.AppendLine("  mean restore " + (sum / targets.Length).ToString("0.000") +
-                              ", highest " + mx.ToString("0.000") +
-                              ", coloured now " + coloured + " of " + targets.Length);
-                sb.AppendLine("  " + (coloured == 0
-                    ? "the whole village is grey, which is what Beat 7 needs to change"
-                    : coloured + " target(s) are ALREADY partly coloured. The brief says " +
-                      "no colour until the fountain, so something is restoring early " +
-                      "— most likely BrushPainter.PaintAt, which calls " +
-                      "RestoreInRadius(1f) on every stroke."));
-            }
-
-            // Anything already restored near the tree is the specific thing to
-            // look at.
-            sb.AppendLine();
-            sb.AppendLine("targets within 15 m of the tree:");
-            for (int i = 0; i < targets.Length; i++)
-            {
-                if (tree == null) break;
-                float d = Vector3.Distance(targets[i].transform.position,
-                                           tree.TouchPoint);
-                if (d > 15f) continue;
-                sb.AppendLine("   " + targets[i].name.PadRight(28) + " " +
-                              d.ToString("F1") + " m  restore " +
-                              targets[i].Restore.ToString("0.000"));
-            }
-        }
-
-        // --- Ari, for reference ---------------------------------------------
-
-        static void Ari(StringBuilder sb)
-        {
-            sb.AppendLine();
-            sb.AppendLine("=== ARI ===");
-            var ari = UnityEngine.Object.FindAnyObjectByType<AriMover>(
-                FindObjectsInactive.Include);
-            if (ari == null) { sb.AppendLine("none in the scene"); return; }
-
-            sb.AppendLine("at " + ari.transform.position.ToString("F3"));
-            sb.AppendLine("  bodyHeight " + ari.BodyHeight.ToString("F3") +
-                          "  bodyRadius " + ari.BodyRadius.ToString("F3"));
-            sb.AppendLine("  localScale " + ari.transform.localScale.ToString("F4"));
-
-            var hp = ari.GetComponent<AriHealth>();
-            sb.AppendLine("  AriHealth   : " + (hp == null ? "NOT ON HIM — beats 5-7 have no health"
-                                                         : "present, at " + hp.Fraction.ToString("0.00")));
-
-            var inter = ari.GetComponent<AriInteract>();
-            sb.AppendLine("  AriInteract : " + (inter == null
-                ? "NOT ON HIM — there is no E button in the level yet"
-                : "present"));
-        }
-
-        // --- helpers ----------------------------------------------------------
-
-        /// <summary>
-        /// Describe a collider.
-        ///
-        /// <para><c>Collider</c> itself has no <c>center</c> — that lives on the
-        /// three shapes that have one. Asking the base type for it is a compile
-        /// error, and reading only <c>bounds</c> instead would lose the thing
-        /// this report is for, which is whether the capsule is centred on the
-        /// root as Beat5Setup claims.</para>
-        /// </summary>
-        static string Describe(Collider c)
-        {
-            if (c == null) return "NONE";
-
-            string s = c.GetType().Name +
-                       " size=" + c.bounds.size.ToString("F2") +
-                       " enabled=" + c.enabled +
-                       " trigger=" + c.isTrigger;
-
-            // Reported for each shape rather than through the base type, and the
-            // "no centre" case is stated rather than left blank — a blank reads
-            // as a measurement that was not taken.
-            if (c is BoxCollider b)
-                return s + " centre=" + b.center.ToString("F2");
-            if (c is SphereCollider sp)
-                return s + " centre=" + sp.center.ToString("F2") +
-                       " radius=" + sp.radius.ToString("F2");
-            if (c is CapsuleCollider cap)
-                return s + " centre=" + cap.center.ToString("F2") +
-                       " r=" + cap.radius.ToString("F2") +
-                       " h=" + cap.height.ToString("F2") +
-                       " dir=" + cap.direction;
-
-            return s + " centre=not on this collider type";
-        }
-
-        static string PathOf(Transform from, Transform to)
-        {
-            if (from == to) return ".";
-            var parts = new System.Collections.Generic.List<string>();
-            var cur = to;
-            while (cur != null && cur != from)
-            {
-                parts.Add(cur.name);
-                cur = cur.parent;
-            }
-            if (cur == null) return "(not under " + from.name + ")";
-            parts.Reverse();
-            return from.name + "/" + string.Join("/", parts.ToArray());
-        }
+    	private static string PathOf(Transform from, Transform to)
+    	{
+    		if ((Object)(object)from == (Object)(object)to)
+    		{
+    			return ".";
+    		}
+    		List<string> list = new List<string>();
+    		Transform val = to;
+    		while ((Object)(object)val != (Object)null && (Object)(object)val != (Object)(object)from)
+    		{
+    			list.Add(((Object)val).name);
+    			val = val.parent;
+    		}
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			return "(not under " + ((Object)from).name + ")";
+    		}
+    		list.Reverse();
+    		return ((Object)from).name + "/" + string.Join("/", list.ToArray());
+    	}
     }
 }

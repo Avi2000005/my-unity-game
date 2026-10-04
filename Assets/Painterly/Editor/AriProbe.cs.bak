@@ -1,0 +1,170 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
+using UnityEditor;
+using UnityEngine;
+
+using Object = UnityEngine.Object;
+namespace Echoes.Painterly.EditorTools
+{
+
+    public static class AriProbe
+    {
+    	private const string Dir = "Assets/Art/Ari/Models";
+
+    	[MenuItem("Tools/Echoes/Probe Ari", priority = 90)]
+    	public static void Run()
+    	{
+    		StringBuilder stringBuilder = new StringBuilder();
+    		ProbeAvatar(stringBuilder);
+    		ProbeClips(stringBuilder, "Ari_character");
+    		ProbeClips(stringBuilder, "Idle");
+    		ProbeClips(stringBuilder, "Walking");
+    		ProbeMeshes(stringBuilder, "Ari_character");
+    		File.WriteAllText("Temp/ari_probe.txt", stringBuilder.ToString());
+    		Debug.Log((object)("[Echoes] Ari probe -> Temp/ari_probe.txt\n" + stringBuilder));
+    	}
+
+    	private static void ProbeAvatar(StringBuilder sb)
+    	{
+    		//IL_0065: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ab: Expected I4, but got Unknown
+    		//IL_00d1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00df: Unknown result type (might be due to invalid IL or missing references)
+    		Avatar val = AssetDatabase.LoadAllAssetsAtPath("Assets/Art/Ari/Models/Ari_character.fbx").OfType<Avatar>().FirstOrDefault();
+    		sb.AppendLine("=== AVATAR ===");
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			sb.AppendLine("  none");
+    			return;
+    		}
+    		sb.AppendLine($"  valid={val.isValid} human={val.isHuman}");
+    		HumanBone[] human = val.humanDescription.human;
+    		List<string> list = new List<string>();
+    		HashSet<HumanBodyBones> have = new HashSet<HumanBodyBones>();
+    		foreach (HumanBodyBones value in Enum.GetValues(typeof(HumanBodyBones)))
+    		{
+    			int num = (int)value;
+    			if (num >= 0 && num < human.Length && !string.IsNullOrEmpty(human[num].boneName))
+    			{
+    				have.Add(value);
+    				list.Add($"{(object)value}={human[num].boneName}");
+    			}
+    		}
+    		sb.AppendLine($"  {list.Count} bone(s) mapped across {human.Length} slot(s):");
+    		foreach (string item in list.OrderBy((string x) => x))
+    		{
+    			sb.AppendLine("    " + item);
+    		}
+    		HumanBodyBones[] array = new HumanBodyBones[15];
+    		RuntimeHelpers.InitializeArray(array, __ldtoken(_003CPrivateImplementationDetails_003E._9A09A23ECA92536B989185512CB17E60AD1825941FE74E28BB294D9D86D8ACE3));
+    		HumanBodyBones[] array2 = ((IEnumerable<HumanBodyBones>)array).Where((Func<HumanBodyBones, bool>)((HumanBodyBones r) =>
+    		{
+    			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+    			return !have.Contains(r);
+    		})).ToArray();
+    		sb.AppendLine((array2.Length == 0) ? "  all core limbs mapped" : ("  MISSING: " + string.Join(", ", array2)));
+    		sb.AppendLine();
+    	}
+
+    	private static void ProbeClips(StringBuilder sb, string model)
+    	{
+    		string text = "Assets/Art/Ari/Models/" + model + ".fbx";
+    		sb.AppendLine("=== CLIPS: " + model + " ===");
+    		AssetImporter atPath = AssetImporter.GetAtPath(text);
+    		ModelImporter val = (ModelImporter)(object)((atPath is ModelImporter) ? atPath : null);
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			sb.AppendLine("  no importer\n");
+    			return;
+    		}
+    		ModelImporterClipAnimation[] defaultClipAnimations = val.defaultClipAnimations;
+    		sb.AppendLine($"  importer sees {defaultClipAnimations.Length} take(s):");
+    		ModelImporterClipAnimation[] array = defaultClipAnimations;
+    		foreach (ModelImporterClipAnimation val2 in array)
+    		{
+    			sb.AppendLine("    take='" + val2.takeName + "' name='" + val2.name + "' " + $"frames {val2.firstFrame}..{val2.lastFrame} loop={val2.loopTime}");
+    		}
+    		AnimationClip[] array2 = (from c in AssetDatabase.LoadAllAssetsAtPath(text).OfType<AnimationClip>()
+    			orderby c.length
+    			select c).ToArray();
+    		sb.AppendLine($"  {array2.Length} clip asset(s):");
+    		AnimationClip[] array3 = array2;
+    		foreach (AnimationClip val3 in array3)
+    		{
+    			int num = AnimationUtility.GetCurveBindings(val3).Length;
+    			sb.AppendLine($"    '{((Object)val3).name}' len={val3.length:0.000}s @ {val3.frameRate:0.##}fps " + $"loop={((Motion)val3).isLooping} legacy={val3.legacy} curves={num} " + $"empty={val3.length < 0.001f}");
+    		}
+    		sb.AppendLine();
+    	}
+
+    	private static void ProbeMeshes(StringBuilder sb, string model)
+    	{
+    		string text = "Assets/Art/Ari/Models/" + model + ".fbx";
+    		sb.AppendLine("=== MESH: " + model + " ===");
+    		GameObject val = AssetDatabase.LoadAssetAtPath<GameObject>(text);
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			sb.AppendLine("  not found\n");
+    			return;
+    		}
+    		Renderer[] componentsInChildren = val.GetComponentsInChildren<Renderer>(true);
+    		sb.AppendLine($"  {componentsInChildren.Length} renderer(s)");
+    		Renderer[] array = componentsInChildren;
+    		foreach (Renderer val2 in array)
+    		{
+    			sb.AppendLine("    " + ((object)val2).GetType().Name + " '" + ((Object)val2).name + "' " + $"enabled={val2.enabled} active={((Component)val2).gameObject.activeInHierarchy}");
+    			SkinnedMeshRenderer val3 = (SkinnedMeshRenderer)(object)((val2 is SkinnedMeshRenderer) ? val2 : null);
+    			object obj;
+    			if (!((Object)(object)val3 != (Object)null))
+    			{
+    				MeshFilter component = ((Component)val2).GetComponent<MeshFilter>();
+    				obj = ((component != null) ? component.sharedMesh : null);
+    			}
+    			else
+    			{
+    				obj = val3.sharedMesh;
+    			}
+    			Mesh val4 = (Mesh)obj;
+    			if ((Object)(object)val3 != (Object)null)
+    			{
+    				string text2 = $"      bones={val3.bones.Length} ";
+    				Mesh sharedMesh = val3.sharedMesh;
+    				sb.AppendLine(text2 + $"blendShapeCount={((sharedMesh != null) ? new int?(sharedMesh.blendShapeCount) : ((int?)null))}");
+    			}
+    			if ((Object)(object)val4 != (Object)null)
+    			{
+    				sb.AppendLine($"      mesh verts={val4.vertexCount} tris={val4.triangles.Length / 3}");
+    			}
+    			Material[] sharedMaterials = val2.sharedMaterials;
+    			foreach (Material val5 in sharedMaterials)
+    			{
+    				if ((Object)(object)val5 == (Object)null)
+    				{
+    					sb.AppendLine("      material: <null>");
+    					continue;
+    				}
+    				string name = ((Object)val5).name;
+    				Shader shader = val5.shader;
+    				sb.AppendLine("      material '" + name + "' shader=" + ((shader != null) ? ((Object)shader).name : null));
+    				string[] array2 = new string[2] { "_BaseMap", "_MainTex" };
+    				foreach (string text3 in array2)
+    				{
+    					Texture val6 = (val5.HasProperty(text3) ? val5.GetTexture(text3) : null);
+    					if ((Object)(object)val6 != (Object)null)
+    					{
+    						sb.AppendLine($"        {text3} = {((Object)val6).name} ({val6.width}x{val6.height})");
+    					}
+    				}
+    			}
+    		}
+    		sb.AppendLine();
+    	}
+    }
+}

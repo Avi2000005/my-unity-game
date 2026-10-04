@@ -208,6 +208,15 @@ namespace Echoes.Painterly.EditorTools
                  "Light. I felt it on the bark, and I thought I was dreaming again. " +
                  "Hello. I'm Mono. I'm not going to leave, if that's all right.");
 
+            // Complaint 1: the Colour Thief is never physically present in this
+            // level, so Mono is the only place the player can learn it happened.
+            // It is second, not buried among the gully chatter, so it fires on the
+            // first beat after the wake rather than twenty lines later.
+            Beat("beat3.thief",
+                 "Someone came through here and took all the colours out of the " +
+                 "world. Every one of them. I remember that clearly. I do not " +
+                 "remember their face.");
+
             Beat("beat3.follow",
                  "Keep going. The gully is longer than it looks, and it goes " +
                  "somewhere. It always goes somewhere. That is the good news.");

@@ -1,373 +1,299 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEditor;
 using UnityEditor.SceneManagement;
-using UnityEngine;
+using UnityEngine;
+using Object = UnityEngine.Object;
 using UnityEngine.SceneManagement;
 
 namespace Echoes.Painterly.EditorTools
 {
-    /// <summary>
-    /// Puts Ari in the scene with her material, animator and controller, then
-    /// proves the retarget works by measuring it. Writes Temp/ari_scene.txt.
-    ///
-    /// The check at the end is the point of this tool. Every asset can be
-    /// present, correctly named, and wired up, and Ari can still stand in a
-    /// T-pose with the animation playing perfectly on a skeleton that is not
-    /// hers — which is exactly what a broken avatar produces, and it looks
-    /// fine in a hierarchy and wrong on screen. So the walk clip is sampled
-    /// across its length and the feet are measured. A retargeted walk cycle
-    /// lifts a foot tens of centimetres; a failed one moves nothing.
-    /// </summary>
+
     public static class AriSceneSetup
     {
-        const string ModelsDir = "Assets/Art/Ari/Models";
-        const string CharacterPath = ModelsDir + "/Ari_character.fbx";
-        const string ControllerPath = "Assets/Art/Ari/Ari.controller";
-        const string MaterialPath = "Assets/Painterly/Materials/Ari_Painterly.mat";
-        const string ShaderName = "Echoes/PainterlyLit";
-        const string RootName = "Ari";
+    	private const string ModelsDir = "Assets/Art/Ari/Models";
 
-        [MenuItem("Tools/Echoes/Place Ari", priority = 62)]
-        public static void Run()
-        {
-            try
-            {
-                RunInner();
-            }
-            catch (System.Exception e)
-            {
-                // The MCP bridge reports a bare "Runtime Error" with no message,
-                // so the exception is written out rather than lost.
-                File.WriteAllText("Temp/ari_scene_error.txt", e.ToString());
-                Debug.LogError("[Echoes] Place Ari failed\n" + e);
-            }
-        }
+    	private const string CharacterPath = "Assets/Art/Ari/Models/Ari_character.fbx";
 
-        static void RunInner()
-        {
-            var sb = new StringBuilder();
+    	private const string ControllerPath = "Assets/Art/Ari/Ari.controller";
 
-            var model = AssetDatabase.LoadAssetAtPath<GameObject>(CharacterPath);
-            if (model == null)
-            {
-                Debug.LogError("[Echoes] " + CharacterPath + " not found. Run Tools/Echoes/Import Ari.");
-                return;
-            }
+    	private const string MaterialPath = "Assets/Painterly/Materials/Ari_Painterly.mat";
 
-            var controller = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(ControllerPath);
-            if (controller == null)
-            {
-                Debug.LogError("[Echoes] " + ControllerPath +
-                               " not found. Run Tools/Echoes/Build Ari Controller.");
-                return;
-            }
+    	private const string ShaderName = "Echoes/PainterlyLit";
 
-            var material = GetOrCreateMaterial(sb);
-            var scene = GetScene();
+    	private const string RootName = "Ari";
 
-            // The avatar is taken from the FBX rather than trusted from whatever
-            // the instantiated model happens to carry, so the Animator is bound
-            // to a known-good avatar instead of an inherited guess.
-            var avatar = AssetDatabase.LoadAllAssetsAtPath(CharacterPath)
-                                   .OfType<Avatar>()
-                                   .FirstOrDefault(a => a.isValid && a.isHuman);
+    	[MenuItem("Tools/Echoes/Place Ari", priority = 62)]
+    	public static void Run()
+    	{
+    		try
+    		{
+    			RunInner();
+    		}
+    		catch (Exception ex)
+    		{
+    			File.WriteAllText("Temp/ari_scene_error.txt", ex.ToString());
+    			Debug.LogError((object)("[Echoes] Place Ari failed\n" + ex));
+    		}
+    	}
 
-            if (avatar == null)
-            {
-                Debug.LogError("[Echoes] no valid humanoid avatar in " + CharacterPath +
-                               ". Run Tools/Echoes/Import Ari.");
-                return;
-            }
+    	private static void RunInner()
+    	{
+    		//IL_004b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0050: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_012d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0134: Expected Obj, but got Unknown
+    		//IL_0142: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0147: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0152: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01a3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01ba: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01d1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0396: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_039b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03e5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0401: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03bd: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03ce: Unknown result type (might be due to invalid IL or missing references)
+    		StringBuilder stringBuilder = new StringBuilder();
+    		GameObject val = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Art/Ari/Models/Ari_character.fbx");
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			Debug.LogError((object)"[Echoes] Assets/Art/Ari/Models/Ari_character.fbx not found. Run Tools/Echoes/Import Ari.");
+    			return;
+    		}
+    		RuntimeAnimatorController val2 = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/Art/Ari/Ari.controller");
+    		if ((Object)(object)val2 == (Object)null)
+    		{
+    			Debug.LogError((object)"[Echoes] Assets/Art/Ari/Ari.controller not found. Run Tools/Echoes/Build Ari Controller.");
+    			return;
+    		}
+    		Material orCreateMaterial = GetOrCreateMaterial(stringBuilder);
+    		Scene scene = GetScene();
+    		Avatar val3 = AssetDatabase.LoadAllAssetsAtPath("Assets/Art/Ari/Models/Ari_character.fbx").OfType<Avatar>().FirstOrDefault((Avatar a) => a.isValid && a.isHuman);
+    		if ((Object)(object)val3 == (Object)null)
+    		{
+    			Debug.LogError((object)"[Echoes] no valid humanoid avatar in Assets/Art/Ari/Models/Ari_character.fbx. Run Tools/Echoes/Import Ari.");
+    			return;
+    		}
+    		GameObject val4 = GameObject.Find("Ari");
+    		if ((Object)(object)val4 != (Object)null)
+    		{
+    			Animator component = val4.GetComponent<Animator>();
+    			if ((Object)(object)component == (Object)null || (Object)(object)component.avatar == (Object)null || !component.avatar.isValid || !component.avatar.isHuman)
+    			{
+    				Object.DestroyImmediate((Object)(object)val4);
+    				val4 = null;
+    				stringBuilder.AppendLine("discarded a broken Ari left by an earlier run");
+    			}
+    		}
+    		GameObject val5;
+    		if ((Object)(object)val4 != (Object)null)
+    		{
+    			val5 = val4;
+    			stringBuilder.AppendLine("reusing the existing Ari object");
+    		}
+    		else
+    		{
+    			val5 = new GameObject("Ari");
+    			stringBuilder.AppendLine("created Ari");
+    		}
+    		if (val5.scene != scene)
+    		{
+    			SceneManager.MoveGameObjectToScene(val5, scene);
+    		}
+    		Transform val6 = val5.transform.Find("Model");
+    		GameObject val7;
+    		if ((Object)(object)val6 != (Object)null)
+    		{
+    			val7 = ((Component)val6).gameObject;
+    		}
+    		else
+    		{
+    			val7 = Object.Instantiate<GameObject>(val, val5.transform);
+    			((Object)val7).name = "Model";
+    		}
+    		val7.transform.localPosition = Vector3.zero;
+    		val7.transform.localRotation = val.transform.localRotation;
+    		val7.transform.localScale = val.transform.localScale;
+    		Renderer[] componentsInChildren = val7.GetComponentsInChildren<Renderer>(true);
+    		Renderer[] array = componentsInChildren;
+    		foreach (Renderer val8 in array)
+    		{
+    			Material[] sharedMaterials = val8.sharedMaterials;
+    			for (int num2 = 0; num2 < sharedMaterials.Length; num2++)
+    			{
+    				sharedMaterials[num2] = orCreateMaterial;
+    			}
+    			val8.sharedMaterials = sharedMaterials;
+    		}
+    		stringBuilder.AppendLine($"{componentsInChildren.Length} renderer(s) -> {((Object)orCreateMaterial).name}");
+    		Animator val9 = val5.GetComponent<Animator>() ?? val7.GetComponent<Animator>();
+    		if ((Object)(object)val9 == (Object)null)
+    		{
+    			val9 = val5.AddComponent<Animator>();
+    		}
+    		if ((Object)(object)val9 == (Object)null)
+    		{
+    			Debug.LogError((object)"[Echoes] could not obtain an Animator for Ari");
+    			return;
+    		}
+    		val9.avatar = val3;
+    		val9.runtimeAnimatorController = val2;
+    		val9.applyRootMotion = false;
+    		val9.cullingMode = (AnimatorCullingMode)0;
+    		val9.updateMode = (AnimatorUpdateMode)0;
+    		((Behaviour)val9).enabled = false;
+    		stringBuilder.AppendLine("animator on '" + ((Object)val9).name + "': controller=" + ((Object)val2).name + " avatar=" + (((Object)(object)val9.avatar == (Object)null) ? "<none>" : ((Object)val9.avatar).name) + " " + $"valid={(Object)(object)val9.avatar != (Object)null && val9.avatar.isValid} " + $"human={(Object)(object)val9.avatar != (Object)null && val9.avatar.isHuman} " + "enabled=false (the movement script will turn this on)");
+    		if (val5.transform.position == Vector3.zero)
+    		{
+    			val5.transform.position = new Vector3(0f, 0.05f, 0f);
+    			val5.transform.rotation = Quaternion.identity;
+    		}
+    		stringBuilder.AppendLine($"position {val5.transform.position}");
+    		EditorUtility.SetDirty((Object)(object)val5);
+    		EditorSceneManager.MarkSceneDirty(scene);
+    		AssetDatabase.SaveAssets();
+    		VerifyRetarget(stringBuilder, val7, val9.avatar);
+    		VerifyMaterial(stringBuilder, orCreateMaterial);
+    		File.WriteAllText("Temp/ari_scene.txt", stringBuilder.ToString());
+    		Debug.Log((object)("[Echoes] Ari placed\n" + stringBuilder));
+    	}
 
-            // ---- the object ----
-            // An Ari left over from a failed run is rebuilt rather than reused:
-            // such an object can carry an Animator with no avatar bound, which
-            // silently plays nothing while looking correct in the hierarchy.
-            var existing = GameObject.Find(RootName);
-            if (existing != null)
-            {
-                var stale = existing.GetComponent<Animator>();
-                bool broken = stale == null ||
-                              stale.avatar == null ||
-                              !stale.avatar.isValid ||
-                              !stale.avatar.isHuman;
+    	private static void VerifyRetarget(StringBuilder sb, GameObject modelGO, Avatar avatar)
+    	{
+    		//IL_0218: Unknown result type (might be due to invalid IL or missing references)
+    		sb.AppendLine("--- retarget check (sampling the walk cycle) ---");
+    		AnimationClip val = ((IEnumerable<string>)AssetDatabase.FindAssets("t:AnimationClip", new string[1] { "Assets/Art/Ari/Models" })).Select((Func<string, string>)AssetDatabase.GUIDToAssetPath).Distinct().SelectMany((Func<string, IEnumerable<Object>>)AssetDatabase.LoadAllAssetsAtPath)
+    			.OfType<AnimationClip>()
+    			.FirstOrDefault((AnimationClip c) => ((Object)c).name == "Ari_Walk");
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			IEnumerable<string> values = from c in ((IEnumerable<string>)AssetDatabase.FindAssets("t:AnimationClip", new string[1] { "Assets/Art/Ari/Models" })).Select((Func<string, string>)AssetDatabase.GUIDToAssetPath).Distinct().SelectMany((Func<string, IEnumerable<Object>>)AssetDatabase.LoadAllAssetsAtPath)
+    					.OfType<AnimationClip>()
+    				where !((Object)c).name.StartsWith("__")
+    				select "'" + ((Object)c).name + "'";
+    			sb.AppendLine("  Ari_Walk missing; clips present: " + string.Join(", ", values));
+    			return;
+    		}
+    		Transform[] array = new string[2] { "LeftFoot", "RightFoot" }.Select((string n) => FindBone(modelGO, n)).ToArray();
+    		if (array.Any((Transform f) => (Object)(object)f == (Object)null))
+    		{
+    			sb.AppendLine("  foot bones not found: " + string.Join(", ", new string[2] { "LeftFoot", "RightFoot" }.Where((string n) => (Object)(object)FindBone(modelGO, n) == (Object)null)));
+    			return;
+    		}
+    		float[] lowest = new float[array.Length];
+    		float lift = 0f;
+    		for (int num = 0; num <= 24; num++)
+    		{
+    			float num2 = val.length * (float)num / 24f;
+    			val.SampleAnimation(modelGO, num2);
+    			for (int num3 = 0; num3 < array.Length; num3++)
+    			{
+    				float y = array[num3].position.y;
+    				if (num == 0 || y < lowest[num3])
+    				{
+    					lowest[num3] = y;
+    				}
+    				lift = Mathf.Max(lift, y);
+    			}
+    		}
+    		float[] array2 = array.Select((Transform f, int i) => lift - lowest[i]).ToArray();
+    		sb.AppendLine($"  clip '{((Object)val).name}' len={val.length:0.000}s over {24} samples");
+    		for (int num4 = 0; num4 < array.Length; num4++)
+    		{
+    			sb.AppendLine($"  {((Object)array[num4]).name,-10} rises {array2[num4]:0.0000} " + $"(lowest y {lowest[num4]:0.0000}, highest {lift:0.0000})");
+    		}
+    		float num5 = array2.Max();
+    		string text;
+    		if (num5 > 0.05f)
+    		{
+    			text = $"RETARGET OK — a walk cycle lifts a foot {num5:0.000}";
+    		}
+    		else
+    		{
+    			text = ((num5 > 0.0005f) ? $"WEAK — foot only moves {num5:0.0005}, expect a glide rather than a walk" : ("FAILED — feet do not move at all; avatar=" + ((avatar != null) ? ((Object)avatar).name : null) + " " + $"valid={((avatar != null) ? new bool?(avatar.isValid) : ((bool?)null))} human={((avatar != null) ? new bool?(avatar.isHuman) : ((bool?)null))}"));
+    		}
+    		sb.AppendLine("  => " + text);
+    		val.SampleAnimation(modelGO, 0f);
+    	}
 
-                if (broken)
-                {
-                    Object.DestroyImmediate(existing);
-                    existing = null;
-                    sb.AppendLine("discarded a broken Ari left by an earlier run");
-                }
-            }
+    	private static Transform FindBone(GameObject go, string name)
+    	{
+    		return go.GetComponentsInChildren<Transform>(true).FirstOrDefault((Transform t) => ((Object)t).name == name);
+    	}
 
-            GameObject root;
-            if (existing != null)
-            {
-                root = existing;
-                sb.AppendLine("reusing the existing Ari object");
-            }
-            else
-            {
-                root = new GameObject(RootName);
-                sb.AppendLine("created Ari");
-            }
+    	private static void VerifyMaterial(StringBuilder sb, Material material)
+    	{
+    		//IL_0083: Unknown result type (might be due to invalid IL or missing references)
+    		sb.AppendLine("--- material check ---");
+    		string name = ((Object)material).name;
+    		Shader shader = material.shader;
+    		sb.AppendLine("  " + name + " shader=" + ((shader != null) ? ((Object)shader).name : null));
+    		Texture texture = material.GetTexture("_BaseMap");
+    		sb.AppendLine("  _BaseMap=" + (((Object)(object)texture == (Object)null) ? "<none>" : ((Object)texture).name) + " " + string.Format("_BaseColor={0} ", material.GetColor("_BaseColor")) + string.Format("_ColorRestore={0}", material.GetFloat("_ColorRestore")));
+    		if ((Object)(object)texture == (Object)null)
+    		{
+    			sb.AppendLine("  WARNING: no albedo texture and the mesh has no vertex colours, so Ari renders flat. _ColorRestore cannot help — the shader desaturates an albedo that is not there. Re-download the character from Mixamo with textures included and re-run Import Ari.");
+    		}
+    	}
 
-            if (root.scene != scene) SceneManager.MoveGameObjectToScene(root, scene);
+    	private static Material GetOrCreateMaterial(StringBuilder sb)
+    	{
+    		//IL_0045: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0056: Expected Obj, but got Unknown
+    		//IL_009c: Unknown result type (might be due to invalid IL or missing references)
+    		Shader val = Shader.Find("Echoes/PainterlyLit");
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			Debug.LogError((object)"[Echoes] shader Echoes/PainterlyLit not found. Run Tools/Echoes/Build Village Materials.");
+    			return null;
+    		}
+    		Directory.CreateDirectory(Path.GetDirectoryName("Assets/Painterly/Materials/Ari_Painterly.mat"));
+    		Material val2 = AssetDatabase.LoadAssetAtPath<Material>("Assets/Painterly/Materials/Ari_Painterly.mat");
+    		if ((Object)(object)val2 == (Object)null)
+    		{
+    			val2 = new Material(val)
+    			{
+    				name = "Ari_Painterly"
+    			};
+    			AssetDatabase.CreateAsset((Object)(object)val2, "Assets/Painterly/Materials/Ari_Painterly.mat");
+    			sb.AppendLine("created Assets/Painterly/Materials/Ari_Painterly.mat");
+    		}
+    		else
+    		{
+    			val2.shader = val;
+    			sb.AppendLine("reusing Assets/Painterly/Materials/Ari_Painterly.mat");
+    		}
+    		val2.SetColor("_BaseColor", new Color(0.72f, 0.68f, 0.64f, 1f));
+    		val2.SetFloat("_Smoothness", 0.25f);
+    		val2.SetFloat("_Metallic", 0f);
+    		val2.SetFloat("_ColorRestore", 1f);
+    		val2.SetFloat("_RestoreBoost", 1f);
+    		EditorUtility.SetDirty((Object)(object)val2);
+    		return val2;
+    	}
 
-            // ---- the model under it ----
-            var child = root.transform.Find("Model");
-            GameObject modelGO;
-            if (child != null)
-            {
-                modelGO = child.gameObject;
-            }
-            else
-            {
-                modelGO = Object.Instantiate(model, root.transform);
-                modelGO.name = "Model";
-            }
-
-            // The FBX root carries a corrective rotation and a 100x scale on the
-            // village kit; Mixamo's is clean, but the local values are restated
-            // so a re-import cannot silently leave the model lying on its side.
-            modelGO.transform.localPosition = Vector3.zero;
-            modelGO.transform.localRotation = model.transform.localRotation;
-            modelGO.transform.localScale = model.transform.localScale;
-
-            // ---- renderers ----
-            var renderers = modelGO.GetComponentsInChildren<Renderer>(true);
-            foreach (var r in renderers)
-            {
-                var mats = r.sharedMaterials;
-                for (int i = 0; i < mats.Length; i++) mats[i] = material;
-                r.sharedMaterials = mats;
-            }
-            sb.AppendLine($"{renderers.Length} renderer(s) -> {material.name}");
-
-            // ---- animator ----
-            // The imported model already carries an Animator with the avatar
-            // bound, so that one is preferred over adding a second. Written as
-            // an explicit test rather than `??`: Unity's Object overloads == to
-            // catch destroyed components, and ?? bypasses that entirely, which
-            // leaves a wrapper with no native component behind it.
-            var animator = root.GetComponent<Animator>() ?? modelGO.GetComponent<Animator>();
-            if (animator == null) animator = root.AddComponent<Animator>();
-
-            if (animator == null)
-            {
-                Debug.LogError("[Echoes] could not obtain an Animator for Ari");
-                return;
-            }
-
-            animator.avatar = avatar;
-            animator.runtimeAnimatorController = controller;
-            animator.applyRootMotion = false;
-            animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
-            animator.updateMode = AnimatorUpdateMode.Normal;
-            // Ari is the player and the movement script does not exist yet, so
-            // the controller is left switched off rather than animating a
-            // character nobody is steering.
-            animator.enabled = false;
-
-            sb.AppendLine($"animator on '{animator.name}': controller={controller.name} " +
-                          $"avatar={(animator.avatar == null ? "<none>" : animator.avatar.name)} " +
-                          $"valid={animator.avatar != null && animator.avatar.isValid} " +
-                          $"human={animator.avatar != null && animator.avatar.isHuman} " +
-                          "enabled=false (the movement script will turn this on)");
-
-            // ---- where she stands ----
-            if (root.transform.position == Vector3.zero)
-            {
-                root.transform.position = new Vector3(0f, 0.05f, 0f);
-                root.transform.rotation = Quaternion.identity;
-            }
-            sb.AppendLine($"position {root.transform.position}");
-
-            EditorUtility.SetDirty(root);
-            EditorSceneManager.MarkSceneDirty(scene);
-            AssetDatabase.SaveAssets();
-
-            VerifyRetarget(sb, modelGO, animator.avatar);
-            VerifyMaterial(sb, material);
-
-            File.WriteAllText("Temp/ari_scene.txt", sb.ToString());
-            Debug.Log("[Echoes] Ari placed\n" + sb);
-        }
-
-        /// <summary>
-        /// Sample the walk cycle and measure how far the feet actually travel.
-        ///
-        /// Sampled on the scene instance rather than the asset, so what is
-        /// measured is the actual hierarchy the Animator will drive, avatar
-        /// included. A retarget that failed leaves the bones welded to the bind
-        /// pose and the travel collapses to zero, which is a result, not a
-        /// silent pass.
-        /// </summary>
-        static void VerifyRetarget(StringBuilder sb, GameObject modelGO, Avatar avatar)
-        {
-            sb.AppendLine("--- retarget check (sampling the walk cycle) ---");
-
-            // A folder path has to be searched, not handed to LoadAllAssetsAtPath,
-            // which only accepts a single asset.
-            var clip = AssetDatabase.FindAssets("t:AnimationClip", new[] { ModelsDir })
-                .Select(AssetDatabase.GUIDToAssetPath)
-                .Distinct()
-                .SelectMany(AssetDatabase.LoadAllAssetsAtPath)
-                .OfType<AnimationClip>()
-                .FirstOrDefault(c => c.name == "Ari_Walk");
-
-            if (clip == null)
-            {
-                var present = AssetDatabase.FindAssets("t:AnimationClip", new[] { ModelsDir })
-                    .Select(AssetDatabase.GUIDToAssetPath)
-                    .Distinct()
-                    .SelectMany(AssetDatabase.LoadAllAssetsAtPath)
-                    .OfType<AnimationClip>()
-                    .Where(c => !c.name.StartsWith("__"))
-                    .Select(c => $"'{c.name}'");
-
-                sb.AppendLine("  Ari_Walk missing; clips present: " +
-                              string.Join(", ", present));
-                return;
-            }
-
-            var feet = new[] { "LeftFoot", "RightFoot" }
-                .Select(n => FindBone(modelGO, n))
-                .ToArray();
-
-            if (feet.Any(f => f == null))
-            {
-                sb.AppendLine("  foot bones not found: " +
-                    string.Join(", ", new[] { "LeftFoot", "RightFoot" }
-                        .Where(n => FindBone(modelGO, n) == null)));
-                return;
-            }
-
-            const int steps = 24;
-
-            // Sample the whole cycle and track how high each foot gets above
-            // its own lowest point. Bone world position is the honest measure —
-            // the skin is a consequence of it.
-            var lowest = new float[feet.Length];
-            float lift = 0f;
-
-            for (int i = 0; i <= steps; i++)
-            {
-                float t = clip.length * i / steps;
-                clip.SampleAnimation(modelGO, t);
-
-                for (int f = 0; f < feet.Length; f++)
-                {
-                    var y = feet[f].position.y;
-                    if (i == 0 || y < lowest[f]) lowest[f] = y;
-                    lift = Mathf.Max(lift, y);
-                }
-            }
-
-            var travel = feet.Select((f, i) => lift - lowest[i]).ToArray();
-            sb.AppendLine($"  clip '{clip.name}' len={clip.length:0.000}s over {steps} samples");
-            for (int i = 0; i < feet.Length; i++)
-                sb.AppendLine($"  {feet[i].name,-10} rises {travel[i]:0.0000} " +
-                              $"(lowest y {lowest[i]:0.0000}, highest {lift:0.0000})");
-
-            float best = travel.Max();
-            string verdict = best > 0.05f
-                ? $"RETARGET OK — a walk cycle lifts a foot {best:0.000}"
-                : best > 0.0005f
-                    ? $"WEAK — foot only moves {best:0.0005}, expect a glide rather than a walk"
-                    : $"FAILED — feet do not move at all; avatar={avatar?.name} " +
-                      $"valid={avatar?.isValid} human={avatar?.isHuman}";
-
-            sb.AppendLine("  => " + verdict);
-
-            clip.SampleAnimation(modelGO, 0f);
-        }
-
-        static Transform FindBone(GameObject go, string name)
-        {
-            var all = go.GetComponentsInChildren<Transform>(true);
-            return all.FirstOrDefault(t => t.name == name);
-        }
-
-        /// <summary>
-        /// Report what the material will actually look like.
-        ///
-        /// Ari arrived with no texture and no vertex colours — measured, not
-        /// assumed: every texture slot is empty and the mesh has no colour
-        /// channel. That matters more than it sounds, because PainterlyLit
-        /// works by desaturating the albedo, and a grey albedo stays grey at
-        /// _ColorRestore = 1. So the restore value cannot make her coloured on
-        /// its own; only a texture can. Said plainly here so a flat grey Ari is
-        /// not later mistaken for the shader failing.
-        /// </summary>
-        static void VerifyMaterial(StringBuilder sb, Material material)
-        {
-            sb.AppendLine("--- material check ---");
-            sb.AppendLine($"  {material.name} shader={material.shader?.name}");
-
-            var baseMap = material.GetTexture("_BaseMap");
-            sb.AppendLine($"  _BaseMap={(baseMap == null ? "<none>" : baseMap.name)} " +
-                          $"_BaseColor={material.GetColor("_BaseColor")} " +
-                          $"_ColorRestore={material.GetFloat("_ColorRestore")}");
-
-            if (baseMap == null)
-                sb.AppendLine("  WARNING: no albedo texture and the mesh has no vertex " +
-                              "colours, so Ari renders flat. _ColorRestore cannot help — " +
-                              "the shader desaturates an albedo that is not there. " +
-                              "Re-download the character from Mixamo with textures " +
-                              "included and re-run Import Ari.");
-        }
-
-        static Material GetOrCreateMaterial(StringBuilder sb)
-        {
-            var shader = Shader.Find(ShaderName);
-            if (shader == null)
-            {
-                Debug.LogError("[Echoes] shader " + ShaderName +
-                               " not found. Run Tools/Echoes/Build Village Materials.");
-                return null;
-            }
-
-            Directory.CreateDirectory(Path.GetDirectoryName(MaterialPath));
-
-            var material = AssetDatabase.LoadAssetAtPath<Material>(MaterialPath);
-            if (material == null)
-            {
-                material = new Material(shader) { name = "Ari_Painterly" };
-                AssetDatabase.CreateAsset(material, MaterialPath);
-                sb.AppendLine("created " + MaterialPath);
-            }
-            else
-            {
-                material.shader = shader;
-                sb.AppendLine("reusing " + MaterialPath);
-            }
-
-            material.SetColor("_BaseColor", new Color(0.72f, 0.68f, 0.64f, 1f));
-            material.SetFloat("_Smoothness", 0.25f);
-            material.SetFloat("_Metallic", 0f);
-
-            // Ari is in colour, not greyed. She is the source of the colour in
-            // this game, so her material is the one that stays restored. On an
-            // untextured albedo this makes no visible difference, which is the
-            // point made in VerifyMaterial.
-            material.SetFloat("_ColorRestore", 1f);
-            material.SetFloat("_RestoreBoost", 1f);
-
-            EditorUtility.SetDirty(material);
-            return material;
-        }
-
-        static Scene GetScene()
-        {
-            var scene = SceneManager.GetActiveScene();
-            if (scene.IsValid() && scene.isLoaded) return scene;
-
-            scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity");
-            Debug.Log("[Echoes] opened SampleScene");
-            return scene;
-        }
+    	private static Scene GetScene()
+    	{
+    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0024: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0018: Unknown result type (might be due to invalid IL or missing references)
+    		Scene result = SceneManager.GetActiveScene();
+    		if (result.IsValid() && result.isLoaded)
+    		{
+    			return result;
+    		}
+    		result = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity");
+    		Debug.Log((object)"[Echoes] opened SampleScene");
+    		return result;
+    	}
     }
 }

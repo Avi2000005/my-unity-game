@@ -7,7 +7,8 @@ using Echoes.Painterly;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
-
+
+using Object = UnityEngine.Object;
 public static class GullyBuilder
 {
     const string ReportPath = "Temp/gully.txt";

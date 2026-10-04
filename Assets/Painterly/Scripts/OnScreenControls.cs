@@ -1,298 +1,333 @@
-using UnityEngine;
+using System;
+using UnityEngine;
+using Object = UnityEngine.Object;
 using UnityEngine.EventSystems;
+using UnityEngine.Events;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
 namespace Echoes.Painterly
 {
-    /// <summary>
-    /// On-screen movement buttons: a D-pad, a run toggle, and a stop.
-    ///
-    /// Built from code in Awake rather than authored as a prefab, because a
-    /// prefab is a binary blob that cannot be reviewed or diffed, and this is
-    /// four rectangles. The trade is that the layout is in code, which is the
-    /// right place for something that is going to be adjusted.
-    ///
-    /// It exists because the keyboard is not always available. Under automation
-    /// Keyboard.current is null, and a remote or locked-focus editor session
-    /// drops key presses the same way — in both cases AriMover reads nothing and
-    /// the game looks frozen with no indication why.
-    ///
-    /// The controls write to AriMover's static ScreenMove and ScreenRun, and the
-    /// STOP button clears both. That means stopping works even if the controller
-    /// is mid-blend: Speed goes to zero and the graph crossfades back to idle
-    /// rather than waiting out the walk clip.
-    /// </summary>
+
     [AddComponentMenu("Echoes/On Screen Controls")]
     public sealed class OnScreenControls : MonoBehaviour
     {
-        [Header("Layout")]
-        [Tooltip("Side of the D-pad buttons, in units of the short screen edge.")]
-        [Min(0.05f)] [SerializeField] float buttonSize = 0.13f;
+    	[Header("Layout")]
+    	[Tooltip("Side of the D-pad buttons, in units of the short screen edge.")]
+    	[Min(0.05f)]
+    	[SerializeField]
+    	private float buttonSize = 0.13f;
 
-        [Tooltip("How far the D-pad sits from the corner, as a fraction of height.")]
-        [Range(0f, 0.4f)] [SerializeField] float edgeMargin = 0.06f;
+    	[Tooltip("How far the D-pad sits from the corner, as a fraction of height.")]
+    	[Range(0f, 0.4f)]
+    	[SerializeField]
+    	private float edgeMargin = 0.06f;
 
-        [Tooltip("Gap between the D-pad buttons, as a fraction of the button size.")]
-        [Range(0f, 0.5f)] [SerializeField] float gap = 0.06f;
+    	[Tooltip("Gap between the D-pad buttons, as a fraction of the button size.")]
+    	[Range(0f, 0.5f)]
+    	[SerializeField]
+    	private float gap = 0.06f;
 
-        [Header("Behaviour")]
-        [Tooltip("Also drive Ari from these buttons, ignoring the keyboard.")]
-        [SerializeField] bool driveAri = true;
+    	[Header("Behaviour")]
+    	[Tooltip("Also drive Ari from these buttons, ignoring the keyboard.")]
+    	[SerializeField]
+    	private bool driveAri = true;
 
-        [Tooltip("Start visible. Turn off if the buttons are in the way of the " +
-                 "scene; the whole canvas is disabled, not just the graphics.")]
-        [SerializeField] bool visibleOnStart = true;
+    	[Tooltip("Start visible. Turn off if the buttons are in the way of the scene; the whole canvas is disabled, not just the graphics.")]
+    	[SerializeField]
+    	private bool visibleOnStart = true;
 
-        /// <summary>Colours chosen to read against a grey world.</summary>
-        static readonly Color PadColour = new Color(0.92f, 0.92f, 0.92f, 0.55f);
-        static readonly Color StopColour = new Color(0.85f, 0.30f, 0.28f, 0.70f);
-        static readonly Color RunColour = new Color(0.95f, 0.80f, 0.35f, 0.65f);
-        static readonly Color HeldColour = new Color(1f, 1f, 1f, 0.85f);
+    	private static readonly Color PadColour = new Color(0.92f, 0.92f, 0.92f, 0.55f);
 
-        Canvas _canvas;
-        Button _up, _down, _left, _right, _run, _stop;
-        HoldButton _upHold, _downHold, _leftHold, _rightHold;
+    	private static readonly Color StopColour = new Color(0.85f, 0.3f, 0.28f, 0.7f);
 
-        void Awake()
-        {
-            Build();
-        }
+    	private static readonly Color RunColour = new Color(0.95f, 0.8f, 0.35f, 0.65f);
 
-        void Update()
-        {
-            Tick();
-        }
+    	private static readonly Color HeldColour = new Color(1f, 1f, 1f, 0.85f);
 
-        /// <summary>
-        /// Reads the pad and publishes a direction for AriMover.
-        ///
-        /// Public and separate from Update so it can be called at a chosen
-        /// moment rather than whenever the frame happens to land — a probe
-        /// pressing a button and immediately reading the result cannot wait for
-        /// the next Update without also stepping whatever else runs in it.
-        /// </summary>
-        public void Tick()
-        {
-            if (_canvas == null || !_canvas.gameObject.activeInHierarchy)
-            {
-                AriMover.ScreenMove = Vector2.zero;
-                return;
-            }
+    	private Canvas _canvas;
 
-            // Summed rather than exclusive, so a thumb on two buttons at once
-            // gives a diagonal instead of one direction winning. Normalised
-            // afterwards, or the diagonal would be 41% faster than the axes.
-            Vector2 dir = Vector2.zero;
-            if (Pressing(_upHold)) dir += Vector2.up;
-            if (Pressing(_downHold)) dir += Vector2.down;
-            if (Pressing(_rightHold)) dir += Vector2.right;
-            if (Pressing(_leftHold)) dir += Vector2.left;
+    	private Button _up;
 
-            AriMover.ScreenMove = dir.sqrMagnitude > 1f ? dir.normalized : dir;
-        }
+    	private Button _down;
 
-        static bool Pressing(HoldButton b) => b != null && b.Held;
+    	private Button _left;
 
-        void OnDisable()
-        {
-            // Losing focus mid-press must not leave Ari walking into a wall.
-            AriMover.ScreenMove = Vector2.zero;
-        }
+    	private Button _right;
 
-        void OnDestroy()
-        {
-            // Ari would otherwise keep reading a direction nobody is holding.
-            AriMover.ScreenMove = Vector2.zero;
-            AriMover.ScreenRun = false;
-        }
+    	private Button _run;
 
-        void Build()
-        {
-            // An EventSystem is what turns a button into something clickable.
-            // Unity's own "create EventSystem" menu item adds the legacy
-            // StandaloneInputModule, which does nothing under the Input System
-            // package, so the module type is chosen explicitly.
-            if (EventSystem.current == null)
-            {
-                var es = new GameObject("EventSystem",
-                                        typeof(EventSystem), typeof(InputSystemUIInputModule));
-                es.transform.SetParent(transform, false);
-            }
+    	private Button _stop;
 
-            _canvas = gameObject.AddComponent<Canvas>();
-            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+    	private HoldButton _upHold;
 
-            var scaler = gameObject.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.matchWidthOrHeight = 0.5f;
+    	private HoldButton _downHold;
 
-            gameObject.AddComponent<GraphicRaycaster>();
+    	private HoldButton _leftHold;
 
-            _canvas.gameObject.SetActive(visibleOnStart);
+    	private HoldButton _rightHold;
 
-            // RectTransform anchors, so the pad holds its corner at any aspect.
-            float m = edgeMargin;
-            float b = buttonSize;
-            float g = b * gap;
+    	private void Awake()
+    	{
+    		Build();
+    	}
 
-            _leftHold = PadHold("Left",  new Vector2(m, m), new Vector2(0f, 0f), Vector2.left, out _left);
-            _downHold = PadHold("Down",  new Vector2(m + b + g, m), new Vector2(0f, 0f), Vector2.down, out _down);
-            _rightHold = PadHold("Right", new Vector2(m + (b + g) * 2f, m), new Vector2(0f, 0f), Vector2.right, out _right);
-            _upHold = PadHold("Up", new Vector2(m + b + g, m + b + g), new Vector2(0f, 0f), Vector2.up, out _up);
+    	private void Update()
+    	{
+    		Tick();
+    	}
 
-            PadHold("Run", new Vector2(0f, m), new Vector2(1f, 0f), Vector2.zero, out _run, RunColour);
-            PadHold("STOP", new Vector2(1f, m), new Vector2(1f, 0f), Vector2.zero, out _stop, StopColour);
+    	public void Tick()
+    	{
+    		//IL_0020: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0030: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0044: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0049: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0057: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0058: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0062: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0070: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0071: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0076: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_007b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0089: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_008a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_008f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0094: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a3: Unknown result type (might be due to invalid IL or missing references)
+    		if ((Object)(object)_canvas == (Object)null || !((Component)_canvas).gameObject.activeInHierarchy)
+    		{
+    			AriMover.ScreenMove = Vector2.zero;
+    			return;
+    		}
+    		Vector2 val = Vector2.zero;
+    		if (Pressing(_upHold))
+    		{
+    			val += Vector2.up;
+    		}
+    		if (Pressing(_downHold))
+    		{
+    			val += Vector2.down;
+    		}
+    		if (Pressing(_rightHold))
+    		{
+    			val += Vector2.right;
+    		}
+    		if (Pressing(_leftHold))
+    		{
+    			val += Vector2.left;
+    		}
+    		AriMover.ScreenMove = ((val.sqrMagnitude > 1f) ? val.normalized : val);
+    	}
 
-            Label(_run, "RUN");
-            Label(_stop, "STOP");
+    	private static bool Pressing(HoldButton b)
+    	{
+    		if ((Object)(object)b != (Object)null)
+    		{
+    			return b.Held;
+    		}
+    		return false;
+    	}
 
-            _run.onClick.AddListener(ToggleRun);
-            _stop.onClick.AddListener(Stop);
+    	private void OnDisable()
+    	{
+    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+    		AriMover.ScreenMove = Vector2.zero;
+    	}
 
-            if (driveAri)
-            {
-                var ari = GameObject.Find("Ari");
-                if (ari != null)
-                {
-                    var mover = ari.GetComponent<AriMover>();
-                    if (mover != null) mover.UseScreenControls = true;
-                }
-            }
-        }
+    	private void OnDestroy()
+    	{
+    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+    		AriMover.ScreenMove = Vector2.zero;
+    		AriMover.ScreenRun = false;
+    	}
 
-        /// <summary>
-        /// One pad button, returning both the Button and its HoldButton.
-        ///
-        /// The Button is what the EventSystem drives; the HoldButton is what
-        /// reports the held state back. Both come out of here so the caller
-        /// cannot wire up one and forget the other.
-        /// </summary>
-        HoldButton PadHold(string name, Vector2 anchor, Vector2 pivot, Vector2 direction,
-                           out Button button, Color? colour = null)
-        {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
-            go.transform.SetParent(_canvas.transform, false);
+    	private void Build()
+    	{
+    		//IL_0082: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00e7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ec: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0117: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0126: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_012b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_015c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_016b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0170: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_019f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01ae: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01b3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01dd: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01ec: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01f1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01fc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0218: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0227: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_022c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0237: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_027b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0285: Expected Obj, but got Unknown
+    		//IL_0297: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02a1: Expected Obj, but got Unknown
+    		//IL_0032: Unknown result type (might be due to invalid IL or missing references)
+    		if ((Object)(object)EventSystem.current == (Object)null)
+    		{
+    			new GameObject("EventSystem", new Type[2]
+    			{
+    				typeof(EventSystem),
+    				typeof(InputSystemUIInputModule)
+    			}).transform.SetParent(((Component)this).transform, false);
+    		}
+    		_canvas = ((Component)this).gameObject.AddComponent<Canvas>();
+    		_canvas.renderMode = (RenderMode)0;
+    		CanvasScaler canvasScaler = ((Component)this).gameObject.AddComponent<CanvasScaler>();
+    		canvasScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+    		canvasScaler.referenceResolution = new Vector2(1920f, 1080f);
+    		canvasScaler.matchWidthOrHeight = 0.5f;
+    		((Component)this).gameObject.AddComponent<GraphicRaycaster>();
+    		((Component)_canvas).gameObject.SetActive(visibleOnStart);
+    		float num = edgeMargin;
+    		float num2 = buttonSize;
+    		float num3 = num2 * gap;
+    		_leftHold = PadHold("Left", new Vector2(num, num), new Vector2(0f, 0f), Vector2.left, out _left);
+    		_downHold = PadHold("Down", new Vector2(num + num2 + num3, num), new Vector2(0f, 0f), Vector2.down, out _down);
+    		_rightHold = PadHold("Right", new Vector2(num + (num2 + num3) * 2f, num), new Vector2(0f, 0f), Vector2.right, out _right);
+    		_upHold = PadHold("Up", new Vector2(num + num2 + num3, num + num2 + num3), new Vector2(0f, 0f), Vector2.up, out _up);
+    		PadHold("Run", new Vector2(0f, num), new Vector2(1f, 0f), Vector2.zero, out _run, RunColour);
+    		PadHold("STOP", new Vector2(1f, num), new Vector2(1f, 0f), Vector2.zero, out _stop, StopColour);
+    		Label(_run, "RUN");
+    		Label(_stop, "STOP");
+    		((UnityEvent)_run.onClick).AddListener((UnityAction)ToggleRun);
+    		((UnityEvent)_stop.onClick).AddListener((UnityAction)Stop);
+    		if (!driveAri)
+    		{
+    			return;
+    		}
+    		GameObject val = GameObject.Find("Ari");
+    		if ((Object)(object)val != (Object)null)
+    		{
+    			AriMover component = val.GetComponent<AriMover>();
+    			if ((Object)(object)component != (Object)null)
+    			{
+    				component.UseScreenControls = true;
+    			}
+    		}
+    	}
 
-            var rt = (RectTransform)go.transform;
-            rt.anchorMin = anchor;
-            rt.anchorMax = anchor;
-            rt.pivot = pivot;
-            rt.anchoredPosition = Vector2.zero;
-            // Square in reference-resolution units, which the scaler maps onto the
-            // real screen. Sizing by the short edge keeps the pad usable in
-            // portrait as well as landscape.
-            rt.sizeDelta = new Vector2(buttonSize, buttonSize);
+    	private HoldButton PadHold(string name, Vector2 anchor, Vector2 pivot, Vector2 direction, out Button button, Color? colour = null)
+    	{
+    		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0034: Expected Obj, but got Unknown
+    		//IL_0051: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0056: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0057: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0064: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0065: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_006b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_006c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0082: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d8: Unknown result type (might be due to invalid IL or missing references)
+    		GameObject val = new GameObject(name, new Type[3]
+    		{
+    			typeof(RectTransform),
+    			typeof(Image),
+    			typeof(Button)
+    		});
+    		val.transform.SetParent(((Component)_canvas).transform, false);
+    		RectTransform val2 = (RectTransform)val.transform;
+    		val2.anchorMin = anchor;
+    		val2.anchorMax = anchor;
+    		val2.pivot = pivot;
+    		val2.anchoredPosition = Vector2.zero;
+    		val2.sizeDelta = new Vector2(buttonSize, buttonSize);
+    		Image component = val.GetComponent<Image>();
+    		component.color = colour ?? PadColour;
+    		button = val.GetComponent<Button>();
+    		button.targetGraphic = component;
+    		button.transition = Selectable.Transition.None;
+    		HoldButton holdButton = val.AddComponent<HoldButton>();
+    		holdButton.Configure(direction, component.color);
+    		return holdButton;
+    	}
 
-            var img = go.GetComponent<Image>();
-            img.color = colour ?? PadColour;
+    	private void Label(Button button, string text)
+    	{
+    		//IL_0025: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0042: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0047: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0048: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0052: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0053: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0068: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ad: Unknown result type (might be due to invalid IL or missing references)
+    		GameObject val = new GameObject("Label", new Type[2]
+    		{
+    			typeof(RectTransform),
+    			typeof(Text)
+    		});
+    		val.transform.SetParent(((Component)button).transform, false);
+    		RectTransform val2 = (RectTransform)val.transform;
+    		val2.anchorMin = Vector2.zero;
+    		val2.anchorMax = Vector2.one;
+    		val2.offsetMin = Vector2.zero;
+    		val2.offsetMax = Vector2.zero;
+    		Text component = val.GetComponent<Text>();
+    		component.text = text;
+    		component.font = BuiltinFont();
+    		component.fontSize = 28;
+    		component.alignment = (TextAnchor)4;
+    		component.color = new Color(0.1f, 0.1f, 0.1f, 0.9f);
+    		component.raycastTarget = false;
+    	}
 
-            button = go.GetComponent<Button>();
-            button.targetGraphic = img;
-            button.transition = Selectable.Transition.None;   // the hold tint is ours
+    	private static Font BuiltinFont()
+    	{
+    		try
+    		{
+    			return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+    		}
+    		catch
+    		{
+    			return Resources.GetBuiltinResource<Font>("Arial.ttf");
+    		}
+    	}
 
-            var hold = go.AddComponent<HoldButton>();
-            hold.Configure(direction, img.color);
+    	private void Stop()
+    	{
+    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+    		AriMover.ScreenMove = Vector2.zero;
+    		AriMover.ScreenRun = false;
+    	}
 
-            return hold;
-        }
+    	private void ToggleRun()
+    	{
+    		AriMover.ScreenRun = !AriMover.ScreenRun;
+    	}
 
-        void Label(Button button, string text)
-        {
-            var go = new GameObject("Label", typeof(RectTransform), typeof(Text));
-            go.transform.SetParent(button.transform, false);
-
-            var rt = (RectTransform)go.transform;
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-
-            var t = go.GetComponent<Text>();
-            t.text = text;
-            t.font = BuiltinFont();
-            t.fontSize = 28;
-            t.alignment = TextAnchor.MiddleCenter;
-            t.color = new Color(0.1f, 0.1f, 0.1f, 0.9f);
-            t.raycastTarget = false;
-        }
-
-        /// <summary>
-        /// Arial ships inside Unity, so the buttons have text without the project
-        /// needing a font asset of its own.
-        /// </summary>
-        static Font BuiltinFont()
-        {
-            // Resources.GetBuiltinResource is the supported way to reach it; the
-            // legacy name "Arial.ttf" still resolves in Unity 6 but the
-            // try/catch keeps a future rename from being a hard failure.
-            try
-            {
-                return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            }
-            catch
-            {
-                return Resources.GetBuiltinResource<Font>("Arial.ttf");
-            }
-        }
-
-        void Stop()
-        {
-            AriMover.ScreenMove = Vector2.zero;
-            AriMover.ScreenRun = false;
-        }
-
-        void ToggleRun()
-        {
-            AriMover.ScreenRun = !AriMover.ScreenRun;
-        }
-    }
-
-    /// <summary>
-    /// A D-pad button that reports being held, and tints itself while it is.
-    ///
-    /// Deliberately not driven by IPointerDownHandler. Pointer callbacks stop
-    /// arriving in several ordinary situations — the pointer leaves the button
-    /// while held, the editor loses focus, a second finger lands — and each of
-    /// those leaves the last direction stuck on. Polling the Button's own pressed
-    /// state cannot get stuck, because the Button clears it whenever the pointer
-    /// is no longer over it.
-    /// </summary>
-    [RequireComponent(typeof(Button))]
-    public sealed class HoldButton : MonoBehaviour
-    {
-        /// <summary>Direction to push, in the same space as AriMover.ScreenMove.</summary>
-        public Vector2 Direction { get; private set; }
-
-        Button _button;
-        Image _image;
-        Color _resting;
-
-        /// <summary>Whether this direction is being held right now.</summary>
-        public bool Held => _button != null && _button.IsPressed();
-
-        public void Configure(Vector2 direction, Color resting)
-        {
-            Direction = direction;
-            _resting = resting;
-        }
-
-        void Awake()
-        {
-            _button = GetComponent<Button>();
-            _image = GetComponent<Image>();
-        }
-
-        void LateUpdate()
-        {
-            if (_image == null) return;
-
-            // White and near-opaque while held, so it is obvious which way she is
-            // going without having to read the character.
-            _image.color = Held
-                ? new Color(1f, 1f, 1f, 0.9f)
-                : _resting;
-        }
+    	static OnScreenControls()
+    	{
+    		//IL_0014: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0019: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0032: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0037: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0050: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0055: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_006e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0073: Unknown result type (might be due to invalid IL or missing references)
+    	}
     }
 }

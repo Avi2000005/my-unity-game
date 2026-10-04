@@ -1,168 +1,194 @@
 using System.IO;
+using System.Reflection;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
 
 namespace Echoes.Painterly.EditorTools
 {
-    /// <summary>
-    /// Verifies the follow camera actually tracks Ari and obeys orbit/zoom.
-    /// Writes Temp/camera_live.txt.
-    ///
-    /// Run in play mode. Under automation there is no mouse, so the orbit and
-    /// zoom limits are exercised by driving the same fields the mouse writes,
-    /// and what is measured is the consequence: where the camera ends up and
-    /// whether it stays a sane distance from her.
-    /// </summary>
+
     public static class CameraLiveProbe
     {
-        [MenuItem("Tools/Echoes/Probe Camera", priority = 101)]
-        public static void Run()
-        {
-            var sb = new StringBuilder();
+    	[MenuItem("Tools/Echoes/Probe Camera", priority = 101)]
+    	public static void Run()
+    	{
+    		//IL_00f3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00f8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0100: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0105: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0107: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0109: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0124: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_013c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0149: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01e7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01ec: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01ee: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01f0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0230: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0235: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0237: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0239: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0260: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0278: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_027a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0291: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0293: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0295: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_029a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_029e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02a3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02a5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02a7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02ac: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02b0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_031e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0329: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0367: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0372: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03bc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03e7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0440: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0455: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_047f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_048c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01c4: Unknown result type (might be due to invalid IL or missing references)
+    		StringBuilder stringBuilder = new StringBuilder();
+    		if (!EditorApplication.isPlaying)
+    		{
+    			stringBuilder.AppendLine("Not in play mode.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		GameObject val = GameObject.Find("Ari");
+    		Camera main = Camera.main;
+    		AriFollowCamera ariFollowCamera = (((Object)(object)main != (Object)null) ? ((Component)main).GetComponent<AriFollowCamera>() : null);
+    		stringBuilder.AppendLine("--- wiring ---");
+    		stringBuilder.AppendLine($"  Ari found={(Object)(object)val != (Object)null}");
+    		stringBuilder.AppendLine($"  Main Camera found={(Object)(object)main != (Object)null} " + $"AriFollowCamera present={(Object)(object)ariFollowCamera != (Object)null}");
+    		if ((Object)(object)val == (Object)null || (Object)(object)main == (Object)null || (Object)(object)ariFollowCamera == (Object)null)
+    		{
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		AriMover component = val.GetComponent<AriMover>();
+    		stringBuilder.AppendLine($"  AriMover present={(Object)(object)component != (Object)null}");
+    		Vector3 position = val.transform.position;
+    		Vector3 position2 = ((Component)main).transform.position;
+    		float num = Vector3.Distance(position2, position);
+    		stringBuilder.AppendLine("\n--- before ---");
+    		stringBuilder.AppendLine("  Ari   at " + Fmt(position));
+    		stringBuilder.AppendLine($"  camera at {Fmt(position2)}  pitch {((Component)main).transform.eulerAngles.x:F1}");
+    		stringBuilder.AppendLine($"  distance to Ari = {num:F3}");
+    		stringBuilder.AppendLine($"  Ari in frustum = {InFrustum(main, val)}");
+    		stringBuilder.AppendLine("\n--- walking Ari 2.0s on +Z ---");
+    		if ((Object)(object)component != (Object)null)
+    		{
+    			for (int i = 0; i < 120; i++)
+    			{
+    				component.Step(new Vector3(0f, 0f, 1f), running: false, 1f / 60f);
+    			}
+    		}
+    		Vector3 position3 = val.transform.position;
+    		float num2 = Vector3.Distance(position, position3);
+    		stringBuilder.AppendLine($"  Ari moved {num2:F3} (expect ~4.4)");
+    		for (int j = 0; j < 30; j++)
+    		{
+    			StepCamera(main, ariFollowCamera);
+    		}
+    		Vector3 position4 = ((Component)main).transform.position;
+    		float num3 = Vector3.Distance(position2, position4);
+    		stringBuilder.AppendLine($"  camera moved {num3:F3} (expect > 3 — it must trail her)");
+    		stringBuilder.AppendLine("  camera at " + Fmt(position4));
+    		stringBuilder.AppendLine($"  distance to Ari = {Vector3.Distance(position4, position3):F3}");
+    		Vector3 val2 = position4 - position2;
+    		Vector3 normalized = val2.normalized;
+    		val2 = position3 - position;
+    		bool flag = Vector3.Dot(normalized, val2.normalized) > 0.9f;
+    		stringBuilder.AppendLine($"  trailing her (not sliding sideways): {flag}");
+    		stringBuilder.AppendLine($"  Ari in frustum now = {InFrustum(main, val)}");
+    		stringBuilder.AppendLine("\n--- zoom ---");
+    		SetDistance(ariFollowCamera, 0.01f);
+    		StepCamera(main, ariFollowCamera, 20);
+    		float num4 = Vector3.Distance(((Component)main).transform.position, val.transform.position);
+    		stringBuilder.AppendLine($"  asked for 0.01, settled at {num4:F3} (must be >= 2.5)");
+    		SetDistance(ariFollowCamera, 500f);
+    		StepCamera(main, ariFollowCamera, 20);
+    		float num5 = Vector3.Distance(((Component)main).transform.position, val.transform.position);
+    		stringBuilder.AppendLine($"  asked for 500, settled at {num5:F3} (must be <= 14)");
+    		stringBuilder.AppendLine("\n--- pitch clamp ---");
+    		SetPitch(ariFollowCamera, -89f);
+    		StepCamera(main, ariFollowCamera, 10);
+    		float num6 = NormalisedPitch(((Component)main).transform.eulerAngles.x);
+    		SetPitch(ariFollowCamera, 89f);
+    		StepCamera(main, ariFollowCamera, 10);
+    		float num7 = NormalisedPitch(((Component)main).transform.eulerAngles.x);
+    		stringBuilder.AppendLine($"  asked -89 -> {num6:F1} (must be >= -8)");
+    		stringBuilder.AppendLine($"  asked  89 -> {num7:F1} (must be <= 72)");
+    		stringBuilder.AppendLine("\n--- sanity ---");
+    		stringBuilder.AppendLine($"  camera y {((Component)main).transform.position.y:F3} vs Ari y {val.transform.position.y:F3} " + "(camera must stay above her feet)");
+    		val.transform.position = position;
+    		((Component)main).transform.position = position2;
+    		Finish(stringBuilder);
+    	}
 
-            if (!EditorApplication.isPlaying) { sb.AppendLine("Not in play mode."); Finish(sb); return; }
+    	private static void StepCamera(Camera cam, AriFollowCamera follow, int times = 1)
+    	{
+    		MethodInfo method = typeof(AriFollowCamera).GetMethod("LateUpdate", BindingFlags.Instance | BindingFlags.NonPublic);
+    		if (!(method == null))
+    		{
+    			for (int i = 0; i < times; i++)
+    			{
+    				method.Invoke(follow, null);
+    			}
+    		}
+    	}
 
-            var ari = GameObject.Find("Ari");
-            var cam = Camera.main;
-            var follow = cam != null ? cam.GetComponent<Echoes.Painterly.AriFollowCamera>() : null;
+    	private static void SetDistance(AriFollowCamera follow, float d)
+    	{
+    		typeof(AriFollowCamera).GetField("_distance", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(follow, d);
+    	}
 
-            sb.AppendLine("--- wiring ---");
-            sb.AppendLine($"  Ari found={ari != null}");
-            sb.AppendLine($"  Main Camera found={cam != null} " +
-                          $"AriFollowCamera present={follow != null}");
+    	private static void SetPitch(AriFollowCamera follow, float p)
+    	{
+    		typeof(AriFollowCamera).GetField("_pitch", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(follow, p);
+    	}
 
-            if (ari == null || cam == null || follow == null) { Finish(sb); return; }
+    	private static float NormalisedPitch(float eulerX)
+    	{
+    		if (!(eulerX > 180f))
+    		{
+    			return eulerX;
+    		}
+    		return eulerX - 360f;
+    	}
 
-            var mover = ari.GetComponent<Echoes.Painterly.AriMover>();
-            sb.AppendLine($"  AriMover present={mover != null}");
+    	private static bool InFrustum(Camera cam, GameObject target)
+    	{
+    		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0013: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0018: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0031: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0036: Unknown result type (might be due to invalid IL or missing references)
+    		Plane[] array = GeometryUtility.CalculateFrustumPlanes(cam);
+    		Bounds val = new Bounds(target.transform.position + Vector3.up, new Vector3(1f, 2f, 1f));
+    		return GeometryUtility.TestPlanesAABB(array, val);
+    	}
 
-            Vector3 ariStart = ari.transform.position;
-            Vector3 camStart = cam.transform.position;
-            float distStart = Vector3.Distance(camStart, ariStart);
+    	private static string Fmt(Vector3 v)
+    	{
+    		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0010: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001b: Unknown result type (might be due to invalid IL or missing references)
+    		return $"({v.x:F2}, {v.y:F2}, {v.z:F2})";
+    	}
 
-            sb.AppendLine($"\n--- before ---");
-            sb.AppendLine($"  Ari   at {Fmt(ariStart)}");
-            sb.AppendLine($"  camera at {Fmt(camStart)}  pitch {cam.transform.eulerAngles.x:F1}");
-            sb.AppendLine($"  distance to Ari = {distStart:F3}");
-            sb.AppendLine($"  Ari in frustum = {InFrustum(cam, ari)}");
-
-            // ---- walk her forward; the camera must trail ----
-            sb.AppendLine($"\n--- walking Ari 2.0s on +Z ---");
-            if (mover != null)
-            {
-                for (int i = 0; i < 120; i++)
-                {
-                    mover.Step(new Vector3(0f, 0f, 1f), false, 1f / 60f);
-                }
-            }
-
-            // LateUpdate does not run for a script invoked from the editor, so
-            // the follow maths is stepped by hand at the same cadence.
-            Vector3 ariAfter = ari.transform.position;
-            float walked = Vector3.Distance(ariStart, ariAfter);
-            sb.AppendLine($"  Ari moved {walked:F3} (expect ~4.4)");
-
-            // Let the camera settle onto the new pivot.
-            for (int i = 0; i < 30; i++) StepCamera(cam, follow);
-
-            Vector3 camAfter = cam.transform.position;
-            float moved = Vector3.Distance(camStart, camAfter);
-            sb.AppendLine($"  camera moved {moved:F3} (expect > 3 — it must trail her)");
-            sb.AppendLine($"  camera at {Fmt(camAfter)}");
-            sb.AppendLine($"  distance to Ari = {Vector3.Distance(camAfter, ariAfter):F3}");
-
-            bool trailing = Vector3.Dot(
-                (camAfter - camStart).normalized,
-                (ariAfter - ariStart).normalized) > 0.9f;
-            sb.AppendLine($"  trailing her (not sliding sideways): {trailing}");
-            sb.AppendLine($"  Ari in frustum now = {InFrustum(cam, ari)}");
-
-            // ---- zoom limits ----
-            sb.AppendLine($"\n--- zoom ---");
-            SetDistance(follow, 0.01f);
-            StepCamera(cam, follow, 20);
-            float near = Vector3.Distance(cam.transform.position, ari.transform.position);
-            sb.AppendLine($"  asked for 0.01, settled at {near:F3} (must be >= 2.5)");
-
-            SetDistance(follow, 500f);
-            StepCamera(cam, follow, 20);
-            float far = Vector3.Distance(cam.transform.position, ari.transform.position);
-            sb.AppendLine($"  asked for 500, settled at {far:F3} (must be <= 14)");
-
-            // ---- pitch limits ----
-            sb.AppendLine($"\n--- pitch clamp ---");
-            SetPitch(follow, -89f);
-            StepCamera(cam, follow, 10);
-            float lo = NormalisedPitch(cam.transform.eulerAngles.x);
-            SetPitch(follow, 89f);
-            StepCamera(cam, follow, 10);
-            float hi = NormalisedPitch(cam.transform.eulerAngles.x);
-            sb.AppendLine($"  asked -89 -> {lo:F1} (must be >= -8)");
-            sb.AppendLine($"  asked  89 -> {hi:F1} (must be <= 72)");
-
-            // ---- is she ever below the ground? ----
-            sb.AppendLine($"\n--- sanity ---");
-            sb.AppendLine($"  camera y {cam.transform.position.y:F3} vs Ari y {ari.transform.position.y:F3} " +
-                          $"(camera must stay above her feet)");
-
-            ari.transform.position = ariStart;
-            cam.transform.position = camStart;
-
-            Finish(sb);
-        }
-
-        /// <summary>
-        /// Runs the follow camera's own LateUpdate by hand, because an editor
-        /// script's call does not drive the player loop.
-        /// </summary>
-        static void StepCamera(Camera cam, Echoes.Painterly.AriFollowCamera follow, int times = 1)
-        {
-            var m = typeof(Echoes.Painterly.AriFollowCamera)
-                .GetMethod("LateUpdate",
-                           System.Reflection.BindingFlags.NonPublic |
-                           System.Reflection.BindingFlags.Instance);
-            if (m == null) return;
-            for (int i = 0; i < times; i++) m.Invoke(follow, null);
-        }
-
-        static void SetDistance(Echoes.Painterly.AriFollowCamera follow, float d)
-        {
-            var f = typeof(Echoes.Painterly.AriFollowCamera)
-                .GetField("_distance", System.Reflection.BindingFlags.NonPublic |
-                                     System.Reflection.BindingFlags.Instance);
-            f?.SetValue(follow, d);
-        }
-
-        static void SetPitch(Echoes.Painterly.AriFollowCamera follow, float p)
-        {
-            var f = typeof(Echoes.Painterly.AriFollowCamera)
-                .GetField("_pitch", System.Reflection.BindingFlags.NonPublic |
-                                   System.Reflection.BindingFlags.Instance);
-            f?.SetValue(follow, p);
-        }
-
-        static float NormalisedPitch(float eulerX)
-        {
-            float p = eulerX > 180f ? eulerX - 360f : eulerX;
-            return p;
-        }
-
-        static bool InFrustum(Camera cam, GameObject target)
-        {
-            var plane = GeometryUtility.CalculateFrustumPlanes(cam);
-            var bounds = new Bounds(target.transform.position + Vector3.up,
-                                    new Vector3(1f, 2f, 1f));
-            return GeometryUtility.TestPlanesAABB(plane, bounds);
-        }
-
-        static string Fmt(Vector3 v) => $"({v.x:F2}, {v.y:F2}, {v.z:F2})";
-
-        static void Finish(StringBuilder sb)
-        {
-            var text = sb.ToString();
-            File.WriteAllText("Temp/camera_live.txt", text);
-            Debug.Log("[Echoes] Camera probe\n" + text);
-        }
+    	private static void Finish(StringBuilder sb)
+    	{
+    		string text = sb.ToString();
+    		File.WriteAllText("Temp/camera_live.txt", text);
+    		Debug.Log((object)("[Echoes] Camera probe\n" + text));
+    	}
     }
 }

@@ -1,0 +1,284 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Text;
+using UnityEditor;
+using UnityEngine;
+
+using Object = UnityEngine.Object;
+namespace Echoes.Painterly.EditorTools
+{
+
+    public static class InkBuild
+    {
+    	private const string OutDir = "Assets/Painterly/Generated/Ink";
+
+    	private const string PngPath = "Assets/Painterly/Generated/Ink/InkSkin.png";
+
+    	private const string MatPath = "Assets/Painterly/Materials/Cast_InkCrawler.mat";
+
+    	private const string Report = "Temp/ink_build.txt";
+
+    	private const int Size = 512;
+
+    	[MenuItem("Tools/Echoes/Build Ink Crawler Skin", priority = 78)]
+    	public static void Run()
+    	{
+    		//IL_03ec: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03f1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_015a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0161: Expected Obj, but got Unknown
+    		//IL_0215: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_021c: Expected Obj, but got Unknown
+    		StringBuilder stringBuilder = new StringBuilder();
+    		stringBuilder.AppendLine("[Echoes] ink crawler skin");
+    		stringBuilder.AppendLine("  size " + 512 + " x " + 512);
+    		EnsureDir();
+    		Material val = AssetDatabase.LoadAssetAtPath<Material>("Assets/Painterly/Materials/Cast_InkCrawler.mat");
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			stringBuilder.AppendLine("FATAL: no material at Assets/Painterly/Materials/Cast_InkCrawler.mat");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		object obj;
+    		if (!val.HasProperty("_BaseMap"))
+    		{
+    			obj = null;
+    		}
+    		else
+    		{
+    			Texture texture = val.GetTexture("_BaseMap");
+    			obj = ((texture is Texture2D) ? texture : null);
+    		}
+    		Texture2D val2 = (Texture2D)obj;
+    		stringBuilder.AppendLine("  material    : " + ((Object)val).name);
+    		stringBuilder.AppendLine("  shader      : " + (((Object)(object)val.shader != (Object)null) ? ((Object)val.shader).name : "NULL"));
+    		stringBuilder.AppendLine("  albedo now  : " + (((Object)(object)val2 == (Object)null) ? "NONE — this is why it renders flat" : (((Object)val2).name + " " + ((Texture)val2).width + "x" + ((Texture)val2).height)));
+    		Color[] pixels = Skin(512);
+    		Texture2D val3 = new Texture2D(512, 512, (TextureFormat)4, false, false);
+    		((Object)val3).name = "InkSkin";
+    		((Texture)val3).wrapMode = (TextureWrapMode)0;
+    		((Texture)val3).filterMode = (FilterMode)2;
+    		((Texture)val3).anisoLevel = 4;
+    		val3.SetPixels(pixels);
+    		val3.Apply(true, false);
+    		File.WriteAllBytes("Assets/Painterly/Generated/Ink/InkSkin.png", ImageConversion.EncodeToPNG(val3));
+    		Object.DestroyImmediate((Object)(object)val3);
+    		AssetDatabase.ImportAsset("Assets/Painterly/Generated/Ink/InkSkin.png", (ImportAssetOptions)1);
+    		Texture2D val4 = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Painterly/Generated/Ink/InkSkin.png");
+    		if ((Object)(object)val4 == (Object)null)
+    		{
+    			stringBuilder.AppendLine("FATAL: wrote Assets/Painterly/Generated/Ink/InkSkin.png but it did not import");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		((Texture)val4).wrapMode = (TextureWrapMode)0;
+    		((Texture)val4).filterMode = (FilterMode)2;
+    		((Texture)val4).anisoLevel = 4;
+    		EditorUtility.SetDirty((Object)(object)val4);
+    		Color[] array = new Color[0];
+    		float num = 0f;
+    		Texture2D val5 = new Texture2D(2, 2, (TextureFormat)4, false, false);
+    		((Object)val5).name = "__ink_verify";
+    		try
+    		{
+    			Stopwatch stopwatch = Stopwatch.StartNew();
+    			if (ImageConversion.LoadImage(val5, File.ReadAllBytes("Assets/Painterly/Generated/Ink/InkSkin.png"), false))
+    			{
+    				array = val5.GetPixels();
+    			}
+    			num = (float)stopwatch.Elapsed.TotalSeconds;
+    		}
+    		catch (Exception ex)
+    		{
+    			stringBuilder.AppendLine("  could not read the PNG back: " + ex.Message);
+    			stringBuilder.AppendLine("  the numbers below are therefore missing, not zero — an unreadable artifact and a flat one look the same in a report that says nothing.");
+    		}
+    		finally
+    		{
+    			Object.DestroyImmediate((Object)(object)val5);
+    		}
+    		if (array.Length == 0)
+    		{
+    			stringBuilder.AppendLine("FATAL: the PNG is on disk but could not be decoded back into pixels, so there is nothing to measure. The texture may still have been assigned.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		float num2 = 0f;
+    		float num3 = 0f;
+    		float num4 = 1f;
+    		float num5 = 0f;
+    		for (int i = 0; i < array.Length; i++)
+    		{
+    			float num6 = array[i].r * 0.299f + array[i].g * 0.587f + array[i].b * 0.114f;
+    			num2 += num6;
+    			num3 += num6 * num6;
+    			if (num6 < num4)
+    			{
+    				num4 = num6;
+    			}
+    			if (num6 > num5)
+    			{
+    				num5 = num6;
+    			}
+    		}
+    		float num7 = array.Length;
+    		float num8 = num2 / num7;
+    		float num9 = Mathf.Sqrt(Mathf.Max(0f, num3 / num7 - num8 * num8));
+    		stringBuilder.AppendLine("  read back    : decoded the written PNG in " + num.ToString("0.000") + " s — these numbers are the file, not the array");
+    		stringBuilder.AppendLine("  wrote       : Assets/Painterly/Generated/Ink/InkSkin.png");
+    		stringBuilder.AppendLine("  imported as : " + ((Object)val4).name + " " + ((Texture)val4).width + "x" + ((Texture)val4).height + ", wrap " + ((object)((Texture)val4).wrapMode/*cast due to constrained. prefix*/).ToString());
+    		stringBuilder.AppendLine("  MEASURED luminance over " + num7 + " pixels:");
+    		stringBuilder.AppendLine("    mean " + num8.ToString("0.000") + "   spread " + num9.ToString("0.000") + "   range " + num4.ToString("0.000") + " .. " + num5.ToString("0.000"));
+    		stringBuilder.AppendLine("  " + ((num9 < 0.02f) ? "spread is below 0.02 — that is a flat fill, not an ink skin, and it will read as a silhouette with no surface" : ("spread " + num9.ToString("0.000") + " means the blotching and drips survived the write, so the surface will read as liquid")));
+    		if (!val.HasProperty("_BaseMap"))
+    		{
+    			stringBuilder.AppendLine("FATAL: " + ((Object)val).name + " has no _BaseMap. The shader is " + (((Object)(object)val.shader != (Object)null) ? ((Object)val.shader).name : "?") + ", which is not PainterlyLit.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		val.SetTexture("_BaseMap", (Texture)(object)val4);
+    		if (val.HasProperty("_Smoothness"))
+    		{
+    			val.SetFloat("_Smoothness", 0.42f);
+    		}
+    		EditorUtility.SetDirty((Object)(object)val);
+    		AssetDatabase.SaveAssets();
+    		Material val6 = AssetDatabase.LoadAssetAtPath<Material>("Assets/Painterly/Materials/Cast_InkCrawler.mat");
+    		object obj2;
+    		if (!((Object)(object)val6 != (Object)null) || !val6.HasProperty("_BaseMap"))
+    		{
+    			obj2 = null;
+    		}
+    		else
+    		{
+    			Texture texture2 = val6.GetTexture("_BaseMap");
+    			obj2 = ((texture2 is Texture2D) ? texture2 : null);
+    		}
+    		Texture2D val7 = (Texture2D)obj2;
+    		stringBuilder.AppendLine("  albedo after: " + (((Object)(object)val7 == (Object)null) ? "STILL NONE — the assignment did not take" : (((Object)val7).name + " " + ((Texture)val7).width + "x" + ((Texture)val7).height)));
+    		bool flag = (Object)(object)val7 != (Object)null && ((Texture)val7).width == 512;
+    		stringBuilder.AppendLine("  " + (flag ? "PASS — the crawler material reads back with the ink skin on it" : "FAIL — read-back does not match what was written"));
+    		Finish(stringBuilder);
+    	}
+
+    	private static Color[] Skin(int size)
+    	{
+    		//IL_00d5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00da: Unknown result type (might be due to invalid IL or missing references)
+    		Color[] array = new Color[size * size];
+    		for (int i = 0; i < size; i++)
+    		{
+    			for (int j = 0; j < size; j++)
+    			{
+    				float num = (float)j / (float)size;
+    				float num2 = 1f - (float)i / (float)size;
+    				float num3 = Fbm(num * 5f, num2 * 5f, 4);
+    				float num4 = Fbm(num * 19f, num2 * 19f, 3);
+    				float num5 = Drips(num, num2);
+    				float num6 = 0.055f + num3 * 0.13f + num4 * 0.035f;
+    				num6 -= num5 * 0.045f;
+    				num6 += Mathf.Pow(Mathf.Max(0f, num3 - 0.55f), 2f) * 0.1f;
+    				num6 = Mathf.Clamp01(num6);
+    				array[i * size + j] = new Color(num6 * 1f, num6 * 0.975f, num6 * 1.02f, 1f);
+    			}
+    		}
+    		return array;
+    	}
+
+    	private static float Drips(float u, float v)
+    	{
+    		float num = u * 14f;
+    		int num2 = Mathf.FloorToInt(num);
+    		float num3 = num - (float)num2;
+    		float num4 = 0f;
+    		for (int i = -1; i <= 1; i++)
+    		{
+    			int a = num2 + i;
+    			if (Hash01(a, 17) < 0.66f)
+    			{
+    				continue;
+    			}
+    			float num5 = Hash01(a, 91);
+    			if (num3 < num5 || num3 > num5 + 0.34f)
+    			{
+    				continue;
+    			}
+    			float num6 = Hash01(a, 43);
+    			float num7 = num6 + 0.12f + Hash01(a, 67) * 0.34f;
+    			if (!(v > num6) && !(v < num7))
+    			{
+    				float num8 = (num6 - v) / Mathf.Max(0.001f, num6 - num7);
+    				float num9 = Mathf.Sin(num8 * (float)Math.PI);
+    				float num10 = Mathf.Lerp(0.16f, 0.03f, num8);
+    				float num11 = Mathf.Abs(num3 - num5 - 0.17f) / num10;
+    				if (!(num11 > 1f))
+    				{
+    					float num12 = Mathf.Sqrt(Mathf.Max(0f, 1f - num11 * num11));
+    					num4 = Mathf.Max(num4, num9 * num12);
+    				}
+    			}
+    		}
+    		return num4;
+    	}
+
+    	private static float Fbm(float x, float y, int octaves)
+    	{
+    		float num = 0f;
+    		float num2 = 0.5f;
+    		float num3 = 1f;
+    		float num4 = 0f;
+    		for (int i = 0; i < octaves; i++)
+    		{
+    			num += num2 * Value(x * num3, y * num3);
+    			num4 += num2;
+    			num2 *= 0.5f;
+    			num3 *= 2f;
+    		}
+    		if (!(num4 > 0f))
+    		{
+    			return 0f;
+    		}
+    		return num / num4;
+    	}
+
+    	private static float Value(float x, float y)
+    	{
+    		int num = Mathf.FloorToInt(x);
+    		int num2 = Mathf.FloorToInt(y);
+    		float num3 = x - (float)num;
+    		float num4 = y - (float)num2;
+    		num3 = num3 * num3 * (3f - 2f * num3);
+    		num4 = num4 * num4 * (3f - 2f * num4);
+    		float num5 = Hash01(num, num2);
+    		float num6 = Hash01(num + 1, num2);
+    		float num7 = Hash01(num, num2 + 1);
+    		float num8 = Hash01(num + 1, num2 + 1);
+    		return Mathf.Lerp(Mathf.Lerp(num5, num6, num3), Mathf.Lerp(num7, num8, num3), num4);
+    	}
+
+    	private static float Hash01(int a, int b)
+    	{
+    		int num = (a * 73856093) ^ (b * 19349663);
+    		int num2 = (num ^ (num >>> 13)) * 1540483477;
+    		return (float)(uint)((num2 ^ (num2 >>> 15)) & 0xFFFFFF) / 16777215f;
+    	}
+
+    	private static void EnsureDir()
+    	{
+    		if (!AssetDatabase.IsValidFolder("Assets/Painterly/Generated/Ink"))
+    		{
+    			string text = Path.GetDirectoryName("Assets/Painterly/Generated/Ink").Replace('\\', '/');
+    			string fileName = Path.GetFileName("Assets/Painterly/Generated/Ink");
+    			AssetDatabase.CreateFolder(text, fileName);
+    		}
+    	}
+
+    	private static void Finish(StringBuilder sb)
+    	{
+    		File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), "Temp/ink_build.txt"), sb.ToString());
+    		Debug.Log((object)"[Echoes] ink skin built — see Temp/ink_build.txt");
+    	}
+    }
+}

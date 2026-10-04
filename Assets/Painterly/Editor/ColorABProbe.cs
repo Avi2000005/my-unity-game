@@ -1,283 +1,282 @@
+using System;
 using System.IO;
+using System.Text;
 using UnityEditor;
-using UnityEngine;
+using UnityEngine;
+using Object = UnityEngine.Object;
 using UnityEngine.Rendering;
 
 namespace Echoes.Painterly.EditorTools
 {
-    /// <summary>
-    /// Measures the grey-to-colour transition as a number instead of an opinion.
-    ///
-    /// Everything else in this project asserts that painting restores colour; this is
-    /// the only thing that actually proves it. Two frames of the same view are
-    /// compared — one with _ColorRestore = 0, one with 1 — and the difference in mean
-    /// per-pixel saturation is reported.
-    ///
-    /// The environment is neutralised for the duration of the test, and that is not
-    /// cosmetic. A blue sky or a warm ambient raises saturation on its own account,
-    /// so a fully lit scene reads as "partly restored" even when the shader is doing
-    /// nothing at all. With a null skybox, flat grey ambient, no fog and no
-    /// reflections, the only thing left in frame that can carry colour is the
-    /// village's own albedo — which is the thing under test.
-    ///
-    /// Setup and teardown are separate menu items because the actual screenshots are
-    /// taken by the Scene View capture, which has to run between them:
-    ///
-    ///   1. Neutralise Environment
-    ///   2. Frame Village      (twice, with SetRestore between the two captures)
-    ///   3. capture grey PNG, capture colour PNG
-    ///   4. Report Contrast
-    ///   5. Restore Environment
-    ///
-    /// The original settings are stashed to Temp/color_ab_stash.json first, so a test
-    /// that gets interrupted halfway still leaves a way back.
-    /// </summary>
+
     public static class ColorABProbe
     {
-        // Stash lives outside Assets so Unity never tries to import it. The probe
-        // PNGs come from the Scene View capture tool, which writes relative to the
-        // project root's Assets folder, so those are read back from Assets/Temp.
-        const string StashPath = "Temp/color_ab_stash.json";
-        const string CameraName = "__AB_Camera";
-        const string GreyPng = "Assets/Temp/ab_grey.png";
-        const string ColourPng = "Assets/Temp/ab_colour.png";
+    	[Serializable]
+    	private class Stash
+    	{
+    		public int ambientMode;
 
-        /// <summary>Below this, a pixel counts as background rather than subject.</summary>
-        const byte MinChroma = 6;
+    		public Color ambientSky;
 
-        [System.Serializable]
-        class Stash
-        {
-            public int ambientMode;
-            public Color ambientSky, ambientEquator, ambientGround;
-            public float ambientIntensity, reflectionIntensity;
-            public bool fog;
-            public string skyboxName;
-        }
+    		public Color ambientEquator;
 
-        static string ProjectPath(params string[] parts)
-        {
-            var p = Path.GetDirectoryName(Application.dataPath);
-            foreach (var s in parts) p = Path.Combine(p, s);
-            return p;
-        }
+    		public Color ambientGround;
 
-        // ---- setup --------------------------------------------------------
+    		public float ambientIntensity;
 
-        [MenuItem("Tools/Echoes/Probe/1. Neutralise Environment", priority = 40)]
-        public static void Neutralise()
-        {
-            StashAndNeutralise();
-            Debug.Log("[Echoes] Environment neutralised for the A/B probe. " +
-                      "Screenshot both states, then run '4. Report Contrast'.");
-        }
+    		public float reflectionIntensity;
 
-        [MenuItem("Tools/Echoes/Probe/2. Frame Village", priority = 41)]
-        public static void FrameVillage()
-        {
-            var village = GameObject.Find("Village_Grey");
-            if (village == null)
-            {
-                Debug.LogError("[Echoes] No Village_Grey in the scene. Run Generate Grey Village first.");
-                return;
-            }
+    		public bool fog;
 
-            var view = SceneView.lastActiveSceneView;
-            if (view == null)
-            {
-                Debug.LogError("[Echoes] Open a Scene View before framing.");
-                return;
-            }
+    		public string skyboxName;
+    	}
 
-            // Frame from the village's own bounds rather than a hard-coded position,
-            // so this keeps working when the building count or layout settings change.
-            var b = new Bounds(village.transform.position, Vector3.zero);
-            foreach (var r in village.GetComponentsInChildren<Renderer>(true))
-            {
-                if (r.transform.name == "Ground") continue;
-                b.Encapsulate(r.bounds);
-            }
+    	private struct Sat
+    	{
+    		public float mean;
 
-            view.LookAt(b.center, Quaternion.Euler(32f, 38f, 0f));
-            view.pivot = b.center;
-            view.size = Mathf.Max(b.extents.x, b.extents.z) * 1.15f;
-            view.sceneViewState.alwaysRefresh = true;
-            view.Repaint();
+    		public int pixels;
+    	}
 
-            Debug.Log($"[Echoes] Framed village at {b.center} " +
-                      $"(extent {b.size.x:F0} x {b.size.z:F0} x {b.size.y:F0}).");
-        }
+    	private const string StashPath = "Temp/color_ab_stash.json";
 
-        // ---- the two states -----------------------------------------------
+    	private const string CameraName = "__AB_Camera";
 
-        [MenuItem("Tools/Echoes/Probe/3a. Set Grey (Restore = 0)", priority = 42)]
-        public static void SetGrey() => SetRestore(0f);
+    	private const string GreyPng = "Assets/Temp/ab_grey.png";
 
-        [MenuItem("Tools/Echoes/Probe/3b. Set Colour (Restore = 1)", priority = 43)]
-        public static void SetColour() => SetRestore(1f);
+    	private const string ColourPng = "Assets/Temp/ab_colour.png";
 
-        static void SetRestore(float value)
-        {
-            var village = GameObject.Find("Village_Grey");
-            if (village == null)
-            {
-                Debug.LogError("[Echoes] No Village_Grey in the scene.");
-                return;
-            }
+    	private const byte MinChroma = 6;
 
-            ColorRestoreTarget.SetAllImmediate(value);
-            SceneView.lastActiveSceneView?.Repaint();
-            Debug.Log($"[Echoes] _ColorRestore set to {value} on " +
-                      $"{village.GetComponentsInChildren<ColorRestoreTarget>(true).Length} target(s).");
-        }
+    	private static string ProjectPath(params string[] parts)
+    	{
+    		string text = Path.GetDirectoryName(Application.dataPath);
+    		foreach (string path in parts)
+    		{
+    			text = Path.Combine(text, path);
+    		}
+    		return text;
+    	}
 
-        // ---- verdict -------------------------------------------------------
+    	[MenuItem("Tools/Echoes/Probe/1. Neutralise Environment", priority = 40)]
+    	public static void Neutralise()
+    	{
+    		StashAndNeutralise();
+    		Debug.Log((object)"[Echoes] Environment neutralised for the A/B probe. Screenshot both states, then run '4. Report Contrast'.");
+    	}
 
-        [MenuItem("Tools/Echoes/Probe/4. Report Contrast", priority = 44)]
-        public static void Report()
-        {
-            var grey = MeanSaturation(GreyPng);
-            var colour = MeanSaturation(ColourPng);
+    	[MenuItem("Tools/Echoes/Probe/2. Frame Village", priority = 41)]
+    	public static void FrameVillage()
+    	{
+    		//IL_0041: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0046: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0099: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ad: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ba: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0106: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_011c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_012d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_013e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_007f: Unknown result type (might be due to invalid IL or missing references)
+    		GameObject val = GameObject.Find("Village_Grey");
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			Debug.LogError((object)"[Echoes] No Village_Grey in the scene. Run Generate Grey Village first.");
+    			return;
+    		}
+    		SceneView lastActiveSceneView = SceneView.lastActiveSceneView;
+    		if ((Object)(object)lastActiveSceneView == (Object)null)
+    		{
+    			Debug.LogError((object)"[Echoes] Open a Scene View before framing.");
+    			return;
+    		}
+    		Bounds val2 = new Bounds(val.transform.position, Vector3.zero);
+    		Renderer[] componentsInChildren = val.GetComponentsInChildren<Renderer>(true);
+    		foreach (Renderer val3 in componentsInChildren)
+    		{
+    			if (!(((Object)((Component)val3).transform).name == "Ground"))
+    			{
+    				val2.Encapsulate(val3.bounds);
+    			}
+    		}
+    		lastActiveSceneView.LookAt(val2.center, Quaternion.Euler(32f, 38f, 0f));
+    		lastActiveSceneView.pivot = val2.center;
+    		lastActiveSceneView.size = Mathf.Max(val2.extents.x, val2.extents.z) * 1.15f;
+    		lastActiveSceneView.sceneViewState.alwaysRefresh = true;
+    		((EditorWindow)lastActiveSceneView).Repaint();
+    		Debug.Log((object)($"[Echoes] Framed village at {val2.center} " + $"(extent {val2.size.x:F0} x {val2.size.z:F0} x {val2.size.y:F0})."));
+    	}
 
-            if (grey.pixels == 0 || colour.pixels == 0)
-            {
-                Debug.LogError("[Echoes] Missing probe PNGs. Capture both states first " +
-                               "(grey and colour) before reporting.");
-                return;
-            }
+    	[MenuItem("Tools/Echoes/Probe/3a. Set Grey (Restore = 0)", priority = 42)]
+    	public static void SetGrey()
+    	{
+    		SetRestore(0f);
+    	}
 
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("[Echoes] Grey/Colour contrast");
-            sb.AppendLine($"  _ColorRestore = 0   mean saturation {grey.mean:F4}  over {grey.pixels} px");
-            sb.AppendLine($"  _ColorRestore = 1   mean saturation {colour.mean:F4}  over {colour.pixels} px");
-            sb.AppendLine($"  lift {colour.mean - grey.mean:F4}   ratio {colour.mean / Mathf.Max(0.0001f, grey.mean):F1}x");
+    	[MenuItem("Tools/Echoes/Probe/3b. Set Colour (Restore = 1)", priority = 43)]
+    	public static void SetColour()
+    	{
+    		SetRestore(1f);
+    	}
 
-            // A grey world that still reads as colourful means desaturation is not
-            // reaching the albedo. A painted world that does not lift means
-            // _ColorRestore is not reaching the renderer. Both are silent at a
-            // glance, so they get an explicit verdict rather than a number to
-            // interpret.
-            if (grey.mean > 0.12f)
-                sb.AppendLine("  VERDICT FAIL: the grey pass is not actually grey.");
-            else if (colour.mean < grey.mean * 1.5f)
-                sb.AppendLine("  VERDICT FAIL: restoring colour barely moved saturation.");
-            else
-                sb.AppendLine("  VERDICT PASS: the village is grey, and painting restores colour.");
+    	private static void SetRestore(float value)
+    	{
+    		GameObject val = GameObject.Find("Village_Grey");
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			Debug.LogError((object)"[Echoes] No Village_Grey in the scene.");
+    			return;
+    		}
+    		ColorRestoreTarget.SetAllImmediate(value);
+    		SceneView lastActiveSceneView = SceneView.lastActiveSceneView;
+    		if (lastActiveSceneView != null)
+    		{
+    			((EditorWindow)lastActiveSceneView).Repaint();
+    		}
+    		Debug.Log((object)($"[Echoes] _ColorRestore set to {value} on " + $"{val.GetComponentsInChildren<ColorRestoreTarget>(true).Length} target(s)."));
+    	}
 
-            Debug.Log(sb.ToString());
-        }
+    	[MenuItem("Tools/Echoes/Probe/4. Report Contrast", priority = 44)]
+    	public static void Report()
+    	{
+    		Sat sat = MeanSaturation("Assets/Temp/ab_grey.png");
+    		Sat sat2 = MeanSaturation("Assets/Temp/ab_colour.png");
+    		if (sat.pixels == 0 || sat2.pixels == 0)
+    		{
+    			Debug.LogError((object)"[Echoes] Missing probe PNGs. Capture both states first (grey and colour) before reporting.");
+    			return;
+    		}
+    		StringBuilder stringBuilder = new StringBuilder();
+    		stringBuilder.AppendLine("[Echoes] Grey/Colour contrast");
+    		stringBuilder.AppendLine($"  _ColorRestore = 0   mean saturation {sat.mean:F4}  over {sat.pixels} px");
+    		stringBuilder.AppendLine($"  _ColorRestore = 1   mean saturation {sat2.mean:F4}  over {sat2.pixels} px");
+    		stringBuilder.AppendLine($"  lift {sat2.mean - sat.mean:F4}   ratio {sat2.mean / Mathf.Max(0.0001f, sat.mean):F1}x");
+    		if (sat.mean > 0.12f)
+    		{
+    			stringBuilder.AppendLine("  VERDICT FAIL: the grey pass is not actually grey.");
+    		}
+    		else if (sat2.mean < sat.mean * 1.5f)
+    		{
+    			stringBuilder.AppendLine("  VERDICT FAIL: restoring colour barely moved saturation.");
+    		}
+    		else
+    		{
+    			stringBuilder.AppendLine("  VERDICT PASS: the village is grey, and painting restores colour.");
+    		}
+    		Debug.Log((object)stringBuilder.ToString());
+    	}
 
-        struct Sat
-        {
-            public float mean;
-            public int pixels;
-        }
+    	private static Sat MeanSaturation(string relativePath)
+    	{
+    		//IL_0026: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002c: Expected Obj, but got Unknown
+    		//IL_0061: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0066: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0068: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0076: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_007d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0084: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0097: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a5: Unknown result type (might be due to invalid IL or missing references)
+    		string path = ProjectPath(relativePath.Split('/', StringSplitOptions.None));
+    		if (!File.Exists(path))
+    		{
+    			return default;
+    		}
+    		Texture2D val = new Texture2D(2, 2, (TextureFormat)4, false);
+    		if (!ImageConversion.LoadImage(val, File.ReadAllBytes(path)))
+    		{
+    			return default;
+    		}
+    		Color32[] pixels = val.GetPixels32();
+    		double num = 0.0;
+    		int num2 = 0;
+    		foreach (Color32 val2 in pixels)
+    		{
+    			if (val2.a >= 128)
+    			{
+    				int num3 = Mathf.Max((int)val2.r, Mathf.Max((int)val2.g, (int)val2.b));
+    				int num4 = Mathf.Min((int)val2.r, Mathf.Min((int)val2.g, (int)val2.b));
+    				if (num3 - num4 >= 6)
+    				{
+    					num += (double)(num3 - num4) / (double)num3;
+    					num2++;
+    				}
+    			}
+    		}
+    		Object.DestroyImmediate((Object)(object)val);
+    		return new Sat
+    		{
+    			mean = ((num2 > 0) ? ((float)(num / (double)num2)) : 0f),
+    			pixels = num2
+    		};
+    	}
 
-        /// <summary>
-        /// Mean HSV saturation over the pixels that differ from a flat background.
-        ///
-        /// Averaging over every pixel including the background would drag the mean
-        /// toward zero and hide a real change; excluding near-grey pixels is the same
-        /// idea, and it also strips out sky and any residual clear colour.
-        /// </summary>
-        static Sat MeanSaturation(string relativePath)
-        {
-            string path = ProjectPath(relativePath.Split('/'));
-            if (!File.Exists(path)) return new Sat();
+    	[MenuItem("Tools/Echoes/Probe/5. Restore Environment", priority = 45)]
+    	public static void RestoreEnvironment()
+    	{
+    		//IL_003f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0055: Unknown result type (might be due to invalid IL or missing references)
+    		string path = ProjectPath("Temp/color_ab_stash.json");
+    		if (!File.Exists(path))
+    		{
+    			Debug.LogWarning((object)"[Echoes] No stashed environment to restore.");
+    			return;
+    		}
+    		Stash stash = JsonUtility.FromJson<Stash>(File.ReadAllText(path));
+    		RenderSettings.ambientMode = (AmbientMode)stash.ambientMode;
+    		RenderSettings.ambientSkyColor = stash.ambientSky;
+    		RenderSettings.ambientEquatorColor = stash.ambientEquator;
+    		RenderSettings.ambientGroundColor = stash.ambientGround;
+    		RenderSettings.ambientIntensity = stash.ambientIntensity;
+    		RenderSettings.reflectionIntensity = stash.reflectionIntensity;
+    		RenderSettings.fog = stash.fog;
+    		string[] array = AssetDatabase.FindAssets("t:Material " + stash.skyboxName);
+    		if (array != null && array.Length != 0)
+    		{
+    			Material val = AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(array[0]));
+    			if ((Object)(object)val != (Object)null && (Object)(object)val.shader != (Object)null && ((Object)val.shader).name == "Skybox/Procedural")
+    			{
+    				RenderSettings.skybox = val;
+    			}
+    		}
+    		Debug.Log((object)($"[Echoes] Environment restored: ambientMode={stash.ambientMode}, " + $"fog={stash.fog}, reflectionIntensity={stash.reflectionIntensity}, " + "skybox='" + stash.skyboxName + "'. If the skybox looks wrong, re-assign it on the Lighting panel."));
+    	}
 
-            // RGBA32, not RGB24: RGB24 silently drops the alpha channel, so a
-            // capture with a transparent background becomes indistinguishable from
-            // opaque black. Keeping alpha lets the filter below reject background
-            // for the right reason instead of by coincidence.
-            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-            if (!tex.LoadImage(File.ReadAllBytes(path))) return new Sat();
-
-            var px = tex.GetPixels32();
-            double sum = 0;
-            int n = 0;
-
-            for (int i = 0; i < px.Length; i++)
-            {
-                var c = px[i];
-                if (c.a < 128) continue;             // transparent background
-
-                int max = Mathf.Max(c.r, Mathf.Max(c.g, c.b));
-                int min = Mathf.Min(c.r, Mathf.Min(c.g, c.b));
-
-                // max is at least MinChroma here, so the divide below is safe.
-                if (max - min < MinChroma) continue;  // near-grey subject or sky
-
-                sum += (double)(max - min) / max;
-                n++;
-            }
-
-            Object.DestroyImmediate(tex);
-            return new Sat { mean = n > 0 ? (float)(sum / n) : 0f, pixels = n };
-        }
-
-        // ---- teardown ------------------------------------------------------
-
-        [MenuItem("Tools/Echoes/Probe/5. Restore Environment", priority = 45)]
-        public static void RestoreEnvironment()
-        {
-            string path = ProjectPath(StashPath);
-            if (!File.Exists(path))
-            {
-                Debug.LogWarning("[Echoes] No stashed environment to restore.");
-                return;
-            }
-
-            var s = JsonUtility.FromJson<Stash>(File.ReadAllText(path));
-
-            RenderSettings.ambientMode = (AmbientMode)s.ambientMode;
-            RenderSettings.ambientSkyColor = s.ambientSky;
-            RenderSettings.ambientEquatorColor = s.ambientEquator;
-            RenderSettings.ambientGroundColor = s.ambientGround;
-            RenderSettings.ambientIntensity = s.ambientIntensity;
-            RenderSettings.reflectionIntensity = s.reflectionIntensity;
-            RenderSettings.fog = s.fog;
-
-            // The skybox is restored by name, looked up as an asset. Losing it is
-            // survivable and worth saying out loud rather than failing silently.
-            var sky = AssetDatabase.FindAssets("t:Material " + s.skyboxName);
-            if (sky != null && sky.Length > 0)
-            {
-                var loaded = AssetDatabase.LoadAssetAtPath<Material>(
-                    AssetDatabase.GUIDToAssetPath(sky[0]));
-                if (loaded != null && loaded.shader != null &&
-                    loaded.shader.name == "Skybox/Procedural")
-                    RenderSettings.skybox = loaded;
-            }
-
-            Debug.Log($"[Echoes] Environment restored: ambientMode={s.ambientMode}, " +
-                      $"fog={s.fog}, reflectionIntensity={s.reflectionIntensity}, " +
-                      $"skybox='{s.skyboxName}'. If the skybox looks wrong, re-assign it " +
-                      $"on the Lighting panel.");
-        }
-
-        static void StashAndNeutralise()
-        {
-            var s = new Stash
-            {
-                ambientMode = (int)RenderSettings.ambientMode,
-                ambientSky = RenderSettings.ambientSkyColor,
-                ambientEquator = RenderSettings.ambientEquatorColor,
-                ambientGround = RenderSettings.ambientGroundColor,
-                ambientIntensity = RenderSettings.ambientIntensity,
-                reflectionIntensity = RenderSettings.reflectionIntensity,
-                fog = RenderSettings.fog,
-                skyboxName = RenderSettings.skybox != null
-                    ? AssetDatabase.GetAssetPath(RenderSettings.skybox)
-                    : "(none)",
-            };
-            File.WriteAllText(ProjectPath(StashPath), JsonUtility.ToJson(s));
-
-            RenderSettings.skybox = null;
-            RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientSkyColor = new Color(0.35f, 0.35f, 0.35f, 1f);
-            RenderSettings.ambientIntensity = 1f;
-            RenderSettings.reflectionIntensity = 0f;
-            RenderSettings.fog = false;
-        }
+    	private static void StashAndNeutralise()
+    	{
+    		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0010: Expected I4, but got Unknown
+    		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0016: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0021: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0027: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b5: Unknown result type (might be due to invalid IL or missing references)
+    		Stash stash = new Stash
+    		{
+    			ambientMode = (int)RenderSettings.ambientMode,
+    			ambientSky = RenderSettings.ambientSkyColor,
+    			ambientEquator = RenderSettings.ambientEquatorColor,
+    			ambientGround = RenderSettings.ambientGroundColor,
+    			ambientIntensity = RenderSettings.ambientIntensity,
+    			reflectionIntensity = RenderSettings.reflectionIntensity,
+    			fog = RenderSettings.fog,
+    			skyboxName = (((Object)(object)RenderSettings.skybox != (Object)null) ? AssetDatabase.GetAssetPath((Object)(object)RenderSettings.skybox) : "(none)")
+    		};
+    		File.WriteAllText(ProjectPath("Temp/color_ab_stash.json"), JsonUtility.ToJson((object)stash));
+    		RenderSettings.skybox = null;
+    		RenderSettings.ambientMode = (AmbientMode)3;
+    		RenderSettings.ambientSkyColor = new Color(0.35f, 0.35f, 0.35f, 1f);
+    		RenderSettings.ambientIntensity = 1f;
+    		RenderSettings.reflectionIntensity = 0f;
+    		RenderSettings.fog = false;
+    	}
     }
 }

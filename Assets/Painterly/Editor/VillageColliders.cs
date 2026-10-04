@@ -1,138 +1,118 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using UnityEditor;
 using UnityEditor.SceneManagement;
-using UnityEngine;
+using UnityEngine;
+using Object = UnityEngine.Object;
 using UnityEngine.SceneManagement;
 
 namespace Echoes.Painterly.EditorTools
 {
-    /// <summary>
-    /// Gives every village renderer a MeshCollider, so the paint brush and the
-    /// camera can see the buildings. Writes Temp/colliders_all.txt.
-    ///
-    /// The village shipped with colliders only on paving and paths, which is
-    /// correct for one job — keeping Ari's feet on the ground — and silently
-    /// breaks two others. A brush raycast aimed at a wall passes through it and
-    /// paints the ground behind, and a follow camera has nothing to collide
-    /// against so it slides straight through houses.
-    ///
-    /// Ari is kept off the new geometry by slope rather than by layer. A layer
-    /// mask would be a second, hand-maintained list of what she may stand on,
-    /// and every new piece of kit geometry would default to the wrong side of
-    /// it. Rejecting anything steeper than minGroundSlope needs no list.
-    ///
-    /// Everything already collidable is left alone, so re-running is safe and the
-    /// 355 hand-placed ground colliders are not duplicated.
-    /// </summary>
+
     public static class VillageColliders
     {
-        [MenuItem("Tools/Echoes/Add Village Colliders", priority = 66)]
-        public static void Run()
-        {
-            try { RunInner(); }
-            catch (System.Exception e)
-            {
-                File.WriteAllText("Temp/colliders_all_error.txt", e.ToString());
-                Debug.LogError("[Echoes] village colliders failed\n" + e);
-            }
-        }
+    	[MenuItem("Tools/Echoes/Add Village Colliders", priority = 66)]
+    	public static void Run()
+    	{
+    		try
+    		{
+    			RunInner();
+    		}
+    		catch (Exception ex)
+    		{
+    			File.WriteAllText("Temp/colliders_all_error.txt", ex.ToString());
+    			Debug.LogError((object)("[Echoes] village colliders failed\n" + ex));
+    		}
+    	}
 
-        static void RunInner()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                Debug.LogError("[Echoes] stop play mode first; colliders added in " +
-                               "play mode are discarded on exit.");
-                return;
-            }
-
-            var sb = new StringBuilder();
-            var scene = SceneManager.GetActiveScene();
-
-            var village = GameObject.Find("Village_Grey");
-            if (village == null)
-            {
-                sb.AppendLine("No Village_Grey in the scene.");
-                File.WriteAllText("Temp/colliders_all.txt", sb.ToString());
-                return;
-            }
-
-            // Renderer, not MeshRenderer, so the skinned case below is reachable.
-            // Fetched as MeshRenderer it would be impossible to be a
-            // SkinnedMeshRenderer and the branch would never run — dead code
-            // that reads like a working guard.
-            var renderers = village.GetComponentsInChildren<Renderer>(true);
-            sb.AppendLine($"village renderers: {renderers.Length}");
-
-            int added = 0, already = 0, shared = 0, failed = 0;
-            var failedNames = new System.Collections.Generic.List<string>();
-
-            foreach (var mr in renderers)
-            {
-                if (mr == null) continue;
-
-                // Non-convex is right for static geometry and far cheaper, but it
-                // cannot be added to a GameObject that already has a non-convex
-                // collider on the same object, and it is illegal on a
-                // SkinnedMeshRenderer. Neither is a fault here, so both are
-                // counted and skipped rather than thrown on.
-                if (mr.GetComponent<MeshCollider>() != null) { already++; continue; }
-                if (mr is SkinnedMeshRenderer) { shared++; continue; }
-
-                var mf = mr.GetComponent<MeshFilter>();
-                if (mf == null || mf.sharedMesh == null) { failed++; continue; }
-
-                // Static flags cleared, not set. Nothing here needs a Rigidbody —
-                // a MeshCollider on a GameObject without one is already a static
-                // collider, so there is no physics reason to touch these. They
-                // are cleared because the village is spawned at runtime, and
-                // leaving generator output flagged contributes nothing to a
-                // lightmap or a bake it will never appear in.
-                GameObjectUtility.SetStaticEditorFlags(
-                    mr.gameObject, (StaticEditorFlags)0);
-
-                try
-                {
-                    var mc = mr.gameObject.AddComponent<MeshCollider>();
-                    mc.sharedMesh = mf.sharedMesh;
-                    added++;
-                }
-                catch
-                {
-                    failed++;
-                    if (failedNames.Count < 8) failedNames.Add(mr.name);
-                }
-            }
-
-            sb.AppendLine($"  added     {added}");
-            sb.AppendLine($"  already   {already}");
-            sb.AppendLine($"  skinned   {shared}  (a MeshCollider is illegal on these)");
-            sb.AppendLine($"  no mesh   {failed}" +
-                          (failedNames.Count > 0 ? "  e.g. " + string.Join(", ", failedNames) : ""));
-
-            // ---- how Ari is meant to keep walking on the ground only ----
-            var ari = GameObject.Find("Ari");
-            if (ari == null)
-            {
-                sb.AppendLine("WARNING: no Ari, so the ground layer mask was not touched.");
-            }
-            else
-            {
-                var mover = ari.GetComponent<Echoes.Painterly.AriMover>();
-                if (mover == null) sb.AppendLine("WARNING: Ari has no AriMover.");
-                else sb.AppendLine("Ari's ground test rejects slopes under minGroundSlope, " +
-                                   "so the new wall/roof colliders cannot be stood on.");
-            }
-
-            sb.AppendLine($"\ntotal colliders in scene: " +
-                          $"{Object.FindObjectsByType<MeshCollider>(FindObjectsInactive.Exclude).Length}");
-
-            EditorSceneManager.MarkSceneDirty(scene);
-
-            var text = sb.ToString();
-            File.WriteAllText("Temp/colliders_all.txt", text);
-            Debug.Log("[Echoes] Village colliders\n" + text);
-        }
+    	private static void RunInner()
+    	{
+    		//IL_0018: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0257: Unknown result type (might be due to invalid IL or missing references)
+    		if (EditorApplication.isPlayingOrWillChangePlaymode)
+    		{
+    			Debug.LogError((object)"[Echoes] stop play mode first; colliders added in play mode are discarded on exit.");
+    			return;
+    		}
+    		StringBuilder stringBuilder = new StringBuilder();
+    		Scene activeScene = SceneManager.GetActiveScene();
+    		GameObject val = GameObject.Find("Village_Grey");
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			stringBuilder.AppendLine("No Village_Grey in the scene.");
+    			File.WriteAllText("Temp/colliders_all.txt", stringBuilder.ToString());
+    			return;
+    		}
+    		Renderer[] componentsInChildren = val.GetComponentsInChildren<Renderer>(true);
+    		stringBuilder.AppendLine($"village renderers: {componentsInChildren.Length}");
+    		int num = 0;
+    		int num2 = 0;
+    		int num3 = 0;
+    		int num4 = 0;
+    		List<string> list = new List<string>();
+    		Renderer[] array = componentsInChildren;
+    		foreach (Renderer val2 in array)
+    		{
+    			if ((Object)(object)val2 == (Object)null)
+    			{
+    				continue;
+    			}
+    			if ((Object)(object)((Component)val2).GetComponent<MeshCollider>() != (Object)null)
+    			{
+    				num2++;
+    				continue;
+    			}
+    			if (val2 is SkinnedMeshRenderer)
+    			{
+    				num3++;
+    				continue;
+    			}
+    			MeshFilter component = ((Component)val2).GetComponent<MeshFilter>();
+    			if ((Object)(object)component == (Object)null || (Object)(object)component.sharedMesh == (Object)null)
+    			{
+    				num4++;
+    				continue;
+    			}
+    			GameObjectUtility.SetStaticEditorFlags(((Component)val2).gameObject, (StaticEditorFlags)0);
+    			try
+    			{
+    				((Component)val2).gameObject.AddComponent<MeshCollider>().sharedMesh = component.sharedMesh;
+    				num++;
+    			}
+    			catch
+    			{
+    				num4++;
+    				if (list.Count < 8)
+    				{
+    					list.Add(((Object)val2).name);
+    				}
+    			}
+    		}
+    		stringBuilder.AppendLine($"  added     {num}");
+    		stringBuilder.AppendLine($"  already   {num2}");
+    		stringBuilder.AppendLine($"  skinned   {num3}  (a MeshCollider is illegal on these)");
+    		stringBuilder.AppendLine($"  no mesh   {num4}" + ((list.Count > 0) ? ("  e.g. " + string.Join(", ", list)) : ""));
+    		GameObject val3 = GameObject.Find("Ari");
+    		if ((Object)(object)val3 == (Object)null)
+    		{
+    			stringBuilder.AppendLine("WARNING: no Ari, so the ground layer mask was not touched.");
+    		}
+    		else if ((Object)(object)val3.GetComponent<AriMover>() == (Object)null)
+    		{
+    			stringBuilder.AppendLine("WARNING: Ari has no AriMover.");
+    		}
+    		else
+    		{
+    			stringBuilder.AppendLine("Ari's ground test rejects slopes under minGroundSlope, so the new wall/roof colliders cannot be stood on.");
+    		}
+    		stringBuilder.AppendLine("\ntotal colliders in scene: " + $"{Object.FindObjectsByType<MeshCollider>((FindObjectsInactive)0).Length}");
+    		EditorSceneManager.MarkSceneDirty(activeScene);
+    		string text = stringBuilder.ToString();
+    		File.WriteAllText("Temp/colliders_all.txt", text);
+    		Debug.Log((object)("[Echoes] Village colliders\n" + text));
+    	}
     }
 }

@@ -5,7 +5,8 @@ using System.Linq;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
-
+
+using Object = UnityEngine.Object;
 // Global namespace. UnityEditor is imported here because the source figure is
 // read off an imported asset, which a runtime-only assembly cannot reach.
 public static class CharacterSizeProbe

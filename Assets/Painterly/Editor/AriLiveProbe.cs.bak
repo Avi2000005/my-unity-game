@@ -1,0 +1,214 @@
+using System.IO;
+using System.Linq;
+using System.Text;
+using UnityEditor;
+using UnityEngine;
+
+namespace Echoes.Painterly.EditorTools
+{
+
+    public static class AriLiveProbe
+    {
+    	[MenuItem("Tools/Echoes/Probe Ari Live", priority = 99)]
+    	public static void Run()
+    	{
+    		//IL_0061: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0071: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01aa: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01d4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01d9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01ee: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01e5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01f3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_025b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_026d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02ab: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02b0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02c5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02bc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02ca: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02d2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02d4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0324: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0343: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03a5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03a7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03f4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_047e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0483: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_048a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_048c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_049f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04a4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04a6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04a8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04b2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04b7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04bc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04f1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0504: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0517: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_052c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04d7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0697: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0598: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_059d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_05a6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_05c8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_05d4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_05ef: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_05f6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0652: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0672: Unknown result type (might be due to invalid IL or missing references)
+    		StringBuilder stringBuilder = new StringBuilder();
+    		if (!EditorApplication.isPlaying)
+    		{
+    			stringBuilder.AppendLine("Not in play mode. Enter play mode first — this observes the running game, not the saved scene.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		GameObject val = GameObject.Find("Ari");
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			stringBuilder.AppendLine("No Ari in the scene.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		Animator component = val.GetComponent<Animator>();
+    		AriMover component2 = val.GetComponent<AriMover>();
+    		stringBuilder.AppendLine($"Ari at {val.transform.position}  rot {val.transform.eulerAngles.y:F1}");
+    		stringBuilder.AppendLine($"  Animator enabled={((component != null) ? new bool?(((Behaviour)component).enabled) : ((bool?)null))} " + "controller=" + (((Object)(object)((component != null) ? component.runtimeAnimatorController : null) == (Object)null) ? "<NONE>" : ((Object)component.runtimeAnimatorController).name) + " avatar=" + (((Object)(object)((component != null) ? component.avatar : null) == (Object)null) ? "<NONE>" : ((Object)component.avatar).name));
+    		stringBuilder.AppendLine($"  AriMover present={(Object)(object)component2 != (Object)null}");
+    		if ((Object)(object)component == (Object)null || (Object)(object)component2 == (Object)null)
+    		{
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		bool enabled = ((Behaviour)component2).enabled;
+    		((Behaviour)component2).enabled = false;
+    		Transform val2 = val.GetComponentsInChildren<Transform>(true).FirstOrDefault((Transform t) => ((Object)t).name == "LeftFoot");
+    		stringBuilder.AppendLine("\n--- standing still ---");
+    		component2.Step(Vector3.zero, running: false, 0f);
+    		component.Update(0f);
+    		string text = ClipNow(component);
+    		Vector3 position = val.transform.position;
+    		Vector3 val3 = (((Object)(object)val2 != (Object)null) ? val2.position : Vector3.zero);
+    		stringBuilder.AppendLine($"  Speed={component2.CurrentSpeed:F2} -> {text}");
+    		stringBuilder.AppendLine("  sole offset measured at runtime = " + $"{ReadSoleOffset(component2):F4} below the root");
+    		stringBuilder.AppendLine("\n--- walking forward, 2.0 seconds of frames ---");
+    		string text2 = text;
+    		int num = Mathf.RoundToInt(119.99999f);
+    		float y = val.transform.eulerAngles.y;
+    		for (int num2 = 0; num2 < num; num2++)
+    		{
+    			component2.Step(Vector3.forward, running: false, 1f / 60f);
+    			component.Update(1f / 60f);
+    			if (num2 == num / 2)
+    			{
+    				text2 = ClipNow(component);
+    			}
+    		}
+    		Vector3 position2 = val.transform.position;
+    		Vector3 val4 = (((Object)(object)val2 != (Object)null) ? val2.position : Vector3.zero);
+    		stringBuilder.AppendLine($"  travelled {Vector3.Distance(position, position2):F3} in 2.00s " + "(walkSpeed 2.2 => about 4.4 expected)");
+    		stringBuilder.AppendLine($"  CurrentSpeed reported = {component2.CurrentSpeed:F2}");
+    		stringBuilder.AppendLine($"  facing {y:F1} -> {val.transform.eulerAngles.y:F1} " + $"(she turns towards travel at {val.transform.eulerAngles.y - y:F1} deg)");
+    		stringBuilder.AppendLine("  Speed>0.1 so the graph should be on the walk clip: " + $"{component2.CurrentSpeed > 0.1f}");
+    		stringBuilder.AppendLine("  " + text2);
+    		float num3 = Vector3.Distance(val3, val4);
+    		stringBuilder.AppendLine($"  LeftFoot bone moved {num3:F3} — " + ((num3 > 0.05f) ? "the walk clip is actually posing her" : "THE BONES DID NOT MOVE, the retarget is not driving the rig"));
+    		stringBuilder.AppendLine("\n--- stopping ---");
+    		for (int num4 = 0; num4 < 60; num4++)
+    		{
+    			component2.Step(Vector3.zero, running: false, 1f / 60f);
+    			component.Update(1f / 60f);
+    		}
+    		string text3 = ClipNow(component);
+    		stringBuilder.AppendLine($"  Speed={component2.CurrentSpeed:F2} -> {text3}");
+    		stringBuilder.AppendLine(string.Format("  back on the idle: {0}", text3.Contains("Ari_Idle")));
+    		stringBuilder.AppendLine("\n--- ground under her ---");
+    		Vector3[] array = new Vector3[2]
+    		{
+    			val.transform.position,
+    			position2
+    		};
+    		RaycastHit val6 = default;
+    		foreach (Vector3 val5 in array)
+    		{
+    			if (!Physics.Raycast(val5 + Vector3.up * 1.5f, Vector3.down, ref val6, 4f, -1, (QueryTriggerInteraction)1))
+    			{
+    				stringBuilder.AppendLine($"  {val5}: nothing below");
+    				continue;
+    			}
+    			float num6 = val.transform.position.y - ReadSoleOffset(component2) - val6.point.y;
+    			stringBuilder.AppendLine($"  {val5} -> '{((Object)val6.collider).name}' y={val6.point.y:F4} " + $"sole gap {num6:F4}");
+    		}
+    		Camera main = Camera.main;
+    		SkinnedMeshRenderer componentInChildren = val.GetComponentInChildren<SkinnedMeshRenderer>();
+    		if ((Object)(object)main != (Object)null && (Object)(object)componentInChildren != (Object)null)
+    		{
+    			Bounds bounds = ((Renderer)componentInChildren).bounds;
+    			bool flag = GeometryUtility.TestPlanesAABB(GeometryUtility.CalculateFrustumPlanes(main), bounds);
+    			stringBuilder.AppendLine("\n--- camera ---");
+    			stringBuilder.AppendLine($"  cam {((Component)main).transform.position} -> Ari {bounds.center}, " + $"{Vector3.Distance(((Component)main).transform.position, bounds.center):F2} units");
+    			stringBuilder.AppendLine($"  in frustum: {flag}");
+    			stringBuilder.AppendLine($"  renderer isVisible: {((Renderer)componentInChildren).isVisible}");
+    			stringBuilder.AppendLine($"  her height on screen: {bounds.size.y:F2} units, " + $"from {((Component)main).transform.position.y:F2} away");
+    		}
+    		val.transform.position = position;
+    		((Behaviour)component2).enabled = enabled;
+    		Finish(stringBuilder);
+    	}
+
+    	private static float ReadSoleOffset(AriMover mover)
+    	{
+    		//IL_0024: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002a: Expected Obj, but got Unknown
+    		//IL_0044: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0049: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0055: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0087: Unknown result type (might be due to invalid IL or missing references)
+    		SkinnedMeshRenderer componentInChildren = ((Component)mover).GetComponentInChildren<SkinnedMeshRenderer>();
+    		if ((Object)(object)componentInChildren == (Object)null || (Object)(object)componentInChildren.sharedMesh == (Object)null)
+    		{
+    			return 0f;
+    		}
+    		Mesh val = new Mesh();
+    		componentInChildren.BakeMesh(val);
+    		Vector3[] vertices = val.vertices;
+    		float num = float.MaxValue;
+    		Matrix4x4 localToWorldMatrix = ((Component)componentInChildren).transform.localToWorldMatrix;
+    		for (int i = 0; i < vertices.Length; i++)
+    		{
+    			float y = localToWorldMatrix.MultiplyPoint3x4(vertices[i]).y;
+    			if (y < num)
+    			{
+    				num = y;
+    			}
+    		}
+    		Object.DestroyImmediate((Object)(object)val);
+    		return ((Component)mover).transform.position.y - num;
+    	}
+
+    	private static string ClipNow(Animator anim)
+    	{
+    		//IL_0009: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
+    		AnimatorStateInfo info = anim.GetCurrentAnimatorStateInfo(0);
+    		var anon = anim.runtimeAnimatorController.animationClips.Select((AnimationClip c) => new
+    		{
+    			((Object)c).name,
+    			c.length
+    		}).FirstOrDefault(c => Animator.StringToHash(c.name) == info.shortNameHash);
+    		return "clip=" + ((anon == null) ? "?" : anon.name) + " " + $"len={anon?.length ?? 0f:F2}s " + $"t={info.normalizedTime:F2} " + $"transitioning={anim.IsInTransition(0)}";
+    	}
+
+    	private static void Finish(StringBuilder sb)
+    	{
+    		string text = sb.ToString();
+    		File.WriteAllText("Temp/ari_live.txt", text);
+    		Debug.Log((object)("[Echoes] Ari live probe\n" + text));
+    	}
+    }
+}

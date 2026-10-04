@@ -8,242 +8,205 @@ using UnityEngine.SceneManagement;
 
 namespace Echoes.Painterly.EditorTools
 {
-    /// <summary>
-    /// Reads the three animator controllers and the scene's Animator
-    /// assignments, and says which clips exist but are never referenced.
-    ///
-    /// <para><b>Why this exists.</b> Mono walks like a statue, and the cause is
-    /// not a missing model — <c>Mono_Walk.fbx</c>, <c>Mono_Wake.fbx</c>,
-    /// <c>Mono_Talk.fbx</c> and <c>Ari_Collect.fbx</c> are all in the project.
-    /// The assets are there and the character is not moving, which points at the
-    /// controller: a clip that is not in a state machine is a file on disk that
-    /// nothing can play.</para>
-    ///
-    /// <para><b>It also counts the clips nothing references.</b> That is the
-    /// number that turns "Mono looks like a statue" from a description into a
-    /// diagnosis, because it names the specific clips that are being wasted
-    /// rather than asserting that something is misconfigured.</para>
-    ///
-    /// <para><b>Nothing here changes anything.</b> It reports; a separate pass
-    /// fixes.</para>
-    /// </summary>
+
     public static class L1AnimAudit
     {
-        const string Report = "Temp/l1_anim.txt";
+    	private const string Report = "Temp/l1_anim.txt";
 
-        [MenuItem("Tools/Echoes/Audit the Animations", priority = 70)]
-        public static void Run()
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("[Echoes] audit the animation controllers");
+    	[MenuItem("Tools/Echoes/Audit the Animations", priority = 70)]
+    	public static void Run()
+    	{
+    		//IL_0012: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0017: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0181: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0186: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01a2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01a9: Invalid comparison between Unknown and I4
+    		//IL_0405: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_040a: Unknown result type (might be due to invalid IL or missing references)
+    		StringBuilder stringBuilder = new StringBuilder();
+    		stringBuilder.AppendLine("[Echoes] audit the animation controllers");
+    		Scene activeScene = SceneManager.GetActiveScene();
+    		if (activeScene.rootCount == 0)
+    		{
+    			stringBuilder.AppendLine("  FATAL: no scene open.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		List<string> list = new List<string> { "Mono", "Ari", "InkCrawler" };
+    		for (int i = 0; i < list.Count; i++)
+    		{
+    			AnimatorController val = AssetDatabase.LoadAssetAtPath<AnimatorController>("Assets/Art/L1/" + list[i] + ".controller") ?? AssetDatabase.LoadAssetAtPath<AnimatorController>("Assets/Art/Ari/" + list[i] + ".controller");
+    			if ((Object)(object)val == (Object)null)
+    			{
+    				stringBuilder.AppendLine();
+    				stringBuilder.AppendLine("=== " + list[i] + ".controller NOT FOUND ===");
+    				continue;
+    			}
+    			stringBuilder.AppendLine();
+    			stringBuilder.AppendLine("=== " + list[i] + " (" + ((Object)val).name + ") ===");
+    			stringBuilder.AppendLine("  parameters (" + val.parameters.Length + "):");
+    			for (int j = 0; j < val.parameters.Length; j++)
+    			{
+    				stringBuilder.AppendLine("    " + val.parameters[j].name + " : " + ((object)val.parameters[j].type/*cast due to constrained. prefix*/).ToString() + (((int)val.parameters[j].type == 9) ? "" : val.parameters[j].defaultFloat.ToString("0.00")));
+    			}
+    			for (int k = 0; k < val.layers.Length; k++)
+    			{
+    				AnimatorStateMachine stateMachine = val.layers[k].stateMachine;
+    				stringBuilder.AppendLine("  layer '" + val.layers[k].name + "', " + stateMachine.states.Length + " state(s), " + stateMachine.anyStateTransitions.Length + " from Any State:");
+    				for (int l = 0; l < stateMachine.states.Length; l++)
+    				{
+    					AnimatorState state = stateMachine.states[l].state;
+    					Motion motion = state.motion;
+    					AnimationClip val2 = (AnimationClip)(object)((motion is AnimationClip) ? motion : null);
+    					StringBuilder stringBuilder2 = stringBuilder;
+    					string text = ((Object)state).name.PadRight(20);
+    					string text2;
+    					if ((Object)(object)val2 != (Object)null)
+    					{
+    						text2 = "clip '" + ((Object)val2).name + "' " + val2.length.ToString("0.00") + "s";
+    					}
+    					else
+    					{
+    						text2 = (((Object)(object)state.motion == (Object)null) ? "NO MOTION — it plays nothing" : ("motion is a " + ((object)state.motion).GetType().Name));
+    					}
+    					stringBuilder2.AppendLine("    " + text + text2);
+    					AnimatorStateTransition[] transitions = state.transitions;
+    					if (transitions == null || transitions.Length == 0)
+    					{
+    						stringBuilder.AppendLine("        -> NOWHERE. This state never exits, so the character is stuck in it forever no matter what the code sets.");
+    						continue;
+    					}
+    					foreach (AnimatorStateTransition val3 in transitions)
+    					{
+    						string text3 = (val3.hasExitTime ? ("exitTime " + val3.exitTime.ToString("0.00")) : "instant");
+    						if (((AnimatorTransitionBase)val3).conditions != null && ((AnimatorTransitionBase)val3).conditions.Length != 0)
+    						{
+    							List<string> list2 = new List<string>();
+    							for (int n = 0; n < ((AnimatorTransitionBase)val3).conditions.Length; n++)
+    							{
+    								list2.Add(((AnimatorTransitionBase)val3).conditions[n].parameter + " " + ((object)((AnimatorTransitionBase)val3).conditions[n].mode/*cast due to constrained. prefix*/).ToString() + " " + ((AnimatorTransitionBase)val3).conditions[n].threshold.ToString("0.00"));
+    							}
+    							text3 = text3 + " if " + string.Join(" and ", list2.ToArray());
+    						}
+    						else if (!val3.hasExitTime)
+    						{
+    							text3 += ", NO CONDITION — it fires the moment this state is entered";
+    						}
+    						stringBuilder.AppendLine("        -> " + (((Object)(object)((AnimatorTransitionBase)val3).destinationState != (Object)null) ? ((Object)((AnimatorTransitionBase)val3).destinationState).name : "EXIT (leaves the machine)") + "   " + text3);
+    					}
+    				}
+    			}
+    			List<string> list3 = UnreferencedClips(list[i]);
+    			stringBuilder.AppendLine("  clips in the project this controller NEVER uses:");
+    			if (list3.Count == 0)
+    			{
+    				stringBuilder.AppendLine("    none — every clip is wired");
+    				continue;
+    			}
+    			for (int num = 0; num < list3.Count; num++)
+    			{
+    				stringBuilder.AppendLine("    " + list3[num] + "   <-- on disk, unreachable");
+    			}
+    		}
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("=== IN THE SCENE ===");
+    		Who(stringBuilder, "Mono", ((Object)(object)Object.FindAnyObjectByType<MonoCompanion>((FindObjectsInactive)1) != (Object)null) ? ((Component)Object.FindAnyObjectByType<MonoCompanion>((FindObjectsInactive)1)).gameObject : null);
+    		AriMover ariMover = Object.FindAnyObjectByType<AriMover>((FindObjectsInactive)1);
+    		Who(stringBuilder, "Ari", ((Object)(object)ariMover != (Object)null) ? ((Component)ariMover).gameObject : null);
+    		InkCrawler[] array = Object.FindObjectsByType<InkCrawler>((FindObjectsInactive)1);
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("  InkCrawler x" + array.Length);
+    		for (int num2 = 0; num2 < array.Length; num2++)
+    		{
+    			Animator componentInChildren = ((Component)array[num2]).GetComponentInChildren<Animator>(true);
+    			StringBuilder stringBuilder3 = stringBuilder;
+    			string text4 = ((Object)array[num2]).name.PadRight(20);
+    			string text5;
+    			if ((Object)(object)componentInChildren == (Object)null)
+    			{
+    				text5 = "NO ANIMATOR";
+    			}
+    			else
+    			{
+    				text5 = (((Object)(object)componentInChildren.runtimeAnimatorController == (Object)null) ? "NONE — it holds its bind pose, which is exactly what a statue looks like" : ((Object)componentInChildren.runtimeAnimatorController).name);
+    			}
+    			stringBuilder3.AppendLine("    " + text4 + " controller: " + text5);
+    		}
+    		Finish(stringBuilder);
+    	}
 
-            if (SceneManager.GetActiveScene().rootCount == 0)
-            {
-                sb.AppendLine("  FATAL: no scene open.");
-                Finish(sb);
-                return;
-            }
+    	private static void Who(StringBuilder sb, string who, GameObject go)
+    	{
+    		Animator val = (((Object)(object)go != (Object)null) ? go.GetComponentInChildren<Animator>(true) : null);
+    		sb.AppendLine("  " + who.PadRight(8) + " '" + (((Object)(object)go != (Object)null) ? ((Object)go).name : "NOT FOUND") + "'  animator: " + (((Object)(object)val == (Object)null) ? "NONE" : (((Object)(object)val.runtimeAnimatorController == (Object)null) ? "NO CONTROLLER — this is the statue" : ((Object)val.runtimeAnimatorController).name)));
+    	}
 
-            // --- the controllers ------------------------------------------------
-            var wanted = new List<string> { "Mono", "Ari", "InkCrawler" };
+    	private static List<string> UnreferencedClips(string who)
+    	{
+    		HashSet<string> hashSet = new HashSet<string>();
+    		AnimatorController val = AssetDatabase.LoadAssetAtPath<AnimatorController>("Assets/Art/L1/" + who + ".controller") ?? AssetDatabase.LoadAssetAtPath<AnimatorController>("Assets/Art/Ari/" + who + ".controller");
+    		if ((Object)(object)val != (Object)null)
+    		{
+    			for (int i = 0; i < val.layers.Length; i++)
+    			{
+    				AnimatorStateMachine stateMachine = val.layers[i].stateMachine;
+    				for (int j = 0; j < stateMachine.states.Length; j++)
+    				{
+    					Motion motion = stateMachine.states[j].state.motion;
+    					AnimationClip val2 = (AnimationClip)(object)((motion is AnimationClip) ? motion : null);
+    					if ((Object)(object)val2 != (Object)null)
+    					{
+    						hashSet.Add(((Object)val2).name);
+    					}
+    				}
+    				AnimatorStateTransition[] anyStateTransitions = stateMachine.anyStateTransitions;
+    				foreach (AnimatorStateTransition val3 in anyStateTransitions)
+    				{
+    					object obj;
+    					if (!((Object)(object)((AnimatorTransitionBase)val3).destinationState != (Object)null))
+    					{
+    						obj = null;
+    					}
+    					else
+    					{
+    						Motion motion2 = ((AnimatorTransitionBase)val3).destinationState.motion;
+    						obj = ((motion2 is AnimationClip) ? motion2 : null);
+    					}
+    					AnimationClip val4 = (AnimationClip)obj;
+    					if ((Object)(object)val4 != (Object)null)
+    					{
+    						hashSet.Add(((Object)val4).name);
+    					}
+    				}
+    			}
+    		}
+    		List<string> list = new List<string>();
+    		string[] array = new string[2] { "Assets/Art/L1", "Assets/Art/Ari" };
+    		for (int l = 0; l < array.Length; l++)
+    		{
+    			if (!Directory.Exists(array[l]))
+    			{
+    				continue;
+    			}
+    			string[] files = Directory.GetFiles(array[l], who + "_*.fbx");
+    			for (int k = 0; k < files.Length; k++)
+    			{
+    				string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(files[k]);
+    				if (!hashSet.Contains(fileNameWithoutExtension))
+    				{
+    					list.Add(fileNameWithoutExtension);
+    				}
+    			}
+    		}
+    		list.Sort();
+    		return list;
+    	}
 
-            for (int i = 0; i < wanted.Count; i++)
-            {
-                var ctrl = AssetDatabase.LoadAssetAtPath<AnimatorController>(
-                    "Assets/Art/L1/" + wanted[i] + ".controller")
-                    ?? AssetDatabase.LoadAssetAtPath<AnimatorController>(
-                    "Assets/Art/Ari/" + wanted[i] + ".controller");
-
-                if (ctrl == null)
-                {
-                    sb.AppendLine();
-                    sb.AppendLine("=== " + wanted[i] + ".controller NOT FOUND ===");
-                    continue;
-                }
-
-                sb.AppendLine();
-                sb.AppendLine("=== " + wanted[i] + " (" + ctrl.name + ") ===");
-
-                // parameters — what the code is allowed to drive
-                sb.AppendLine("  parameters (" + ctrl.parameters.Length + "):");
-                for (int p = 0; p < ctrl.parameters.Length; p++)
-                    sb.AppendLine("    " + ctrl.parameters[p].name + " : " +
-                                  ctrl.parameters[p].type +
-                                  (ctrl.parameters[p].type == AnimatorControllerParameterType.Trigger ? "" :
-                                   ctrl.parameters[p].defaultFloat.ToString("0.00")));
-
-                // states — what can actually play
-                for (int L = 0; L < ctrl.layers.Length; L++)
-                {
-                    var sm = ctrl.layers[L].stateMachine;
-                    sb.AppendLine("  layer '" + ctrl.layers[L].name + "', " +
-                                  sm.states.Length + " state(s), " +
-                                  sm.anyStateTransitions.Length + " from Any State:");
-
-                    for (int s = 0; s < sm.states.Length; s++)
-                    {
-                        var st = sm.states[s].state;
-                        var clip = st.motion as AnimationClip;
-                        sb.AppendLine("    " + st.name.PadRight(20) +
-                                      (clip != null
-                                          ? "clip '" + clip.name + "' " +
-                                            clip.length.ToString("0.00") + "s"
-                                          : st.motion == null
-                                            ? "NO MOTION — it plays nothing"
-                                            : "motion is a " + st.motion.GetType().Name));
-
-                        // The outgoing transitions, with their conditions.
-                        //
-                        // This is the part that was missing and it is the part
-                        // that decides whether assigning a controller fixes
-                        // anything at all. A state machine with states and no
-                        // transitions plays the first state forever: assign it
-                        // to Mono and Mono stands in Idle — a statue with
-                        // better posture. "There are states" is not "there is
-                        // a way to change state".
-                        var outTr = st.transitions;
-                        if (outTr == null || outTr.Length == 0)
-                        {
-                            sb.AppendLine("        -> NOWHERE. This state never " +
-                                          "exits, so the character is stuck in it " +
-                                          "forever no matter what the code sets.");
-                            continue;
-                        }
-
-                        for (int t = 0; t < outTr.Length; t++)
-                        {
-                            var tr = outTr[t];
-                            string cond = tr.hasExitTime
-                                ? "exitTime " + tr.exitTime.ToString("0.00")
-                                : "instant";
-
-                            if (tr.conditions != null && tr.conditions.Length > 0)
-                            {
-                                var cs = new List<string>();
-                                for (int q = 0; q < tr.conditions.Length; q++)
-                                    cs.Add(tr.conditions[q].parameter + " " +
-                                           tr.conditions[q].mode + " " +
-                                           tr.conditions[q].threshold.ToString("0.00"));
-                                cond += " if " + string.Join(" and ", cs.ToArray());
-                            }
-                            else if (!tr.hasExitTime)
-                            {
-                                cond += ", NO CONDITION — it fires the moment " +
-                                        "this state is entered";
-                            }
-
-                            sb.AppendLine("        -> " +
-                                          (tr.destinationState != null
-                                              ? tr.destinationState.name
-                                              : "EXIT (leaves the machine)") +
-                                          "   " + cond);
-                        }
-                    }
-                }
-
-                // which clips on disk does this controller never mention?
-                var unused = UnreferencedClips(wanted[i]);
-                sb.AppendLine("  clips in the project this controller NEVER uses:");
-                if (unused.Count == 0) sb.AppendLine("    none — every clip is wired");
-                else
-                    for (int u = 0; u < unused.Count; u++)
-                        sb.AppendLine("    " + unused[u] + "   <-- on disk, unreachable");
-            }
-
-            // --- who has what assigned -------------------------------------------
-            sb.AppendLine();
-            sb.AppendLine("=== IN THE SCENE ===");
-
-            Who(sb, "Mono",
-                Object.FindAnyObjectByType<MonoCompanion>(FindObjectsInactive.Include) != null
-                ? Object.FindAnyObjectByType<MonoCompanion>(FindObjectsInactive.Include).gameObject
-                : null);
-
-            var ari = Object.FindAnyObjectByType<AriMover>(FindObjectsInactive.Include);
-            Who(sb, "Ari", ari != null ? ari.gameObject : null);
-
-            var crawlers = Object.FindObjectsByType<InkCrawler>(FindObjectsInactive.Include);
-            sb.AppendLine();
-            sb.AppendLine("  InkCrawler x" + crawlers.Length);
-            for (int i = 0; i < crawlers.Length; i++)
-            {
-                var an = crawlers[i].GetComponentInChildren<Animator>(true);
-                sb.AppendLine("    " + crawlers[i].name.PadRight(20) +
-                              " controller: " + (an == null
-                                  ? "NO ANIMATOR"
-                                  : an.runtimeAnimatorController == null
-                                    ? "NONE — it holds its bind pose, which is " +
-                                      "exactly what a statue looks like"
-                                    : an.runtimeAnimatorController.name));
-            }
-
-            Finish(sb);
-        }
-
-        static void Who(StringBuilder sb, string who, GameObject go)
-        {
-            var an = go != null ? go.GetComponentInChildren<Animator>(true) : null;
-
-            sb.AppendLine("  " + who.PadRight(8) + " '" + (go != null ? go.name : "NOT FOUND") +
-                          "'  animator: " + (an == null
-                              ? "NONE"
-                              : an.runtimeAnimatorController == null
-                                ? "NO CONTROLLER — this is the statue"
-                                : an.runtimeAnimatorController.name));
-        }
-
-        /// <summary>
-        /// Every fbx clip whose name starts with this character, minus the ones
-        /// the controller actually contains.
-        /// </summary>
-        static List<string> UnreferencedClips(string who)
-        {
-            var used = new HashSet<string>();
-            string path = "Assets/Art/L1/" + who + ".controller";
-            var ctrl = AssetDatabase.LoadAssetAtPath<AnimatorController>(path)
-                       ?? AssetDatabase.LoadAssetAtPath<AnimatorController>(
-                           "Assets/Art/Ari/" + who + ".controller");
-
-            if (ctrl != null)
-                for (int L = 0; L < ctrl.layers.Length; L++)
-                {
-                    var sm = ctrl.layers[L].stateMachine;
-                    for (int s = 0; s < sm.states.Length; s++)
-                    {
-                        var c = sm.states[s].state.motion as AnimationClip;
-                        if (c != null) used.Add(c.name);
-                    }
-
-                    foreach (var t in sm.anyStateTransitions)
-                    {
-                        var c = t.destinationState != null
-                            ? t.destinationState.motion as AnimationClip : null;
-                        if (c != null) used.Add(c.name);
-                    }
-                }
-
-            var found = new List<string>();
-            string[] dirs = { "Assets/Art/L1", "Assets/Art/Ari" };
-            for (int d = 0; d < dirs.Length; d++)
-            {
-                if (!Directory.Exists(dirs[d])) continue;
-
-                foreach (var f in Directory.GetFiles(dirs[d], who + "_*.fbx"))
-                {
-                    string n = Path.GetFileNameWithoutExtension(f);
-                    if (!used.Contains(n)) found.Add(n);
-                }
-            }
-
-            found.Sort();
-            return found;
-        }
-
-        static void Finish(StringBuilder sb)
-        {
-            File.WriteAllText(
-                Path.Combine(Directory.GetCurrentDirectory(), Report), sb.ToString());
-            Debug.Log("[Echoes] animation audit — see " + Report);
-        }
+    	private static void Finish(StringBuilder sb)
+    	{
+    		File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), "Temp/l1_anim.txt"), sb.ToString());
+    		Debug.Log((object)"[Echoes] animation audit — see Temp/l1_anim.txt");
+    	}
     }
 }

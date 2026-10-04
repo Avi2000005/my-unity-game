@@ -7,222 +7,206 @@ using UnityEngine;
 
 namespace Echoes.Painterly.EditorTools
 {
-    /// <summary>
-    /// Measures how much colour the village's own textures actually contain.
-    ///
-    /// The shader brings colour back by un-desaturating the albedo — lerp(grey,
-    /// albedo, _ColorRestore). That is only a restoration if the colour was still
-    /// in the texture underneath. If the textures arrived greyscale, which "the
-    /// village imports colourless" might easily have been taken to mean, then
-    /// _ColorRestore = 1 changes nothing anywhere and the game's central mechanic
-    /// cannot fire at all.
-    ///
-    /// That is a real possibility rather than a worry, because a restored fountain
-    /// cannot be checked by eye: the thing it is made of is rock trim, and rock trim
-    /// is very nearly grey to begin with. So the restored and unrestored versions of
-    /// a stone fountain differ by a few percent of saturation even when the whole
-    /// mechanism is working perfectly.
-    ///
-    /// This measures rather than argues. A mean chroma of 0.004 is a decision to be
-    /// made somewhere else — it is only a decision that can be made if it is printed.
-    ///
-    /// Sampling goes through a blit rather than GetPixels, because the village's
-    /// textures were imported without Read/Write enabled and GetPixels would simply
-    /// fail on every one of them, which reads as "no colour found" and is not the
-    /// same thing as no colour existing.
-    /// </summary>
+
     public static class TextureSaturationProbe
     {
-        const string Report = "Temp/texture_saturation.txt";
-        const int Sample = 256;   // enough to judge chroma, cheap enough to do 40 of them
+    	private sealed class Stats
+    	{
+    		public Texture2D Texture;
 
-        public static void Run()
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("[Echoes] how much colour is actually in the textures?");
+    		public float MeanChroma;
 
-            if (EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                sb.AppendLine("STOPPED: exit play mode first (Ctrl+P).");
-                Finish(sb);
-                return;
-            }
+    		public float P95Chroma;
 
-            // Every material the scene actually draws with, not every material in
-            // the project: an unused texture's colour changes nothing on screen.
-            // Keyed by asset path rather than by instance id: GetInstanceID is an
-            // error in Unity 6000.6, and a path is a better identity anyway, because
-            // it survives a domain reload and reads out in the report.
-            var used = new List<Material>();
-            var seen = new HashSet<string>();
-            foreach (var r in Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include))
-            {
-                foreach (var m in r.sharedMaterials)
-                {
-                    if (m == null) continue;
-                    if (!seen.Add(AssetDatabase.GetAssetPath(m))) continue;
-                    used.Add(m);
-                }
-            }
+    		public float MaxChroma;
 
-            sb.AppendLine();
-            sb.AppendLine("materials in use by the scene: " + used.Count);
+    		public float MeanLuma;
+    	}
 
-            // One pass per texture, however many materials point at it.
-            var perTexture = new Dictionary<string, Stats>();
-            var byMaterial = new List<(Material mat, Stats s)>();
+    	private const string Report = "Temp/texture_saturation.txt";
 
-            foreach (var m in used)
-            {
-                var tex = m.GetTexture("_BaseMap") as Texture2D;
-                if (tex == null) { byMaterial.Add((m, null)); continue; }
+    	private const int Sample = 256;
 
-                var texPath = AssetDatabase.GetAssetPath(tex);
-                if (!perTexture.TryGetValue(texPath, out var s))
-                {
-                    s = Measure(tex);
-                    perTexture[texPath] = s;
-                }
-                byMaterial.Add((m, s));
-            }
+    	public static void Run()
+    	{
+    		StringBuilder stringBuilder = new StringBuilder();
+    		stringBuilder.AppendLine("[Echoes] how much colour is actually in the textures?");
+    		if (EditorApplication.isPlayingOrWillChangePlaymode)
+    		{
+    			stringBuilder.AppendLine("STOPPED: exit play mode first (Ctrl+P).");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		List<Material> list = new List<Material>();
+    		HashSet<string> hashSet = new HashSet<string>();
+    		Renderer[] array = Object.FindObjectsByType<Renderer>((FindObjectsInactive)1);
+    		for (int i = 0; i < array.Length; i++)
+    		{
+    			Material[] sharedMaterials = array[i].sharedMaterials;
+    			foreach (Material val in sharedMaterials)
+    			{
+    				if (!((Object)(object)val == (Object)null) && hashSet.Add(AssetDatabase.GetAssetPath((Object)(object)val)))
+    				{
+    					list.Add(val);
+    				}
+    			}
+    		}
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("materials in use by the scene: " + list.Count);
+    		Dictionary<string, Stats> dictionary = new Dictionary<string, Stats>();
+    		List<(Material, Stats)> list2 = new List<(Material, Stats)>();
+    		foreach (Material item in list)
+    		{
+    			Texture texture = item.GetTexture("_BaseMap");
+    			Texture2D val2 = (Texture2D)(object)((texture is Texture2D) ? texture : null);
+    			if ((Object)(object)val2 == (Object)null)
+    			{
+    				list2.Add((item, null));
+    				continue;
+    			}
+    			string assetPath = AssetDatabase.GetAssetPath((Object)(object)val2);
+    			if (!dictionary.TryGetValue(assetPath, out var value))
+    			{
+    				value = (dictionary[assetPath] = Measure(val2));
+    			}
+    			list2.Add((item, value));
+    		}
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("--- materials in use ---");
+    		stringBuilder.AppendLine("material".PadRight(26) + "chroma  p95    max    luma   verdict");
+    		foreach (var (val3, stats2) in list2.OrderByDescending(((Material mat, Stats s) x) => (x.s == null) ? (-1f) : x.s.MeanChroma))
+    		{
+    			if (stats2 == null)
+    			{
+    				stringBuilder.AppendLine(((Object)val3).name.PadRight(26) + "  (no _BaseMap texture)");
+    				continue;
+    			}
+    			stringBuilder.AppendLine(((Object)val3).name.PadRight(26) + stats2.MeanChroma.ToString("F4") + "  " + stats2.P95Chroma.ToString("F3").PadRight(5) + "  " + stats2.MaxChroma.ToString("F3").PadRight(5) + "  " + stats2.MeanLuma.ToString("F3").PadRight(5) + "  " + Verdict(stats2.MeanChroma));
+    		}
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("--- distinct textures behind those materials ---");
+    		foreach (KeyValuePair<string, Stats> item2 in dictionary.OrderByDescending((KeyValuePair<string, Stats> k) => k.Value.MeanChroma))
+    		{
+    			Texture2D texture2 = item2.Value.Texture;
+    			stringBuilder.AppendLine(Path.GetFileName(((Object)(object)texture2 != (Object)null) ? AssetDatabase.GetAssetPath((Object)(object)texture2) : "?").PadRight(30) + (((Object)(object)texture2 != (Object)null) ? (((Texture)texture2).width + "x" + ((Texture)texture2).height) : "?").PadRight(11) + "chroma " + item2.Value.MeanChroma.ToString("F4") + "   p95 " + item2.Value.P95Chroma.ToString("F3") + "   " + Verdict(item2.Value.MeanChroma));
+    		}
+    		List<Stats> list3 = dictionary.Values.Where((Stats s) => s.MeanChroma >= 0.05f).ToList();
+    		stringBuilder.AppendLine();
+    		stringBuilder.AppendLine("--- verdict ---");
+    		if (list3.Count == 0)
+    		{
+    			stringBuilder.AppendLine("EVERY texture sampled is effectively greyscale.");
+    			stringBuilder.AppendLine();
+    			stringBuilder.AppendLine("That means _ColorRestore cannot bring colour back by itself, on");
+    			stringBuilder.AppendLine("anything, because lerp(grey, grey, 1) is still grey. The mechanism");
+    			stringBuilder.AppendLine("needs a colour to restore *to*: a per-material restored tint, or a");
+    			stringBuilder.AppendLine("saturation target, rather than only an amount.");
+    		}
+    		else
+    		{
+    			stringBuilder.AppendLine(list3.Count + " of " + dictionary.Count + " textures carry real colour.");
+    			stringBuilder.AppendLine("The lerp(grey, albedo, restore) approach will work on those.");
+    			List<Stats> list4 = dictionary.Values.OrderBy((Stats s) => s.MeanChroma).Take(8).ToList();
+    			stringBuilder.AppendLine("Textures with little or none (restore will be nearly invisible here):");
+    			foreach (Stats item3 in list4)
+    			{
+    				stringBuilder.AppendLine("   " + Path.GetFileName(((Object)(object)item3.Texture != (Object)null) ? AssetDatabase.GetAssetPath((Object)(object)item3.Texture) : "?") + "  chroma " + item3.MeanChroma.ToString("F4") + ((item3.MeanChroma < 0.05f) ? "   <- greyscale" : ""));
+    			}
+    		}
+    		Finish(stringBuilder);
+    	}
 
-            // --- per material ----------------------------------------------------
-            sb.AppendLine();
-            sb.AppendLine("--- materials in use ---");
-            sb.AppendLine("material".PadRight(26) + "chroma  p95    max    luma   verdict");
-            foreach (var (mat, s) in byMaterial.OrderByDescending(x => x.s != null ? x.s.MeanChroma : -1f))
-            {
-                if (s == null)
-                {
-                    sb.AppendLine(mat.name.PadRight(26) + "  (no _BaseMap texture)");
-                    continue;
-                }
-                sb.AppendLine(
-                    mat.name.PadRight(26)
-                    + s.MeanChroma.ToString("F4") + "  "
-                    + s.P95Chroma.ToString("F3").PadRight(5) + "  "
-                    + s.MaxChroma.ToString("F3").PadRight(5) + "  "
-                    + s.MeanLuma.ToString("F3").PadRight(5) + "  "
-                    + Verdict(s.MeanChroma));
-            }
+    	private static string Verdict(float chroma)
+    	{
+    		if (!(chroma < 0.01f))
+    		{
+    			if (!(chroma < 0.05f))
+    			{
+    				if (!(chroma < 0.15f))
+    				{
+    					return "coloured";
+    				}
+    				return "muted";
+    			}
+    			return "nearly grey";
+    		}
+    		return "GREYSCALE";
+    	}
 
-            // --- per texture -----------------------------------------------------
-            sb.AppendLine();
-            sb.AppendLine("--- distinct textures behind those materials ---");
-            foreach (var kv in perTexture.OrderByDescending(k => k.Value.MeanChroma))
-            {
-                var tex = kv.Value.Texture;
-                sb.AppendLine(Path.GetFileName(tex != null ? AssetDatabase.GetAssetPath(tex) : "?")
-                              .PadRight(30)
-                              + (tex != null ? tex.width + "x" + tex.height : "?").PadRight(11)
-                              + "chroma " + kv.Value.MeanChroma.ToString("F4")
-                              + "   p95 " + kv.Value.P95Chroma.ToString("F3")
-                              + "   " + Verdict(kv.Value.MeanChroma));
-            }
+    	private static Stats Measure(Texture2D tex)
+    	{
+    		//IL_0049: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0050: Expected Obj, but got Unknown
+    		//IL_0074: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ca: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00cf: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00de: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ee: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00fe: Unknown result type (might be due to invalid IL or missing references)
+    		Stats stats = new Stats
+    		{
+    			Texture = tex
+    		};
+    		int num = Mathf.Max(1, Mathf.Min(256, ((Texture)tex).width));
+    		int num2 = Mathf.Max(1, Mathf.Min(256, ((Texture)tex).height));
+    		RenderTexture temporary = RenderTexture.GetTemporary(num, num2, 0, (RenderTextureFormat)0);
+    		Texture2D val = new Texture2D(num, num2, (TextureFormat)4, false);
+    		try
+    		{
+    			RenderTexture active = RenderTexture.active;
+    			Graphics.Blit((Texture)(object)tex, temporary);
+    			RenderTexture.active = temporary;
+    			val.ReadPixels(new Rect(0f, 0f, (float)num, (float)num2), 0, 0);
+    			val.Apply();
+    			RenderTexture.active = active;
+    			Color32[] pixels = val.GetPixels32();
+    			List<float> list = new List<float>(pixels.Length);
+    			double num3 = 0.0;
+    			double num4 = 0.0;
+    			float num5 = 0f;
+    			Color32[] array = pixels;
+    			foreach (Color32 val2 in array)
+    			{
+    				if (val2.a >= 8)
+    				{
+    					float num6 = (float)(int)val2.r / 255f;
+    					float num7 = (float)(int)val2.g / 255f;
+    					float num8 = (float)(int)val2.b / 255f;
+    					float num9 = Mathf.Max(num6, Mathf.Max(num7, num8));
+    					float num10 = Mathf.Min(num6, Mathf.Min(num7, num8));
+    					float num11 = num9 - num10;
+    					num3 += (double)num11;
+    					num4 += (double)(0.2126f * num6 + 0.7152f * num7 + 0.0722f * num8);
+    					if (num11 > num5)
+    					{
+    						num5 = num11;
+    					}
+    					list.Add(num11);
+    				}
+    			}
+    			if (list.Count > 0)
+    			{
+    				stats.MeanChroma = (float)(num3 / (double)list.Count);
+    				stats.MeanLuma = (float)(num4 / (double)list.Count);
+    				stats.MaxChroma = num5;
+    				list.Sort();
+    				stats.P95Chroma = list[Mathf.Clamp((int)((float)list.Count * 0.95f), 0, list.Count - 1)];
+    			}
+    		}
+    		finally
+    		{
+    			RenderTexture.ReleaseTemporary(temporary);
+    			Object.DestroyImmediate((Object)(object)val);
+    		}
+    		return stats;
+    	}
 
-            // --- the question, answered ------------------------------------------
-            var anyColour = perTexture.Values.Where(s => s.MeanChroma >= 0.05f).ToList();
-            sb.AppendLine();
-            sb.AppendLine("--- verdict ---");
-            if (anyColour.Count == 0)
-            {
-                sb.AppendLine("EVERY texture sampled is effectively greyscale.");
-                sb.AppendLine();
-                sb.AppendLine("That means _ColorRestore cannot bring colour back by itself, on");
-                sb.AppendLine("anything, because lerp(grey, grey, 1) is still grey. The mechanism");
-                sb.AppendLine("needs a colour to restore *to*: a per-material restored tint, or a");
-                sb.AppendLine("saturation target, rather than only an amount.");
-            }
-            else
-            {
-                sb.AppendLine(anyColour.Count + " of " + perTexture.Count + " textures carry real colour.");
-                sb.AppendLine("The lerp(grey, albedo, restore) approach will work on those.");
-                var worst = perTexture.Values.OrderBy(s => s.MeanChroma).Take(8).ToList();
-                sb.AppendLine("Textures with little or none (restore will be nearly invisible here):");
-                foreach (var s in worst)
-                    sb.AppendLine("   " + Path.GetFileName(s.Texture != null ? AssetDatabase.GetAssetPath(s.Texture) : "?")
-                                  + "  chroma " + s.MeanChroma.ToString("F4")
-                                  + (s.MeanChroma < 0.05f ? "   <- greyscale" : ""));
-            }
-
-            Finish(sb);
-        }
-
-        sealed class Stats
-        {
-            public Texture2D Texture;
-            public float MeanChroma;
-            public float P95Chroma;
-            public float MaxChroma;
-            public float MeanLuma;
-        }
-
-        static string Verdict(float chroma) =>
-            chroma < 0.01f ? "GREYSCALE"
-            : chroma < 0.05f ? "nearly grey"
-            : chroma < 0.15f ? "muted" : "coloured";
-
-        static Stats Measure(Texture2D tex)
-        {
-            var st = new Stats { Texture = tex };
-
-            int w = Mathf.Max(1, Mathf.Min(Sample, tex.width));
-            int h = Mathf.Max(1, Mathf.Min(Sample, tex.height));
-
-            var rt = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGB32);
-            var read = new Texture2D(w, h, TextureFormat.RGBA32, false);
-            try
-            {
-                var prev = RenderTexture.active;
-                Graphics.Blit(tex, rt);
-                RenderTexture.active = rt;
-                read.ReadPixels(new Rect(0, 0, w, h), 0, 0);
-                read.Apply();
-                RenderTexture.active = prev;
-
-                var px = read.GetPixels32();
-                var chromas = new List<float>(px.Length);
-                double sumChroma = 0, sumLuma = 0;
-                float maxChroma = 0f;
-
-                foreach (var c in px)
-                {
-                    if (c.a < 8) continue;   // transparent texels are not a colour
-                    float r = c.r / 255f, g = c.g / 255f, b = c.b / 255f;
-                    float hi = Mathf.Max(r, Mathf.Max(g, b));
-                    float lo = Mathf.Min(r, Mathf.Min(g, b));
-                    float chroma = hi - lo;
-
-                    sumChroma += chroma;
-                    sumLuma += 0.2126f * r + 0.7152f * g + 0.0722f * b;
-                    if (chroma > maxChroma) maxChroma = chroma;
-                    chromas.Add(chroma);
-                }
-
-                if (chromas.Count > 0)
-                {
-                    st.MeanChroma = (float)(sumChroma / chromas.Count);
-                    st.MeanLuma = (float)(sumLuma / chromas.Count);
-                    st.MaxChroma = maxChroma;
-                    chromas.Sort();
-                    st.P95Chroma = chromas[Mathf.Clamp((int)(chromas.Count * 0.95f), 0, chromas.Count - 1)];
-                }
-            }
-            finally
-            {
-                RenderTexture.ReleaseTemporary(rt);
-                Object.DestroyImmediate(read);
-            }
-
-            return st;
-        }
-
-        static void Finish(StringBuilder sb)
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(
-                Path.Combine(Directory.GetCurrentDirectory(), Report)));
-            File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), Report), sb.ToString());
-            Debug.Log(sb.ToString());
-        }
+    	private static void Finish(StringBuilder sb)
+    	{
+    		Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(Directory.GetCurrentDirectory(), "Temp/texture_saturation.txt")));
+    		File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), "Temp/texture_saturation.txt"), sb.ToString());
+    		Debug.Log((object)sb.ToString());
+    	}
     }
 }

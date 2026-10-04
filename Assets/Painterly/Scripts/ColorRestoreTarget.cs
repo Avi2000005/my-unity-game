@@ -3,321 +3,381 @@ using UnityEngine;
 
 namespace Echoes.Painterly
 {
-    /// <summary>
-    /// Drives the _ColorRestore value on every Renderer beneath this object, so a
-    /// whole building (or a whole cluster of them) can fade from the Grey Realm
-    /// back to full colour as one unit.
-    ///
-    /// Values are pushed through a shared MaterialPropertyBlock rather than by
-    /// cloning materials, so a thousand buildings still share ten materials.
-    /// </summary>
+
     [DisallowMultipleComponent]
     [ExecuteAlways]
     [AddComponentMenu("Echoes/Color Restore Target")]
     public sealed class ColorRestoreTarget : MonoBehaviour
     {
-        public static readonly int ColorRestoreId = Shader.PropertyToID("_ColorRestore");
-        public static readonly int RestoreBoostId = Shader.PropertyToID("_RestoreBoost");
+    	public static readonly int ColorRestoreId = Shader.PropertyToID("_ColorRestore");
 
-        // Created lazily rather than in static field initialisers. A static
-        // initialiser runs the first time the type is touched, which here is inside
-        // AddComponent<ColorRestoreTarget>() — and Unity rejects native object
-        // construction from a MonoBehaviour constructor context
-        // ("CreateImpl is not allowed to be called from a MonoBehaviour constructor").
-        static List<ColorRestoreTarget> _active;
-        static List<ColorRestoreTarget> Active =>
-            _active ?? (_active = new List<ColorRestoreTarget>());
+    	public static readonly int RestoreBoostId = Shader.PropertyToID("_RestoreBoost");
 
-        static MaterialPropertyBlock _block;
-        static MaterialPropertyBlock Block =>
-            _block ?? (_block = new MaterialPropertyBlock());
+    	private static List<ColorRestoreTarget> _active;
 
-        [Header("State")]
-        [Tooltip("0 = fully grey, 1 = full colour. The Grey Realm starts at 0.")]
-        [Range(0f, 1f)] [SerializeField] float startRestore;
+    	private static MaterialPropertyBlock _block;
 
-        [Tooltip("Seconds for a full grey-to-colour transition.")]
-        [Min(0f)] [SerializeField] float duration = 1.5f;
+    	[Header("State")]
+    	[Tooltip("0 = fully grey, 1 = full colour. The Grey Realm starts at 0.")]
+    	[Range(0f, 1f)]
+    	[SerializeField]
+    	private float startRestore;
 
-        [Header("Flare")]
-        [Tooltip("How much the restored colour overshoots the moment it lands, so a " +
-                 "fresh stroke reads as a flare before settling. 1 = no flare.")]
-        [Range(1f, 3f)] [SerializeField] float boostAmount = 1.7f;
+    	[Tooltip("Seconds for a full grey-to-colour transition.")]
+    	[Min(0f)]
+    	[SerializeField]
+    	private float duration = 1.5f;
 
-        [Tooltip("Seconds for the flare to settle back to normal.")]
-        [Min(0f)] [SerializeField] float boostDuration = 0.7f;
+    	[Header("Flare")]
+    	[Tooltip("How much the restored colour overshoots the moment it lands, so a fresh stroke reads as a flare before settling. 1 = no flare.")]
+    	[Range(1f, 3f)]
+    	[SerializeField]
+    	private float boostAmount = 1.7f;
 
-        Renderer[] _renderers;
+    	[Tooltip("Seconds for the flare to settle back to normal.")]
+    	[Min(0f)]
+    	[SerializeField]
+    	private float boostDuration = 0.7f;
 
-        // Animation state. Timers only ever advance in Update; Push() is pure output.
-        float _from;
-        float _to;
-        float _restoreTimer;
-        float _restoreLength;
-        bool _restoring;
+    	private Renderer[] _renderers;
 
-        float _boostTimer;
-        bool _boosting;
-        bool _dirty = true;
+    	private float _from;
 
-        Bounds _worldBounds;
-        bool _boundsValid;
+    	private float _to;
 
-        /// <summary>
-        /// World-space AABB of every renderer this target owns.
-        ///
-        /// Radius queries must use this rather than <see cref="Center"/>. The
-        /// centre is the transform pivot, which for a kit building sits at the
-        /// footprint origin while the walls it drives rise six metres above it —
-        /// so aiming at the top of a wall measured ~7.5m away and reported
-        /// "0 target(s)" even though the player was pointing directly at the
-        /// building they were trying to paint. Measuring to the volume instead
-        /// means a stroke that lands anywhere on a surface gives distance zero,
-        /// which is what "paint what you are aiming at" has to mean.
-        /// </summary>
-        public Bounds WorldBounds
-        {
-            get
-            {
-                if (!_boundsValid) RebuildBounds();
-                return _worldBounds;
-            }
-        }
+    	private float _restoreTimer;
 
-        /// <summary>
-        /// Cached for the lifetime of the target. The village is static, and
-        /// the alternative is walking every owned renderer's bounds on every
-        /// candidate test of every stroke — 27 targets against dozens of rays.
-        /// </summary>
-        void RebuildBounds()
-        {
-            if (_renderers == null || _renderers.Length == 0)
-            {
-                // A target that owns no renderers still has to return something
-                // sane. An uninitialised Bounds sits at the origin, which would
-                // make a target in the far corner of the village appear to be at
-                // world zero and silently paint whatever happened to be there.
-                _worldBounds = new Bounds(transform.position, Vector3.zero);
-                _boundsValid = true;
-                return;
-            }
+    	private float _restoreLength;
 
-            bool first = true;
-            for (int i = 0; i < _renderers.Length; i++)
-            {
-                var r = _renderers[i];
-                if (r == null) continue;
+    	private bool _restoring;
 
-                if (first) { _worldBounds = r.bounds; first = false; }
-                else _worldBounds.Encapsulate(r.bounds);
-            }
+    	private float _boostTimer;
 
-            if (first) _worldBounds = new Bounds(transform.position, Vector3.zero);
-            _boundsValid = true;
-        }
+    	private bool _boosting;
 
-        /// <summary>
-        /// Transform pivot. Retained for callers that want a single point, but
-        /// <b>not</b> for radius queries — use <see cref="WorldBounds"/>, which
-        /// measures the volume actually painted.
-        /// </summary>
-        public Vector3 Center => transform.position;
+    	private bool _dirty = true;
 
-        /// <summary>Current 0..1 colour restoration for this target.</summary>
-        public float Restore => Mathf.Lerp(_from, _to, RestoreT);
+    	private Bounds _worldBounds;
 
-        float RestoreT => _restoreLength <= 0f ? 1f : Mathf.Clamp01(_restoreTimer / _restoreLength);
+    	private bool _boundsValid;
 
-        public static IReadOnlyList<ColorRestoreTarget> AllActive => Active;
+    	[Tooltip("Colour returns to this even while the level is sealed. The fountain is the only thing in Level 1 that should have one.")]
+    	[SerializeField]
+    	private bool exemptFromSeal;
 
-        void Awake()
-        {
-            _renderers = CollectOwnedRenderers();
-            _from = _to = Mathf.Clamp01(startRestore);
-            _dirty = true;
-            RebuildBounds();
-        }
+    	private static List<ColorRestoreTarget> Active => _active ?? (_active = new List<ColorRestoreTarget>());
 
-        /// <summary>
-        /// Every renderer under this target that no *nested* target has claimed.
-        ///
-        /// GetComponentsInChildren alone is wrong once targets can nest. The market
-        /// square needs its own target so its paving, kerb and loading dock can be
-        /// painted, but the landmark tower is a child of the square and already has
-        /// a target of its own. Collected naively, the square would also drive the
-        /// tower's renderers and the two would fight over the same property block
-        /// every frame — which shows up as a building that flickers between two
-        /// restore values rather than as an obvious error.
-        ///
-        /// So ownership goes to the *nearest* ancestor target, and each renderer is
-        /// driven by exactly one component.
-        /// </summary>
-        Renderer[] CollectOwnedRenderers()
-        {
-            var all = GetComponentsInChildren<Renderer>(true);
-            var kept = new List<Renderer>(all.Length);
+    	private static MaterialPropertyBlock Block
+    	{
+    		get
+    		{
+    			//IL_0009: Unknown result type (might be due to invalid IL or missing references)
+    			//IL_000e: Unknown result type (might be due to invalid IL or missing references)
+    			//IL_0014: Expected Obj, but got Unknown
+    			MaterialPropertyBlock val = _block;
+    			if (val == null)
+    			{
+    				MaterialPropertyBlock val2 = new MaterialPropertyBlock();
+    				_block = val2;
+    				val = val2;
+    			}
+    			return val;
+    		}
+    	}
 
-            for (int i = 0; i < all.Length; i++)
-            {
-                var r = all[i];
-                if (r == null) continue;
+    	public Bounds WorldBounds
+    	{
+    		get
+    		{
+    			//IL_000f: Unknown result type (might be due to invalid IL or missing references)
+    			if (!_boundsValid)
+    			{
+    				RebuildBounds();
+    			}
+    			return _worldBounds;
+    		}
+    	}
 
-                // Walk up to the nearest ColorRestoreTarget. If that is anybody but
-                // this component, the renderer belongs to them instead.
-                var owner = r.GetComponentInParent<ColorRestoreTarget>();
-                if (owner != null && owner != this) continue;
+    	public Vector3 Center
+    	{
+    		get
+    		{
+    			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+    			return ((Component)this).transform.position;
+    		}
+    	}
 
-                kept.Add(r);
-            }
+    	public float Restore => Mathf.Lerp(_from, _to, RestoreT);
 
-            return kept.ToArray();
-        }
+    	private float RestoreT
+    	{
+    		get
+    		{
+    			if (!(_restoreLength <= 0f))
+    			{
+    				return Mathf.Clamp01(_restoreTimer / _restoreLength);
+    			}
+    			return 1f;
+    		}
+    	}
 
-        void OnEnable() => Active.Add(this);
-        void OnDisable() => Active.Remove(this);
+    	public static IReadOnlyList<ColorRestoreTarget> AllActive => Active;
 
-        void Update()
-        {
-            if (_restoring)
-            {
-                _restoreTimer += Time.deltaTime;
-                if (_restoreLength <= 0f || _restoreTimer >= _restoreLength)
-                {
-                    _restoreTimer = _restoreLength;
-                    _from = _to;
-                    _restoring = false;
-                }
-                _dirty = true;
-            }
+    	public static bool Sealed { get; private set; } = true;
 
-            if (_boosting)
-            {
-                _boostTimer += Time.deltaTime;
-                if (boostDuration <= 0f || _boostTimer >= boostDuration)
-                {
-                    _boosting = false;
-                }
-                _dirty = true;
-            }
+    	public bool Exempt => exemptFromSeal;
 
-            if (_dirty)
-            {
-                _dirty = false;
-                Push();
-            }
-        }
+    	private void RebuildBounds()
+    	{
+    		//IL_0018: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0022: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0027: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0089: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_008e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0093: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0098: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0066: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0051: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0056: Unknown result type (might be due to invalid IL or missing references)
+    		if (_renderers == null || _renderers.Length == 0)
+    		{
+    			_worldBounds = new Bounds(((Component)this).transform.position, Vector3.zero);
+    			_boundsValid = true;
+    			return;
+    		}
+    		bool flag = true;
+    		for (int i = 0; i < _renderers.Length; i++)
+    		{
+    			Renderer val = _renderers[i];
+    			if (!((Object)(object)val == (Object)null))
+    			{
+    				if (flag)
+    				{
+    					_worldBounds = val.bounds;
+    					flag = false;
+    				}
+    				else
+    				{
+    					_worldBounds.Encapsulate(val.bounds);
+    				}
+    			}
+    		}
+    		if (flag)
+    		{
+    			_worldBounds = new Bounds(((Component)this).transform.position, Vector3.zero);
+    		}
+    		_boundsValid = true;
+    	}
 
-        /// <summary>Jump to a restoration value with no animation.</summary>
-        public void SetRestoreImmediate(float value)
-        {
-            _from = _to = Mathf.Clamp01(value);
-            _restoring = false;
-            _boosting = false;
-            _dirty = true;
+    	public void GrantExemption()
+    	{
+    		if (exemptFromSeal)
+    		{
+    			Debug.Log((object)("[Echoes] '" + ((Object)this).name + "' is already exempt from the colour gate. A second caller just granted the same exemption, which means two scripts think this target is theirs."), (Object)(object)this);
+    		}
+    		else
+    		{
+    			exemptFromSeal = true;
+    		}
+    	}
 
-            // Push now rather than waiting for Update. Editor tooling calls this to
-            // stage the Grey Realm, and Update does not run outside Play Mode — so
-            // waiting would leave the property blocks unwritten and the change
-            // invisible in the Scene view.
-            Push();
-        }
+    	public static void Tally(out int sealedCount, out int exemptCount)
+    	{
+    		sealedCount = 0;
+    		exemptCount = 0;
+    		for (int i = 0; i < Active.Count; i++)
+    		{
+    			ColorRestoreTarget colorRestoreTarget = Active[i];
+    			if (!((Object)(object)colorRestoreTarget == (Object)null))
+    			{
+    				if (colorRestoreTarget.exemptFromSeal)
+    				{
+    					exemptCount++;
+    				}
+    				else
+    				{
+    					sealedCount++;
+    				}
+    			}
+    		}
+    	}
 
-        /// <summary>
-        /// Animate toward a restoration value. Flares on the way up so colour
-        /// arriving reads as an event rather than a fade.
-        /// </summary>
-        public void RestoreTo(float value, float overrideDuration = -1f)
-        {
-            value = Mathf.Clamp01(value);
+    	public static void SetSealed(bool sealedNow, float wipeSeconds = 0.4f)
+    	{
+    		Sealed = sealedNow;
+    		if (!sealedNow)
+    		{
+    			return;
+    		}
+    		SetAllImmediate(0f);
+    		for (int i = 0; i < Active.Count; i++)
+    		{
+    			ColorRestoreTarget colorRestoreTarget = Active[i];
+    			if (!((Object)(object)colorRestoreTarget == (Object)null) && !colorRestoreTarget.Exempt)
+    			{
+    				colorRestoreTarget.RestoreTo(0f, wipeSeconds);
+    			}
+    		}
+    	}
 
-            // Only flare when colour is actually arriving, never when it drains away.
-            if (value > _to + 0.001f && boostAmount > 1f)
-            {
-                _boosting = true;
-                _boostTimer = 0f;
-            }
+    	private void Awake()
+    	{
+    		_renderers = CollectOwnedRenderers();
+    		_from = (_to = Mathf.Clamp01(startRestore));
+    		_dirty = true;
+    		RebuildBounds();
+    	}
 
-            _from = Restore;
-            _to = value;
-            _restoreLength = overrideDuration >= 0f ? overrideDuration : duration;
-            _restoreTimer = 0f;
-            _restoring = true;
-            _dirty = true;
+    	private Renderer[] CollectOwnedRenderers()
+    	{
+    		Renderer[] componentsInChildren = ((Component)this).GetComponentsInChildren<Renderer>(true);
+    		List<Renderer> list = new List<Renderer>(componentsInChildren.Length);
+    		foreach (Renderer val in componentsInChildren)
+    		{
+    			if (!((Object)(object)val == (Object)null))
+    			{
+    				ColorRestoreTarget componentInParent = ((Component)val).GetComponentInParent<ColorRestoreTarget>();
+    				if (!((Object)(object)componentInParent != (Object)null) || !((Object)(object)componentInParent != (Object)(object)this))
+    				{
+    					list.Add(val);
+    				}
+    			}
+    		}
+    		return list.ToArray();
+    	}
 
-            // Apply the first frame immediately so the animation starts from the
-            // right value instead of lingering on the previous one for a frame.
-            Push();
-        }
+    	private void OnEnable()
+    	{
+    		Active.Add(this);
+    	}
 
-        /// <summary>Send the current value to every child renderer.</summary>
-        void Push()
-        {
-            // Build lazily as well as in Awake: Push() is reachable from the public
-            // API, and a target created via AddComponent in the editor may not have
-            // been through Awake yet.
-            if (_renderers == null) _renderers = CollectOwnedRenderers();
-            if (_renderers == null) return;
+    	private void OnDisable()
+    	{
+    		Active.Remove(this);
+    	}
 
-            float restore = Restore;
+    	private void Update()
+    	{
+    		if (_restoring)
+    		{
+    			_restoreTimer += Time.deltaTime;
+    			if (_restoreLength <= 0f || _restoreTimer >= _restoreLength)
+    			{
+    				_restoreTimer = _restoreLength;
+    				_from = _to;
+    				_restoring = false;
+    			}
+    			_dirty = true;
+    		}
+    		if (_boosting)
+    		{
+    			_boostTimer += Time.deltaTime;
+    			if (boostDuration <= 0f || _boostTimer >= boostDuration)
+    			{
+    				_boosting = false;
+    			}
+    			_dirty = true;
+    		}
+    		if (_dirty)
+    		{
+    			_dirty = false;
+    			Push();
+    		}
+    	}
 
-            float boost = 1f;
-            if (_boosting)
-            {
-                float t = boostDuration <= 0f ? 1f : Mathf.Clamp01(_boostTimer / boostDuration);
-                // Ease out so the flare snaps on and relaxes gently.
-                boost = Mathf.Lerp(boostAmount, 1f, 1f - (1f - t) * (1f - t));
-            }
+    	public void SetRestoreImmediate(float value)
+    	{
+    		_from = (_to = Mathf.Clamp01(value));
+    		_restoring = false;
+    		_boosting = false;
+    		_dirty = true;
+    		Push();
+    	}
 
-            for (int i = 0; i < _renderers.Length; i++)
-            {
-                var r = _renderers[i];
-                if (r == null) continue;
+    	public void RestoreTo(float value, float overrideDuration = -1f)
+    	{
+    		value = Mathf.Clamp01(value);
+    		if (!Sealed || exemptFromSeal || !(value > Restore + 0.0005f))
+    		{
+    			if (value > _to + 0.001f && boostAmount > 1f)
+    			{
+    				_boosting = true;
+    				_boostTimer = 0f;
+    			}
+    			_from = Restore;
+    			_to = value;
+    			_restoreLength = ((overrideDuration >= 0f) ? overrideDuration : duration);
+    			_restoreTimer = 0f;
+    			_restoring = true;
+    			_dirty = true;
+    			Push();
+    		}
+    	}
 
-                r.GetPropertyBlock(Block);
-                Block.SetFloat(ColorRestoreId, restore);
-                Block.SetFloat(RestoreBoostId, boost);
-                r.SetPropertyBlock(Block);
-            }
-        }
+    	private void Push()
+    	{
+    		if (_renderers == null)
+    		{
+    			_renderers = CollectOwnedRenderers();
+    		}
+    		if (_renderers == null)
+    		{
+    			return;
+    		}
+    		float restore = Restore;
+    		float num = 1f;
+    		if (_boosting)
+    		{
+    			float num2 = ((boostDuration <= 0f) ? 1f : Mathf.Clamp01(_boostTimer / boostDuration));
+    			num = Mathf.Lerp(boostAmount, 1f, 1f - (1f - num2) * (1f - num2));
+    		}
+    		for (int i = 0; i < _renderers.Length; i++)
+    		{
+    			Renderer val = _renderers[i];
+    			if (!((Object)(object)val == (Object)null))
+    			{
+    				val.GetPropertyBlock(Block);
+    				Block.SetFloat(ColorRestoreId, restore);
+    				Block.SetFloat(RestoreBoostId, num);
+    				val.SetPropertyBlock(Block);
+    			}
+    		}
+    	}
 
-        /// <summary>
-        /// Every active target whose volume falls within <paramref name="radius"/>
-        /// of <paramref name="point"/>. Reuses a shared buffer, so this allocates
-        /// nothing per call.
-        ///
-        /// Distance is measured to the target's <see cref="WorldBounds"/>, not its
-        /// pivot: a stroke landing on a wall sits inside that building's volume and
-        /// so reads as distance zero, which is the only interpretation where
-        /// "aim at a building and it recolours" actually holds.
-        /// </summary>
-        public static int RestoreInRadius(Vector3 point, float radius, float target = 1f,
-                                          float overrideDuration = -1f)
-        {
-            float sqr = radius * radius;
-            int count = 0;
+    	public static int RestoreInRadius(Vector3 point, float radius, float target = 1f, float overrideDuration = -1f)
+    	{
+    		//IL_0020: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0025: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0029: Unknown result type (might be due to invalid IL or missing references)
+    		float num = radius * radius;
+    		int num2 = 0;
+    		for (int i = 0; i < Active.Count; i++)
+    		{
+    			ColorRestoreTarget colorRestoreTarget = Active[i];
+    			if (!((Object)(object)colorRestoreTarget == (Object)null))
+    			{
+    				Bounds worldBounds = colorRestoreTarget.WorldBounds;
+    				if (worldBounds.SqrDistance(point) <= num && (!Sealed || colorRestoreTarget.Exempt || !(target > colorRestoreTarget.Restore + 0.0005f)))
+    				{
+    					colorRestoreTarget.RestoreTo(target, overrideDuration);
+    					num2++;
+    				}
+    			}
+    		}
+    		return num2;
+    	}
 
-            for (int i = 0; i < Active.Count; i++)
-            {
-                var t = Active[i];
-                if (t == null) continue;
-
-                if (t.WorldBounds.SqrDistance(point) <= sqr)
-                {
-                    t.RestoreTo(target, overrideDuration);
-                    count++;
-                }
-            }
-
-            return count;
-        }
-
-        /// <summary>Set every active target in the scene, e.g. to grey the world on load.</summary>
-        public static void SetAllImmediate(float value)
-        {
-            for (int i = 0; i < Active.Count; i++)
-            {
-                if (Active[i] != null) Active[i].SetRestoreImmediate(value);
-            }
-        }
+    	public static void SetAllImmediate(float value)
+    	{
+    		for (int i = 0; i < Active.Count; i++)
+    		{
+    			ColorRestoreTarget colorRestoreTarget = Active[i];
+    			if (!((Object)(object)colorRestoreTarget == (Object)null) && (!Sealed || colorRestoreTarget.exemptFromSeal || !(value > colorRestoreTarget.Restore + 0.0005f)))
+    			{
+    				colorRestoreTarget.SetRestoreImmediate(value);
+    			}
+    		}
+    	}
     }
 }

@@ -1,1014 +1,1321 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEditor;
 using UnityEditor.SceneManagement;
-using UnityEngine;
+using UnityEngine;
+using Object = UnityEngine.Object;
+using UnityEngine.SceneManagement;
 
 namespace Echoes.Painterly.EditorTools
 {
-    /// <summary>
-    /// Builds the cracked stone fountain for the market square.
-    ///
-    /// Nothing is downloaded. Every surface is a surface of revolution or a box,
-    /// generated here, and shaded with the village's own T_RockTrim texture through
-    /// the existing RockTrim material. That matters more than it sounds: a
-    /// downloaded prop would arrive with its own albedo, its own texel density and
-    /// its own idea of how big a stone is, and it would read as a stranger standing
-    /// in a village made of someone else's walls. Generating the geometry from the
-    /// same profiles the kit's rock trim uses keeps the texel scale identical, and
-    /// because the material is already <c>Echoes/PainterlyLit</c> with
-    /// <c>_ColorRestore = 0</c>, the fountain arrives in the Grey Realm and comes back
-    /// to colour when Ari paints it, with no extra wiring.
-    ///
-    /// The damage is geometry, not texture. Cracks and missing fragments are made by
-    /// leaving arc segments out of the basin ring and dropping others, so the broken
-    /// silhouette survives at any distance and in silhouette-only rendering — a
-    /// normal-mapped crack would vanish the moment the fountain was backlit.
-    /// </summary>
+
     public static class FountainBuild
     {
-        const string OutDir = "Assets/Painterly/Generated/Fountain";
-        const string StoneMatPath = "Assets/Painterly/Materials/RockTrim.mat";
-        const string MetalMatPath = "Assets/Painterly/Materials/MetalOrnament.mat";
-        const string WaterMatPath = "Assets/Painterly/Materials/FountainWater.mat";
-        const string Report = "Temp/fountain.txt";
-
-        // Texture repeats per metre. Matches the density the kit's own rock trim
-        // pieces land at, so a 2 m block of basin and a kit wall read as the same
-        // quarried stone rather than one being a photograph of the other.
-        const float UvPerMetre = 0.5f;
-
-        const float BasinFloorY = 0.10f;
-        const float WaterY = 0.46f;
-        const float PlinthTopY = 0.60f;
-
-        // ------------------------------------------------------------------
-        //  Profiles. Each is a polyline in the (radius, y) plane, swept about Y.
-        //  A profile that returns to its own first point is a closed section and
-        //  needs no cap at its ends; anything else gets a flat cap on the open side.
-        // ------------------------------------------------------------------
-
-        /// <summary>Basin wall: up the inside, over the ornate lip, back down outside.</summary>
-        static Vector2[] BasinWallProfile() => new[]
-        {
-            new Vector2(1.72f, 0.00f),
-            new Vector2(1.76f, 0.62f),
-            new Vector2(1.84f, 0.70f),
-            new Vector2(1.98f, 0.72f),
-            new Vector2(2.08f, 0.86f),   // the lip: the only ornate part
-            new Vector2(2.14f, 0.79f),
-            new Vector2(2.12f, 0.70f),
-            new Vector2(2.14f, 0.10f),
-            new Vector2(2.24f, 0.00f),
-            new Vector2(1.72f, 0.00f),   // closes the section along the ground
-        };
-
-        /// <summary>Stepped plinth the statue stands on.</summary>
-        static Vector2[] PlinthProfile() => new[]
-        {
-            new Vector2(0.00f, 0.00f),
-            new Vector2(0.66f, 0.00f),
-            new Vector2(0.66f, 0.15f),
-            new Vector2(0.55f, 0.18f),
-            new Vector2(0.55f, 0.32f),
-            new Vector2(0.45f, 0.35f),
-            new Vector2(0.45f, 0.46f),
-            new Vector2(0.36f, 0.46f),
-            new Vector2(0.00f, 0.46f),
-        };
-
-        /// <summary>
-        /// The statue's robe, still standing. The top of the profile is deliberately
-        /// uneven — three radii alternating over a few centimetres — so the break
-        /// reads as snapped stone rather than a clean lathe cut.
-        /// </summary>
-        static Vector2[] StatueStumpProfile() => new[]
-        {
-            new Vector2(0.00f, 0.00f),
-            new Vector2(0.44f, 0.00f),
-            new Vector2(0.40f, 0.10f),
-            new Vector2(0.31f, 0.28f),
-            new Vector2(0.25f, 0.44f),
-            new Vector2(0.23f, 0.53f),
-            new Vector2(0.19f, 0.49f),   // -- the break --
-            new Vector2(0.24f, 0.58f),
-            new Vector2(0.20f, 0.55f),
-            new Vector2(0.00f, 0.57f),
-        };
-
-        /// <summary>Torso and shoulder of the same figure, as a separate fallen piece.</summary>
-        static Vector2[] StatueTorsoProfile() => new[]
-        {
-            new Vector2(0.00f, 0.00f),
-            new Vector2(0.21f, 0.02f),
-            new Vector2(0.19f, 0.07f),   // -- matching break --
-            new Vector2(0.24f, 0.10f),
-            new Vector2(0.20f, 0.14f),
-            new Vector2(0.23f, 0.20f),
-            new Vector2(0.26f, 0.30f),
-            new Vector2(0.25f, 0.42f),
-            new Vector2(0.16f, 0.50f),
-            new Vector2(0.10f, 0.52f),
-            new Vector2(0.00f, 0.52f),
-        };
-
-        /// <summary>A turned baluster — the "ornate" in ornate stone.</summary>
-        static Vector2[] LanternPostProfile(float height) => new[]
-        {
-            new Vector2(0.00f, 0.00f),
-            new Vector2(0.17f, 0.00f),
-            new Vector2(0.17f, 0.06f),
-            new Vector2(0.11f, 0.12f),
-            new Vector2(0.09f, 0.18f),
-            new Vector2(0.14f, 0.26f),   // collar
-            new Vector2(0.08f, 0.33f),
-            new Vector2(0.08f, height - 0.26f),
-            new Vector2(0.13f, height - 0.18f),  // capital
-            new Vector2(0.13f, height - 0.08f),
-            new Vector2(0.19f, height - 0.04f),
-            new Vector2(0.19f, height),
-            new Vector2(0.00f, height),
-        };
-
-        /// <summary>Open bowl the lantern would sit in.</summary>
-        static Vector2[] LanternCupProfile(float radius, float depth) => new[]
-        {
-            new Vector2(0.00f, 0.00f),
-            new Vector2(radius * 0.55f, 0.01f),
-            new Vector2(radius, depth),
-            new Vector2(radius * 0.88f, depth),
-            new Vector2(radius * 0.45f, depth * 0.28f),
-            new Vector2(0.00f, depth * 0.22f),
-        };
-
-        // ------------------------------------------------------------------
-
-        [MenuItem("Tools/Echoes/Build Fountain", priority = 75)]
-        public static void Run()
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("[Echoes] fountain build");
-            sb.AppendLine();
-
-            if (EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                sb.AppendLine("STOPPED: exit play mode first (Ctrl+P). Nothing was changed.");
-                Finish(sb);
-                return;
-            }
-
-            var stone = AssetDatabase.LoadAssetAtPath<Material>(StoneMatPath);
-            var metal = AssetDatabase.LoadAssetAtPath<Material>(MetalMatPath);
-            if (stone == null || metal == null)
-            {
-                sb.AppendLine($"FATAL: missing material. stone={stone != null} metal={metal != null}");
-                Finish(sb);
-                return;
-            }
-
-            var water = EnsureWaterMaterial(sb);
-
-            // --- where can it stand, and therefore how big may it be? ----------
-            // Measured before anything is built, because the room available is what
-            // decides the size, not the other way round. The first attempt placed
-            // the fountain at the square's transform position and buried it inside
-            // House_0_0; the square's pivot is not its open ground, and its open
-            // ground is a ring around a building rather than a plain middle.
-            var scan = SquarePlacement.MeasureSquare(0.4f, 9f);
-            if (!scan.Ok)
-            {
-                sb.AppendLine("FATAL: cannot measure the market square: " + scan.Why);
-                Finish(sb);
-                return;
-            }
-
-            var square = SquarePlacement.FindSquare();
-            sb.AppendLine("square      : " + SquarePlacement.PathOf(square.transform));
-            sb.AppendLine("ground      : y=" + scan.GroundY.ToString("F3")
-                          + ", extent " + scan.Area.size + " at " + scan.Area.center);
-            sb.AppendLine("open ground : " + scan.Samples + " samples, clearance max "
-                          + scan.BestClearance.ToString("F2") + " m, median "
-                          + MedianClearance(scan).ToString("F2") + " m");
-
-            // Tear down any previous build so this is idempotent.
-            var old = GameObject.Find("Fountain");
-            if (old != null) Object.DestroyImmediate(old);
-
-            // Built at full size at the origin first, so its real footprint can be
-            // measured rather than assumed from the profile numbers.
-            var root = new GameObject("Fountain");
-            root.transform.position = Vector3.zero;
-
-            int tris = 0, meshes = 0, colliders = 0;
-
-            // --- basin ring, built segment by segment so it can be broken -----
-            var wall = BasinWallProfile();
-            const int Segments = 12;
-            const float Step = 360f / Segments;
-
-            for (int i = 0; i < Segments; i++)
-            {
-                float deg = i * Step;
-
-                // Two whole fragments are simply gone. This is the readable damage:
-                // the ring is visibly incomplete from any angle.
-                if (i == 3 || i == 9) continue;
-
-                var seg = new GameObject($"Basin_{i:00}");
-                seg.transform.SetParent(root.transform, false);
-                seg.transform.localRotation = Quaternion.Euler(0, deg + Step * 0.5f, 0);
-
-                var profile = wall;
-                float yScale = 1f, rOffset = 0f, lean = 0f;
-
-                if (i == 2)
-                {
-                    // A fragment shoved outward and rotated off true — the crack
-                    // either side of it is the tell.
-                    rOffset = 0.05f;
-                    lean = 1.4f;
-                }
-                else if (i == 7)
-                {
-                    // Collapsed inward: the wall has fallen into the basin and no
-                    // longer reaches the lip.
-                    yScale = 0.52f;
-                    rOffset = -0.11f;
-                    lean = -3.5f;
-                }
-
-                var m = Revolve(profile, -Step * 0.5f, Step * 0.5f, 7, true,
-                                yScale, rOffset, Mathf.Deg2Rad * lean);
-                tris += AddMesh(seg, m, stone, sb, ref meshes, ref colliders);
-            }
-
-            // --- plinth -------------------------------------------------------
-            var plinthGo = new GameObject("Plinth");
-            plinthGo.transform.SetParent(root.transform, false);
-            plinthGo.transform.localPosition = new Vector3(0, BasinFloorY, 0);
-            tris += AddMesh(plinthGo, Revolve(PlinthProfile(), 0, 360, 20, false, 1, 0, 0),
-                            stone, sb, ref meshes, ref colliders);
-
-            // --- the broken statue -------------------------------------------
-            var statueGo = new GameObject("Statue");
-            statueGo.transform.SetParent(root.transform, false);
-
-            // Still standing: robe on the plinth, ending in a ragged break.
-            var stumpGo = new GameObject("Statue_Stump");
-            stumpGo.transform.SetParent(statueGo.transform, false);
-            stumpGo.transform.localPosition = new Vector3(0.02f, PlinthTopY, -0.03f);
-            stumpGo.transform.localRotation = Quaternion.Euler(0.6f, 24f, -1.1f);
-            tris += AddMesh(stumpGo, Revolve(StatueStumpProfile(), 0, 360, 16, false, 1, 0, 0),
-                            stone, sb, ref meshes, ref colliders);
-
-            // Fallen: the torso, tipped off the plinth onto the basin floor.
-            var torsoGo = new GameObject("Statue_Torso");
-            torsoGo.transform.SetParent(statueGo.transform, false);
-            torsoGo.transform.localPosition = new Vector3(0.74f, BasinFloorY + 0.23f, 0.46f);
-            torsoGo.transform.localRotation = Quaternion.Euler(-74f, 38f, 21f);
-            tris += AddMesh(torsoGo, Revolve(StatueTorsoProfile(), 0, 360, 16, false, 1, 0, 0),
-                            stone, sb, ref meshes, ref colliders);
-
-            // The head, a little further out, face down.
-            var headGo = new GameObject("Statue_Head");
-            headGo.transform.SetParent(statueGo.transform, false);
-            headGo.transform.localPosition = new Vector3(1.16f, BasinFloorY + 0.15f, 0.86f);
-            headGo.transform.localRotation = Quaternion.Euler(28f, 150f, 44f);
-            var head = Sphere(0.165f, 16, 10);
-            tris += AddMesh(headGo, head, stone, sb, ref meshes, ref colliders);
-
-            // A forearm, snapped off, on the paving outside the basin.
-            var armGo = new GameObject("Statue_Arm");
-            armGo.transform.SetParent(statueGo.transform, false);
-            armGo.transform.localPosition = new Vector3(2.05f, 0.07f, 1.42f);
-            armGo.transform.localRotation = Quaternion.Euler(0, 66f, 90);
-            tris += AddMesh(armGo, Box(0.44f, 0.12f, 0.12f, 1), stone, sb, ref meshes, ref colliders);
-
-            // --- three lantern holders ---------------------------------------
-            var lanternGo = new GameObject("Lanterns");
-            lanternGo.transform.SetParent(root.transform, false);
-            var angles = new[] { 40f, 160f, 280f };
-
-            for (int i = 0; i < angles.Length; i++)
-            {
-                float rad = angles[i] * Mathf.Deg2Rad;
-                float h = i == 1 ? 0.58f : 1.16f;   // the middle one snapped short
-
-                var l = new GameObject($"Lantern_{i:00}");
-                l.transform.SetParent(lanternGo.transform, false);
-                l.transform.localPosition = new Vector3(Mathf.Cos(rad) * 2.78f, 0f, Mathf.Sin(rad) * 2.78f);
-                l.transform.localRotation = Quaternion.Euler(
-                    i == 1 ? 9f : 0f, -angles[i], i == 1 ? -13f : 0f);
-
-                tris += AddMesh(l, Revolve(LanternPostProfile(h), 0, 360, 12, false, 1, 0, 0),
-                                metal, sb, ref meshes, ref colliders);
-                tris += AddMesh(l, Revolve(LanternCupProfile(0.20f, 0.17f), 0, 360, 12, false, 1, 0, 0),
-                                metal, sb, ref meshes, ref colliders, childName: "Cup");
-
-                // The broken holder's cup is on the ground, not on the post.
-                if (i == 1)
-                {
-                    var fallen = new GameObject("Lantern_01_CupFallen");
-                    fallen.transform.SetParent(lanternGo.transform, false);
-                    fallen.transform.localPosition = new Vector3(
-                        Mathf.Cos(rad) * 3.24f, 0.02f, Mathf.Sin(rad) * 3.24f);
-                    fallen.transform.localRotation = Quaternion.Euler(84f, 12f, 0f);
-                    tris += AddMesh(fallen, Revolve(LanternCupProfile(0.20f, 0.17f), 0, 360, 12, false, 1, 0, 0),
-                                    metal, sb, ref meshes, ref colliders);
-                }
-            }
-
-            // --- fallen rim fragments, on the paving -------------------------
-            var debrisGo = new GameObject("Debris");
-            debrisGo.transform.SetParent(root.transform, false);
-            var debris = new[]
-            {
-                new { p = new Vector3(2.62f, 0.11f, 0.55f), r = new Vector3(0, 34f, 22f), s = new Vector3(0.62f, 0.34f, 0.30f) },
-                new { p = new Vector3(-2.48f, 0.09f, -0.92f), r = new Vector3(0, -58f, -15f), s = new Vector3(0.48f, 0.26f, 0.34f) },
-                new { p = new Vector3(0.35f, 0.08f, 2.71f), r = new Vector3(14f, 12f, 0f), s = new Vector3(0.70f, 0.30f, 0.28f) },
-            };
-            for (int i = 0; i < debris.Length; i++)
-            {
-                var d = debris[i];
-                var g = new GameObject($"Debris_{i:00}");
-                g.transform.SetParent(debrisGo.transform, false);
-                g.transform.localPosition = d.p;
-                g.transform.localRotation = Quaternion.Euler(d.r);
-                var mesh = Box(d.s.x, d.s.y, d.s.z, 1);
-                tris += AddMesh(g, mesh, stone, sb, ref meshes, ref colliders);
-            }
-
-            // --- water --------------------------------------------------------
-            var waterGo = new GameObject("Water");
-            waterGo.transform.SetParent(root.transform, false);
-            waterGo.transform.localPosition = new Vector3(0, WaterY, 0);
-            if (water != null)
-            {
-                var disc = Disc(1.70f, 24);
-                tris += AddMesh(waterGo, disc, water, sb, ref meshes, ref colliders, withCollider: false);
-            }
-
-            // --- the paintable target ------------------------------------------
-            var target = root.AddComponent<ColorRestoreTarget>();
-            var so = new SerializedObject(target);
-            so.FindProperty("startRestore").floatValue = 0f;   // Grey Realm
-            so.FindProperty("duration").floatValue = 1.6f;
-            so.ApplyModifiedPropertiesWithoutUndo();
-            target.SetRestoreImmediate(0f);
-
-            root.isStatic = true;
-
-            // --- fit it to the room it was given ---------------------------------
-            //
-            // The room is fixed and the prop is not, so the prop gives. The footprint
-            // is measured off the built meshes rather than read from the profile
-            // numbers, because the widest part of this fountain is the fallen lantern
-            // cup lying outside the basin, which no single profile knows about — and
-            // because a measurement does not go stale when the profiles are edited.
-            float builtRadius = FootprintRadius(root);
-
-            const float Margin = 0.15f;    // a little air, so it is not touching a wall
-            const float MinScale = 0.40f;  // below this the statue stops reading as one
-
-            float fitScale = 1f;
-            Vector3 spot = Vector3.zero;
-            float clearance = 0f;
-            string why = "";
-
-            for (; fitScale >= MinScale - 1e-4f; fitScale -= 0.05f)
-            {
-                if (SquarePlacement.TryFind(scan, builtRadius * fitScale + Margin,
-                                            out spot, out clearance, out why, null))
-                    break;
-            }
-
-            if (fitScale < MinScale - 1e-4f)
-            {
-                // Even the smallest size the design still reads at does not fit. Put
-                // it at the roomiest spot and say so plainly, rather than hiding a
-                // fountain inside a building and reporting success.
-                fitScale = MinScale;
-                spot = scan.Best != null ? scan.Best.Point : scan.Area.center;
-                clearance = scan.BestClearance;
-                why = "NOTHING FITS: placed at the roomiest spot anyway";
-            }
-
-            if (fitScale < 0.999f)
-            {
-                ScaleBuilt(root, fitScale);
-                sb.AppendLine("resized     : x" + fitScale.ToString("F2")
-                              + " (built radius " + builtRadius.ToString("F2")
-                              + " m -> " + (builtRadius * fitScale).ToString("F2") + " m)");
-            }
-            else
-            {
-                sb.AppendLine("resized     : x1.00 (fits at the size it was authored)");
-            }
-
-            root.transform.position = spot;
-
-            sb.AppendLine("placement   : " + spot);
-            sb.AppendLine("clearance   : " + clearance.ToString("F2") + " m available");
-            sb.AppendLine("why         : " + why);
-
-            // Save meshes as assets so they are inspectable and survive a scene
-            // reload, rather than living only inside the .unity file.
-            EnsureFolder(OutDir);
-            int savedMeshes = SaveMeshAssets(root, sb);
-
-            EditorUtility.SetDirty(root);
-            foreach (var t in root.GetComponentsInChildren<Transform>(true))
-                EditorUtility.SetDirty(t.gameObject);
-
-            var scene = root.scene;
-            EditorSceneManager.MarkSceneDirty(scene);
-            EditorSceneManager.SaveScene(scene);
-
-            // --- measure, do not eyeball ---------------------------------------
-            var all = root.GetComponentsInChildren<Renderer>(true);
-            var b = new Bounds(root.transform.position, Vector3.zero);
-            foreach (var r in all) b.Encapsulate(r.bounds);
-
-            // Counted from the MeshFilters rather than from the running total the
-            // builder accumulates, so this is an independent measurement of what
-            // actually ended up in the scene. Two numbers that disagree mean a
-            // mesh was built and then not parented.
-            int total = 0;
-            foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
-                if (mf.sharedMesh != null) total += mf.sharedMesh.triangles.Length / 3;
-
-            sb.AppendLine($"root        : {PathOf(root.transform)}");
-            sb.AppendLine($"meshes      : {meshes}   colliders: {colliders}");
-            sb.AppendLine($"mesh assets : {savedMeshes} written to {OutDir}");
-            sb.AppendLine($"triangles   : {total:N0}  (builder counted {tris:N0})");
-            sb.AppendLine($"bounds size : {b.size.x:F2} x {b.size.y:F2} x {b.size.z:F2} m");
-            sb.AppendLine($"bounds min  : {b.min}");
-            sb.AppendLine($"bounds max  : {b.max}");
-            sb.AppendLine($"renderers   : {all.Length}");
-            sb.AppendLine($"target      : {target.GetType().Name} restore={target.Restore:F2}");
-            sb.AppendLine($"scene saved : {scene.path}");
-
-            Finish(sb);
-        }
-
-        // ==================================================================
-        //  Geometry
-        // ==================================================================
-
-        /// <summary>
-        /// Sweep a (radius, y) profile about the Y axis.
-        ///
-        /// <paramref name="closedSection"/> means the profile's last point equals
-        /// its first, so the swept surface is a closed tube and needs no cap at the
-        /// profile's ends — only at the two angular ends, and only when the sweep
-        /// does not go all the way round.
-        ///
-        /// <paramref name="yScale"/> and <paramref name="rOffset"/> exist so the
-        /// damaged segments can be derived from the intact profile instead of being
-        /// authored separately. A collapsed fragment is the same wall, squashed and
-        /// pushed in, which is what keeps its stone grain continuous with its
-        /// neighbours.
-        /// </summary>
-        static Mesh Revolve(Vector2[] profile, float a0Deg, float a1Deg, int seg,
-                            bool closedSection, float yScale, float rOffset, float tiltRad)
-        {
-            int n = profile.Length;
-            int cols = seg + 1;                 // +1 so the UV seam has its own verts
-            var verts = new List<Vector3>(cols * n);
-            var uvs = new List<Vector2>(cols * n);
-            var tris = new List<int>(cols * n * 6);
-
-            // Profile arc length, so u is metres along the section rather than an
-            // index — otherwise a profile with unevenly spaced points stretches
-            // the texture unevenly along the wall.
-            var arc = new float[n];
-            for (int j = 1; j < n; j++)
-                arc[j] = arc[j - 1] + Vector2.Distance(profile[j - 1], profile[j]);
-
-            float midR = 0f;
-            for (int j = 0; j < n; j++) midR += profile[j].x;
-            midR /= Mathf.Max(1, n);
-
-            for (int i = 0; i < cols; i++)
-            {
-                float a = Mathf.Lerp(a0Deg, a1Deg, seg <= 0 ? 0f : (float)i / seg) * Mathf.Deg2Rad;
-                float ca = Mathf.Cos(a), sa = Mathf.Sin(a);
-
-                for (int j = 0; j < n; j++)
-                {
-                    float r = profile[j].x + rOffset;
-                    float y = profile[j].y * yScale;
-
-                    // Tilt about the segment's own X axis, pivoting on the base, so
-                    // a leaning fragment still meets the ground.
-                    float ty = y * Mathf.Cos(tiltRad);
-                    float tr = r + y * Mathf.Sin(tiltRad);
-
-                    verts.Add(new Vector3(ca * tr, ty, sa * tr));
-                    uvs.Add(new Vector2(arc[j] * UvPerMetre, a * midR * UvPerMetre));
-                }
-            }
-
-            int jMax = closedSection ? n : n - 1;
-            for (int i = 0; i < seg; i++)
-            {
-                for (int j = 0; j < jMax; j++)
-                {
-                    int j2 = (j + 1) % n;
-                    int a0 = i * n + j;   // (angle i,   profile j)
-                    int a1 = i * n + j2;  // (angle i,   profile j+1)
-                    int b0 = (i + 1) * n + j;
-                    int b1 = (i + 1) * n + j2;
-
-                    // A profile that touches the axis collapses the quad onto a
-                    // pole. Emit the single triangle that survives instead of two
-                    // with coincident corners, which would otherwise average their
-                    // normals into noise at the tip of every spire.
-                    bool poleA = profile[j].x <= 1e-5f && rOffset <= 1e-5f;
-                    bool poleB = profile[j2].x <= 1e-5f && rOffset <= 1e-5f;
-
-                    if (poleA && poleB) continue;
-
-                    if (poleA)       { tris.Add(a0); tris.Add(b1); tris.Add(a1); }
-                    else if (poleB)  { tris.Add(a0); tris.Add(b1); tris.Add(b0); }
-                    else
-                    {
-                        tris.Add(a0); tris.Add(b1); tris.Add(b0);
-                        tris.Add(a0); tris.Add(a1); tris.Add(b1);
-                    }
-                }
-            }
-
-            // Angular end caps. Only needed on a partial sweep.
-            bool full = Mathf.Abs(a1Deg - a0Deg) >= 359.9f;
-            if (!full)
-            {
-                AddCap(verts, uvs, tris, profile, 0f, yScale, rOffset, tiltRad, true);
-                AddCap(verts, uvs, tris, profile, a1Deg, yScale, rOffset, tiltRad, false);
-            }
-
-            var m = new Mesh { name = "FountainPart" };
-            m.SetVertices(verts);
-            m.SetUVs(0, uvs);
-            m.SetTriangles(tris, 0);
-            OrientOutward(m);
-            m.RecalculateNormals();
-            m.RecalculateBounds();
-            Weld(m);
-            return m;
-        }
-
-        /// <summary>
-        /// Orient the triangles so the solid faces outward, using its signed volume.
-        ///
-        /// The profiles here are not all wound the same way round. The basin wall
-        /// section runs up the inside, over the lip and back down the outside —
-        /// clockwise in (radius, y). The plinth runs outward along the ground and
-        /// back up to the axis — counter-clockwise. Reading that off each profile by
-        /// eye is exactly the kind of thing that silently produces a fountain with
-        /// inverted faces, so the winding is decided from the geometry instead:
-        /// a closed mesh wound outward has positive signed volume, and if it comes
-        /// out negative every triangle is reversed in one pass.
-        /// </summary>
-        static void OrientOutward(Mesh m)
-        {
-            var v = m.vertices;
-            var t = m.triangles;
-            if (t.Length < 3) return;
-
-            double vol = 0.0;
-            for (int i = 0; i < t.Length; i += 3)
-            {
-                var a = v[t[i]];
-                var b = v[t[i + 1]];
-                var c = v[t[i + 2]];
-                vol += Vector3.Dot(a, Vector3.Cross(b, c));
-            }
-            vol /= 6.0;
-
-            // Guard the degenerate case: a perfectly flat mesh has zero volume and
-            // no correct answer, so leave it alone rather than flip at random.
-            if (Mathf.Abs((float)vol) < 1e-7f) return;
-            if (vol > 0.0) return;
-
-            for (int i = 0; i < t.Length; i += 3)
-            {
-                int tmp = t[i + 1];
-                t[i + 1] = t[i + 2];
-                t[i + 2] = tmp;
-            }
-            m.triangles = t;
-        }
-
-        /// <summary>
-        /// Flat cap on an open angular end, fanned from the section's centroid.
-        ///
-        /// Fanning works because every profile here is a staircase or a wall
-        /// section — star-shaped about its own centroid — so no triangle ever has
-        /// to wrap around the outside.
-        /// </summary>
-        static void AddCap(List<Vector3> verts, List<Vector2> uvs, List<int> tris,
-                           Vector2[] profile, float angleDeg, float yScale, float rOffset,
-                           float tiltRad, bool atStart)
-        {
-            int n = profile.Length;
-            float cr = 0f, cy = 0f;
-            for (int j = 0; j < n - 1; j++) { cr += profile[j].x; cy += profile[j].y; }
-            cr /= (n - 1); cy /= (n - 1);
-
-            float a = angleDeg * Mathf.Deg2Rad;
-            float ca = Mathf.Cos(a), sa = Mathf.Sin(a);
-
-            float ty = cy * yScale;
-            float tr = cr + rOffset + cy * Mathf.Sin(tiltRad);
-            int centre = verts.Count;
-            verts.Add(new Vector3(ca * tr, ty, sa * tr));
-            uvs.Add(new Vector2(0.5f, 0.5f));
-
-            int ringStart = verts.Count;
-            for (int j = 0; j < n - 1; j++)
-            {
-                float r = profile[j].x + rOffset;
-                float y = profile[j].y * yScale;
-                float y2 = y * Mathf.Cos(tiltRad);
-                float r2 = r + y * Mathf.Sin(tiltRad);
-                verts.Add(new Vector3(ca * r2, y2, sa * r2));
-                uvs.Add(new Vector2(0.5f + profile[j].x * 0.4f, 0.5f + profile[j].y * 0.4f));
-            }
-
-            for (int j = 0; j < n - 2; j++)
-            {
-                int p0 = ringStart + j, p1 = ringStart + j + 1;
-                if (atStart) { tris.Add(centre); tris.Add(p1); tris.Add(p0); }
-                else { tris.Add(centre); tris.Add(p0); tris.Add(p1); }
-            }
-        }
-
-        /// <summary>Axis-aligned box with per-face UVs scaled to real size.</summary>
-        static Mesh Box(float w, float h, float d, int _ = 0)
-        {
-            var verts = new List<Vector3>();
-            var uvs = new List<Vector2>();
-            var tris = new List<int>();
-
-            Vector3 e = new Vector3(w, h, d) * 0.5f;
-            // face normal, then the two in-plane axes
-            var faces = new[]
-            {
-                new { n = Vector3.forward,  u = Vector3.right,  v = Vector3.up,     w = w, h = h },
-                new { n = Vector3.back,     u = Vector3.left,   v = Vector3.up,     w = w, h = h },
-                new { n = Vector3.right,    u = Vector3.back,   v = Vector3.up,     w = d, h = h },
-                new { n = Vector3.left,     u = Vector3.forward,v = Vector3.up,     w = d, h = h },
-                new { n = Vector3.up,       u = Vector3.right,  v = Vector3.forward,w = w, h = d },
-                new { n = Vector3.down,     u = Vector3.right,  v = Vector3.back,   w = w, h = d },
-            };
-
-            foreach (var f in faces)
-            {
-                var nrm = f.n;
-                var u = f.u * (f.w * 0.5f);
-                var v = f.v * (f.h * 0.5f);
-                var c = Vector3.Scale(nrm, e);
-
-                int i0 = verts.Count;
-                verts.Add(c - u - v); uvs.Add(new Vector2(0f, 0f));
-                verts.Add(c + u - v); uvs.Add(new Vector2(f.w * UvPerMetre, 0f));
-                verts.Add(c + u + v); uvs.Add(new Vector2(f.w * UvPerMetre, f.h * UvPerMetre));
-                verts.Add(c - u + v); uvs.Add(new Vector2(0f, f.h * UvPerMetre));
-
-                tris.Add(i0); tris.Add(i0 + 2); tris.Add(i0 + 1);
-                tris.Add(i0); tris.Add(i0 + 3); tris.Add(i0 + 2);
-            }
-
-            var m = new Mesh { name = "FountainBox" };
-            m.SetVertices(verts);
-            m.SetUVs(0, uvs);
-            m.SetTriangles(tris, 0);
-            OrientOutward(m);
-            m.RecalculateNormals();
-            m.RecalculateBounds();
-            return m;
-        }
-
-        static Mesh Sphere(float r, int seg, int rings)
-        {
-            var verts = new List<Vector3>();
-            var uvs = new List<Vector2>();
-            var tris = new List<int>();
-
-            for (int y = 0; y <= rings; y++)
-            {
-                float v = (float)y / rings;
-                float phi = v * Mathf.PI;
-                for (int x = 0; x <= seg; x++)
-                {
-                    float u = (float)x / seg;
-                    float theta = u * Mathf.PI * 2f;
-                    verts.Add(new Vector3(
-                        r * Mathf.Sin(phi) * Mathf.Cos(theta),
-                        r * Mathf.Cos(phi),
-                        r * Mathf.Sin(phi) * Mathf.Sin(theta)));
-                    uvs.Add(new Vector2(u * Mathf.PI * r * UvPerMetre * 2f, v * Mathf.PI * r * UvPerMetre));
-                }
-            }
-            for (int y = 0; y < rings; y++)
-                for (int x = 0; x < seg; x++)
-                {
-                    int a = y * (seg + 1) + x, b = a + seg + 1;
-                    tris.Add(a); tris.Add(b); tris.Add(a + 1);
-                    tris.Add(a + 1); tris.Add(b); tris.Add(b + 1);
-                }
-
-            var m = new Mesh { name = "FountainHead" };
-            m.SetVertices(verts);
-            m.SetUVs(0, uvs);
-            m.SetTriangles(tris, 0);
-            OrientOutward(m);
-            m.RecalculateNormals();
-            m.RecalculateBounds();
-            return m;
-        }
-
-        static Mesh Disc(float r, int seg)
-        {
-            var verts = new List<Vector3> { Vector3.zero };
-            var uvs = new List<Vector2> { new Vector2(0.5f, 0.5f) };
-            var tris = new List<int>();
-            for (int i = 0; i <= seg; i++)
-            {
-                float a = (float)i / seg * Mathf.PI * 2f;
-                verts.Add(new Vector3(Mathf.Cos(a) * r, 0, Mathf.Sin(a) * r));
-                uvs.Add(new Vector2(0.5f + Mathf.Cos(a) * 0.5f, 0.5f + Mathf.Sin(a) * 0.5f));
-            }
-            // Wound (centre, i+1, i) rather than (centre, i, i+1). The angles run
-            // anticlockwise in XZ, so the ascending order faces -Y and the water
-            // would be lit from underneath and backface-culled from above — a
-            // perfectly invisible fountain basin.
-            for (int i = 1; i <= seg; i++) { tris.Add(0); tris.Add(i + 1); tris.Add(i); }
-
-            var m = new Mesh { name = "FountainWater" };
-            m.SetVertices(verts);
-            m.SetUVs(0, uvs);
-            m.SetTriangles(tris, 0);
-            m.RecalculateNormals();
-            m.RecalculateBounds();
-            return m;
-        }
-
-        /// <summary>
-        /// Average normals of coincident vertices.
-        ///
-        /// Revolve() emits a duplicated column of verts at the UV seam so the
-        /// texture can wrap. Left alone, RecalculateNormals treats those two
-        /// columns as unrelated, and the seam shows as a hard crease running the
-        /// whole height of every basin segment. Welding after the fact fixes the
-        /// shading without collapsing the UVs.
-        /// </summary>
-        static void Weld(Mesh m)
-        {
-            var v = m.vertices;
-            var n = m.normals;
-            var map = new Dictionary<Vector3Int, List<int>>(v.Length);
-            var keyOf = new Vector3Int[ v.Length ];
-
-            for (int i = 0; i < v.Length; i++)
-            {
-                var p = v[i];
-                // Quantise to 0.1 mm — below any geometry this generates, above
-                // float noise on a value that round-tripped through a .asset.
-                var k = new Vector3Int(
-                    Mathf.RoundToInt(p.x * 10000f),
-                    Mathf.RoundToInt(p.y * 10000f),
-                    Mathf.RoundToInt(p.z * 10000f));
-                keyOf[i] = k;
-                if (!map.TryGetValue(k, out var list)) map[k] = list = new List<int>(2);
-                list.Add(i);
-            }
-
-            var welded = (Vector3[])n.Clone();
-            foreach (var kv in map)
-            {
-                if (kv.Value.Count < 2) continue;
-                var sum = Vector3.zero;
-                foreach (int i in kv.Value) sum += n[i];
-                var avg = sum.normalized;
-                foreach (int i in kv.Value) welded[i] = avg;
-            }
-            m.normals = welded;
-        }
-
-        // ==================================================================
-        //  Scene plumbing
-        // ==================================================================
-
-        static int AddMesh(GameObject go, Mesh mesh, Material mat, StringBuilder sb,
-                           ref int meshCount, ref int colliderCount,
-                           string childName = null, bool withCollider = true)
-        {
-            if (childName != null)
-            {
-                var child = new GameObject(childName);
-                child.transform.SetParent(go.transform, false);
-                go = child;
-            }
-
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            var mr = go.AddComponent<MeshRenderer>();
-            mr.sharedMaterial = mat;
-            // Static everything. A fountain is not going anywhere, and this is what
-            // let VillageColliders batch it with the rest of the village.
-            go.isStatic = true;
-
-            if (withCollider)
-            {
-                var mc = go.AddComponent<MeshCollider>();
-                mc.sharedMesh = mesh;
-                // Non-convex: the mesh is one closed solid, so convexity buys
-                // nothing and costs a decomposition at import time.
-                mc.convex = false;
-                colliderCount++;
-            }
-
-            meshCount++;
-            return mesh != null ? mesh.triangles.Length / 3 : 0;
-        }
-
-        /// <summary>
-        /// Create a nested asset folder, one level at a time.
-        ///
-        /// AssetDatabase.CreateFolder refuses to create a child of a folder Unity
-        /// does not already know about, and it does so by returning an empty string
-        /// rather than throwing — so the failure only surfaces later, as a
-        /// CreateAsset error several steps away from the cause. A directory that
-        /// exists on disk but has not been imported counts as unknown, which is
-        /// exactly how a plain Directory.CreateDirectory call elsewhere leaves
-        /// things.
-        /// </summary>
-        static void EnsureFolder(string assetFolder)
-        {
-            assetFolder = assetFolder.Replace('\\', '/').TrimEnd('/');
-            if (AssetDatabase.IsValidFolder(assetFolder)) return;
-
-            int slash = assetFolder.LastIndexOf('/');
-            if (slash <= 0) return;
-            var parent = assetFolder.Substring(0, slash);
-            EnsureFolder(parent);
-
-            // Pick up anything that exists physically but not yet in the database.
-            if (!AssetDatabase.IsValidFolder(parent)) AssetDatabase.Refresh();
-            if (AssetDatabase.IsValidFolder(assetFolder)) return;
-
-            AssetDatabase.CreateFolder(parent, assetFolder.Substring(slash + 1));
-        }
-
-        /// <summary>Write each generated mesh out as its own asset. Returns how many.</summary>
-        static int SaveMeshAssets(GameObject root, StringBuilder sb)
-        {
-            int saved = 0;
-            foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
-            {
-                if (mf.sharedMesh == null) continue;
-
-                var name = $"{mf.gameObject.transform.parent.name}_{mf.gameObject.name}";
-                mf.sharedMesh.name = name;
-                var path = $"{OutDir}/{name}.asset";
-
-                // Replace rather than add: a second CreateAsset at a live path
-                // fails, and this script is meant to be re-runnable after the
-                // fountain is edited.
-                if (AssetDatabase.LoadAssetAtPath<Mesh>(path) != null)
-                    AssetDatabase.DeleteAsset(path);
-
-                AssetDatabase.CreateAsset(mf.sharedMesh, path);
-                if (AssetDatabase.LoadAssetAtPath<Mesh>(path) != null) saved++;
-                else sb.AppendLine($"  mesh asset NOT written: {path}");
-            }
-
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-            return saved;
-        }
-
-        /// <summary>
-        /// A pale, slightly blue water. It ships grey with everything else, and
-        /// turns blue when the basin is painted — the first thing in the square
-        /// that comes back looking alive.
-        /// </summary>
-        static Material EnsureWaterMaterial(StringBuilder sb)
-        {
-            var existing = AssetDatabase.LoadAssetAtPath<Material>(WaterMatPath);
-            if (existing != null) return existing;
-
-            var shader = AssetDatabase.LoadAssetAtPath<Shader>("Assets/Painterly/Shaders/PainterlyLit.shader");
-            if (shader == null) shader = Shader.Find("Echoes/PainterlyLit");
-            if (shader == null)
-            {
-                sb.AppendLine("FATAL: PainterlyLit shader not found; water will be skipped");
-                return null;
-            }
-
-            var m = new Material(shader) { name = "FountainWater" };
-            m.SetColor("_BaseColor", new Color(0.62f, 0.70f, 0.74f, 1f));
-            m.SetFloat("_Smoothness", 0.92f);
-            m.SetFloat("_Metallic", 0f);
-            m.SetFloat("_ColorRestore", 0f);
-            m.SetFloat("_RestoreBoost", 1f);
-
-            AssetDatabase.CreateAsset(m, WaterMatPath);
-            AssetDatabase.SaveAssets();
-            AssetDatabase.ImportAsset(WaterMatPath);
-            sb.AppendLine($"created water material -> {WaterMatPath}");
-            return AssetDatabase.LoadAssetAtPath<Material>(WaterMatPath);
-        }
-
-        /// <summary>
-        /// The largest horizontal distance from the root's origin to anything it
-        /// contains, including that piece's own width.
-        ///
-        /// Measured off the renderers rather than taken from the profile numbers.
-        /// The widest part of this fountain is the cup of the broken lantern holder,
-        /// lying on the paving well outside the basin, which no single profile knows
-        /// about — and the profile numbers would go stale the moment the composition
-        /// was edited. This is the number the placement search is given, so a wrong
-        /// footprint means a fountain intersecting a wall.
-        /// </summary>
-        static float FootprintRadius(GameObject root)
-        {
-            var origin = root.transform.position;
-            float r = 0f;
-            foreach (var rend in root.GetComponentsInChildren<Renderer>(true))
-            {
-                var b = rend.bounds;
-                var offset = new Vector2(b.center.x - origin.x, b.center.z - origin.z);
-                r = Mathf.Max(r, offset.magnitude + Mathf.Max(b.extents.x, b.extents.z));
-            }
-            return r;
-        }
-
-        /// <summary>
-        /// Shrink the built fountain about its root, meshes and all.
-        ///
-        /// A uniform transform scale would have been one line, and would have been
-        /// wrong: it scales geometry without scaling UVs, so the kit's stone grain
-        /// would come out smaller on a smaller fountain and the rock would visibly
-        /// change size next to the walls it stands between. UVs here are metres —
-        /// u is profile arc length — so scaling position and UV by the same factor
-        /// keeps the grain the same size in the world, which is what makes a small
-        /// fountain read as the same quarry as the village around it.
-        /// </summary>
-        static void ScaleBuilt(GameObject root, float s)
-        {
-            foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
-            {
-                var m = mf.sharedMesh;
-                if (m == null) continue;
-
-                var v = m.vertices;
-                for (int i = 0; i < v.Length; i++) v[i] *= s;
-                var uv = m.uv;
-                for (int i = 0; i < uv.Length; i++) uv[i] *= s;
-
-                m.vertices = v;
-                m.uv = uv;
-                m.RecalculateBounds();
-
-                // A MeshCollider keeps its own baked copy of the mesh, so it has to
-                // be handed the mesh again or it carries on colliding along the old
-                // outline and the paint radius disagrees with what you can see.
-                var mc = mf.GetComponent<MeshCollider>();
-                if (mc != null) { mc.sharedMesh = null; mc.sharedMesh = m; }
-            }
-
-            // Child offsets are as much a part of the size as the meshes are: the
-            // lanterns ring the basin and the debris lies around it, and scaling only
-            // the meshes would leave them arranged for a fountain that is not there.
-            foreach (var t in root.GetComponentsInChildren<Transform>(true))
-                if (t != root.transform) t.localPosition *= s;
-        }
-
-        static float MedianClearance(SquarePlacement.Scan scan)
-        {
-            if (scan == null || scan.Spots.Count == 0) return 0f;
-            var xs = scan.Spots.Select(s => s.Clearance).OrderBy(v => v).ToList();
-            return xs[xs.Count / 2];
-        }
-
-        static string PathOf(Transform t)
-        {
-            if (t == null) return "<none>";
-            var sb = new StringBuilder(t.name);
-            for (var p = t.parent; p != null; p = p.parent) sb.Insert(0, p.name + "/");
-            return sb.ToString();
-        }
-
-        static void Finish(StringBuilder sb)
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(
-                Path.Combine(Directory.GetCurrentDirectory(), Report)));
-            File.WriteAllText(Report, sb.ToString());
-            Debug.Log(sb.ToString());
-        }
+    	private const string OutDir = "Assets/Painterly/Generated/Fountain";
+
+    	private const string StoneMatPath = "Assets/Painterly/Materials/RockTrim.mat";
+
+    	private const string MetalMatPath = "Assets/Painterly/Materials/MetalOrnament.mat";
+
+    	private const string WaterMatPath = "Assets/Painterly/Materials/FountainWater.mat";
+
+    	private const string Report = "Temp/fountain.txt";
+
+    	private const float UvPerMetre = 0.5f;
+
+    	private const float BasinFloorY = 0.1f;
+
+    	private const float WaterY = 0.46f;
+
+    	private const float PlinthTopY = 0.6f;
+
+    	private static Vector2[] BasinWallProfile()
+    	{
+    		//IL_0013: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0018: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0029: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0044: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0055: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_006b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0070: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0081: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0086: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0097: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ad: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00da: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00df: Unknown result type (might be due to invalid IL or missing references)
+    		return new Vector2[10]
+    		{
+    			new Vector2(1.72f, 0f),
+    			new Vector2(1.76f, 0.62f),
+    			new Vector2(1.84f, 0.7f),
+    			new Vector2(1.98f, 0.72f),
+    			new Vector2(2.08f, 0.86f),
+    			new Vector2(2.14f, 0.79f),
+    			new Vector2(2.12f, 0.7f),
+    			new Vector2(2.14f, 0.1f),
+    			new Vector2(2.24f, 0f),
+    			new Vector2(1.72f, 0f)
+    		};
+    	}
+
+    	private static Vector2[] PlinthProfile()
+    	{
+    		//IL_0013: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0018: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0029: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0044: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0055: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_006b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0070: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0081: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0086: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0097: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ad: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c8: Unknown result type (might be due to invalid IL or missing references)
+    		return new Vector2[9]
+    		{
+    			new Vector2(0f, 0f),
+    			new Vector2(0.66f, 0f),
+    			new Vector2(0.66f, 0.15f),
+    			new Vector2(0.55f, 0.18f),
+    			new Vector2(0.55f, 0.32f),
+    			new Vector2(0.45f, 0.35f),
+    			new Vector2(0.45f, 0.46f),
+    			new Vector2(0.36f, 0.46f),
+    			new Vector2(0f, 0.46f)
+    		};
+    	}
+
+    	private static Vector2[] StatueStumpProfile()
+    	{
+    		//IL_0013: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0018: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0029: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0044: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0055: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_006b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0070: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0081: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0086: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0097: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ad: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00da: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00df: Unknown result type (might be due to invalid IL or missing references)
+    		return new Vector2[10]
+    		{
+    			new Vector2(0f, 0f),
+    			new Vector2(0.44f, 0f),
+    			new Vector2(0.4f, 0.1f),
+    			new Vector2(0.31f, 0.28f),
+    			new Vector2(0.25f, 0.44f),
+    			new Vector2(0.23f, 0.53f),
+    			new Vector2(0.19f, 0.49f),
+    			new Vector2(0.24f, 0.58f),
+    			new Vector2(0.2f, 0.55f),
+    			new Vector2(0f, 0.57f)
+    		};
+    	}
+
+    	private static Vector2[] StatueTorsoProfile()
+    	{
+    		//IL_0013: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0018: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0029: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0044: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0055: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_006b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0070: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0081: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0086: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0097: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ad: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00da: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00df: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00f1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00f6: Unknown result type (might be due to invalid IL or missing references)
+    		return new Vector2[11]
+    		{
+    			new Vector2(0f, 0f),
+    			new Vector2(0.21f, 0.02f),
+    			new Vector2(0.19f, 0.07f),
+    			new Vector2(0.24f, 0.1f),
+    			new Vector2(0.2f, 0.14f),
+    			new Vector2(0.23f, 0.2f),
+    			new Vector2(0.26f, 0.3f),
+    			new Vector2(0.25f, 0.42f),
+    			new Vector2(0.16f, 0.5f),
+    			new Vector2(0.1f, 0.52f),
+    			new Vector2(0f, 0.52f)
+    		};
+    	}
+
+    	private static Vector2[] LanternPostProfile(float height)
+    	{
+    		//IL_0013: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0018: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0029: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0044: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0055: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_006b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0070: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0081: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0086: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0097: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00af: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00cc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00e0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00e5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00f9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00fe: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_010c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0111: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_011f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0124: Unknown result type (might be due to invalid IL or missing references)
+    		return new Vector2[13]
+    		{
+    			new Vector2(0f, 0f),
+    			new Vector2(0.17f, 0f),
+    			new Vector2(0.17f, 0.06f),
+    			new Vector2(0.11f, 0.12f),
+    			new Vector2(0.09f, 0.18f),
+    			new Vector2(0.14f, 0.26f),
+    			new Vector2(0.08f, 0.33f),
+    			new Vector2(0.08f, height - 0.26f),
+    			new Vector2(0.13f, height - 0.18f),
+    			new Vector2(0.13f, height - 0.08f),
+    			new Vector2(0.19f, height - 0.04f),
+    			new Vector2(0.19f, height),
+    			new Vector2(0f, height)
+    		};
+    	}
+
+    	private static Vector2[] LanternCupProfile(float radius, float depth)
+    	{
+    		//IL_0012: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0017: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0038: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0051: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0066: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_006b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_007e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0083: Unknown result type (might be due to invalid IL or missing references)
+    		return new Vector2[6]
+    		{
+    			new Vector2(0f, 0f),
+    			new Vector2(radius * 0.55f, 0.01f),
+    			new Vector2(radius, depth),
+    			new Vector2(radius * 0.88f, depth),
+    			new Vector2(radius * 0.45f, depth * 0.28f),
+    			new Vector2(0f, depth * 0.22f)
+    		};
+    	}
+
+    	[MenuItem("Tools/Echoes/Build Fountain", priority = 75)]
+    	public static void Run()
+    	{
+    		//IL_0123: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0128: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0149: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_014e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01fc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0203: Expected Obj, but got Unknown
+    		//IL_020a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0326: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_032d: Expected Obj, but got Unknown
+    		//IL_0357: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03a0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03a7: Expected Obj, but got Unknown
+    		//IL_03c0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_03c7: Expected Obj, but got Unknown
+    		//IL_03f1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0411: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_045a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0461: Expected Obj, but got Unknown
+    		//IL_048b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04ab: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04f4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_04fb: Expected Obj, but got Unknown
+    		//IL_0525: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0545: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_057a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0581: Expected Obj, but got Unknown
+    		//IL_05ab: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_05cb: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0603: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_060a: Expected Obj, but got Unknown
+    		//IL_0259: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0260: Expected Obj, but got Unknown
+    		//IL_028d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0844: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_084b: Expected Obj, but got Unknown
+    		//IL_0876: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_088a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_089e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_08ba: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_08ce: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_08e2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_08fe: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0912: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0926: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_066a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0671: Expected Obj, but got Unknown
+    		//IL_06ab: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0953: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_095a: Expected Obj, but got Unknown
+    		//IL_0977: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_098a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_098f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_099b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_09a7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_09b3: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_09f1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_09f8: Expected Obj, but got Unknown
+    		//IL_0a22: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0a64: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0a69: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0a7e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0abd: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0ac2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_06e4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_077f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0786: Expected Obj, but got Unknown
+    		//IL_07c0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_07e0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b39: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b2b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0bdd: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0b3e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c80: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c85: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c87: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0c8f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0caa: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0caf: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0cb4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0ccd: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0db0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0dc1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0dd2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0df4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0e11: Unknown result type (might be due to invalid IL or missing references)
+    		StringBuilder stringBuilder = new StringBuilder();
+    		stringBuilder.AppendLine("[Echoes] fountain build");
+    		stringBuilder.AppendLine();
+    		if (EditorApplication.isPlayingOrWillChangePlaymode)
+    		{
+    			stringBuilder.AppendLine("STOPPED: exit play mode first (Ctrl+P). Nothing was changed.");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		Material val = AssetDatabase.LoadAssetAtPath<Material>("Assets/Painterly/Materials/RockTrim.mat");
+    		Material val2 = AssetDatabase.LoadAssetAtPath<Material>("Assets/Painterly/Materials/MetalOrnament.mat");
+    		if ((Object)(object)val == (Object)null || (Object)(object)val2 == (Object)null)
+    		{
+    			stringBuilder.AppendLine($"FATAL: missing material. stone={(Object)(object)val != (Object)null} metal={(Object)(object)val2 != (Object)null}");
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		Material val3 = EnsureWaterMaterial(stringBuilder);
+    		SquarePlacement.Scan scan = SquarePlacement.MeasureSquare();
+    		if (!scan.Ok)
+    		{
+    			stringBuilder.AppendLine("FATAL: cannot measure the market square: " + scan.Why);
+    			Finish(stringBuilder);
+    			return;
+    		}
+    		GameObject val4 = SquarePlacement.FindSquare();
+    		stringBuilder.AppendLine("square      : " + SquarePlacement.PathOf(val4.transform));
+    		stringBuilder.AppendLine("ground      : y=" + scan.GroundY.ToString("F3") + ", extent " + ((object)scan.Area.size/*cast due to constrained. prefix*/).ToString() + " at " + ((object)scan.Area.center/*cast due to constrained. prefix*/).ToString());
+    		stringBuilder.AppendLine("open ground : " + scan.Samples + " samples, clearance max " + scan.BestClearance.ToString("F2") + " m, median " + MedianClearance(scan).ToString("F2") + " m");
+    		GameObject val5 = GameObject.Find("Fountain");
+    		if ((Object)(object)val5 != (Object)null)
+    		{
+    			Object.DestroyImmediate((Object)(object)val5);
+    		}
+    		GameObject val6 = new GameObject("Fountain");
+    		val6.transform.position = Vector3.zero;
+    		int num = 0;
+    		int meshCount = 0;
+    		int colliderCount = 0;
+    		Vector2[] profile = BasinWallProfile();
+    		for (int i = 0; i < 12; i++)
+    		{
+    			float num2 = (float)i * 30f;
+    			if (i != 3 && i != 9)
+    			{
+    				GameObject val7 = new GameObject($"Basin_{i:00}");
+    				val7.transform.SetParent(val6.transform, false);
+    				val7.transform.localRotation = Quaternion.Euler(0f, num2 + 15f, 0f);
+    				float yScale = 1f;
+    				float rOffset = 0f;
+    				float num3 = 0f;
+    				switch (i)
+    				{
+    				case 2:
+    					rOffset = 0.05f;
+    					num3 = 1.4f;
+    					break;
+    				case 7:
+    					yScale = 0.52f;
+    					rOffset = -0.11f;
+    					num3 = -3.5f;
+    					break;
+    				}
+    				Mesh mesh = Revolve(profile, -15f, 15f, 7, closedSection: true, yScale, rOffset, (float)Math.PI / 180f * num3);
+    				num += AddMesh(val7, mesh, val, stringBuilder, ref meshCount, ref colliderCount);
+    			}
+    		}
+    		GameObject val8 = new GameObject("Plinth");
+    		val8.transform.SetParent(val6.transform, false);
+    		val8.transform.localPosition = new Vector3(0f, 0.1f, 0f);
+    		num += AddMesh(val8, Revolve(PlinthProfile(), 0f, 360f, 20, closedSection: false, 1f, 0f, 0f), val, stringBuilder, ref meshCount, ref colliderCount);
+    		GameObject val9 = new GameObject("Statue");
+    		val9.transform.SetParent(val6.transform, false);
+    		GameObject val10 = new GameObject("Statue_Stump");
+    		val10.transform.SetParent(val9.transform, false);
+    		val10.transform.localPosition = new Vector3(0.02f, 0.6f, -0.03f);
+    		val10.transform.localRotation = Quaternion.Euler(0.6f, 24f, -1.1f);
+    		num += AddMesh(val10, Revolve(StatueStumpProfile(), 0f, 360f, 16, closedSection: false, 1f, 0f, 0f), val, stringBuilder, ref meshCount, ref colliderCount);
+    		GameObject val11 = new GameObject("Statue_Torso");
+    		val11.transform.SetParent(val9.transform, false);
+    		val11.transform.localPosition = new Vector3(0.74f, 0.33f, 0.46f);
+    		val11.transform.localRotation = Quaternion.Euler(-74f, 38f, 21f);
+    		num += AddMesh(val11, Revolve(StatueTorsoProfile(), 0f, 360f, 16, closedSection: false, 1f, 0f, 0f), val, stringBuilder, ref meshCount, ref colliderCount);
+    		GameObject val12 = new GameObject("Statue_Head");
+    		val12.transform.SetParent(val9.transform, false);
+    		val12.transform.localPosition = new Vector3(1.16f, 0.25f, 0.86f);
+    		val12.transform.localRotation = Quaternion.Euler(28f, 150f, 44f);
+    		Mesh mesh2 = Sphere(0.165f, 16, 10);
+    		num += AddMesh(val12, mesh2, val, stringBuilder, ref meshCount, ref colliderCount);
+    		GameObject val13 = new GameObject("Statue_Arm");
+    		val13.transform.SetParent(val9.transform, false);
+    		val13.transform.localPosition = new Vector3(2.05f, 0.07f, 1.42f);
+    		val13.transform.localRotation = Quaternion.Euler(0f, 66f, 90f);
+    		num += AddMesh(val13, Box(0.44f, 0.12f, 0.12f, 1), val, stringBuilder, ref meshCount, ref colliderCount);
+    		GameObject val14 = new GameObject("Lanterns");
+    		val14.transform.SetParent(val6.transform, false);
+    		float[] array = new float[3] { 40f, 160f, 280f };
+    		for (int j = 0; j < array.Length; j++)
+    		{
+    			float num4 = array[j] * ((float)Math.PI / 180f);
+    			float height = ((j == 1) ? 0.58f : 1.16f);
+    			GameObject val15 = new GameObject($"Lantern_{j:00}");
+    			val15.transform.SetParent(val14.transform, false);
+    			val15.transform.localPosition = new Vector3(Mathf.Cos(num4) * 2.78f, 0f, Mathf.Sin(num4) * 2.78f);
+    			val15.transform.localRotation = Quaternion.Euler((j == 1) ? 9f : 0f, 0f - array[j], (j == 1) ? (-13f) : 0f);
+    			num += AddMesh(val15, Revolve(LanternPostProfile(height), 0f, 360f, 12, closedSection: false, 1f, 0f, 0f), val2, stringBuilder, ref meshCount, ref colliderCount);
+    			num += AddMesh(val15, Revolve(LanternCupProfile(0.2f, 0.17f), 0f, 360f, 12, closedSection: false, 1f, 0f, 0f), val2, stringBuilder, ref meshCount, ref colliderCount, "Cup");
+    			if (j == 1)
+    			{
+    				GameObject val16 = new GameObject("Lantern_01_CupFallen");
+    				val16.transform.SetParent(val14.transform, false);
+    				val16.transform.localPosition = new Vector3(Mathf.Cos(num4) * 3.24f, 0.02f, Mathf.Sin(num4) * 3.24f);
+    				val16.transform.localRotation = Quaternion.Euler(84f, 12f, 0f);
+    				num += AddMesh(val16, Revolve(LanternCupProfile(0.2f, 0.17f), 0f, 360f, 12, closedSection: false, 1f, 0f, 0f), val2, stringBuilder, ref meshCount, ref colliderCount);
+    			}
+    		}
+    		GameObject val17 = new GameObject("Debris");
+    		val17.transform.SetParent(val6.transform, false);
+    		var array2 = new[]
+    		{
+    			new
+    			{
+    				p = new Vector3(2.62f, 0.11f, 0.55f),
+    				r = new Vector3(0f, 34f, 22f),
+    				s = new Vector3(0.62f, 0.34f, 0.3f)
+    			},
+    			new
+    			{
+    				p = new Vector3(-2.48f, 0.09f, -0.92f),
+    				r = new Vector3(0f, -58f, -15f),
+    				s = new Vector3(0.48f, 0.26f, 0.34f)
+    			},
+    			new
+    			{
+    				p = new Vector3(0.35f, 0.08f, 2.71f),
+    				r = new Vector3(14f, 12f, 0f),
+    				s = new Vector3(0.7f, 0.3f, 0.28f)
+    			}
+    		};
+    		for (int k = 0; k < array2.Length; k++)
+    		{
+    			var anon = array2[k];
+    			GameObject val18 = new GameObject($"Debris_{k:00}");
+    			val18.transform.SetParent(val17.transform, false);
+    			val18.transform.localPosition = anon.p;
+    			val18.transform.localRotation = Quaternion.Euler(anon.r);
+    			Mesh mesh3 = Box(anon.s.x, anon.s.y, anon.s.z, 1);
+    			num += AddMesh(val18, mesh3, val, stringBuilder, ref meshCount, ref colliderCount);
+    		}
+    		GameObject val19 = new GameObject("Water");
+    		val19.transform.SetParent(val6.transform, false);
+    		val19.transform.localPosition = new Vector3(0f, 0.46f, 0f);
+    		if ((Object)(object)val3 != (Object)null)
+    		{
+    			Mesh mesh4 = Disc(1.7f, 24);
+    			num += AddMesh(val19, mesh4, val3, stringBuilder, ref meshCount, ref colliderCount, null, withCollider: false);
+    		}
+    		ColorRestoreTarget colorRestoreTarget = val6.AddComponent<ColorRestoreTarget>();
+    		SerializedObject val20 = new SerializedObject((Object)(object)colorRestoreTarget);
+    		val20.FindProperty("startRestore").floatValue = 0f;
+    		val20.FindProperty("duration").floatValue = 1.6f;
+    		val20.ApplyModifiedPropertiesWithoutUndo();
+    		colorRestoreTarget.SetRestoreImmediate(0f);
+    		val6.isStatic = true;
+    		float num5 = FootprintRadius(val6);
+    		float num6 = 1f;
+    		Vector3 point = Vector3.zero;
+    		float clearance = 0f;
+    		string detail = "";
+    		while (num6 >= 0.39990002f && !SquarePlacement.TryFind(scan, num5 * num6 + 0.15f, out point, out clearance, out detail))
+    		{
+    			num6 -= 0.05f;
+    		}
+    		if (num6 < 0.39990002f)
+    		{
+    			num6 = 0.4f;
+    			point = ((scan.Best != null) ? scan.Best.Point : scan.Area.center);
+    			clearance = scan.BestClearance;
+    			detail = "NOTHING FITS: placed at the roomiest spot anyway";
+    		}
+    		if (num6 < 0.999f)
+    		{
+    			ScaleBuilt(val6, num6);
+    			stringBuilder.AppendLine("resized     : x" + num6.ToString("F2") + " (built radius " + num5.ToString("F2") + " m -> " + (num5 * num6).ToString("F2") + " m)");
+    		}
+    		else
+    		{
+    			stringBuilder.AppendLine("resized     : x1.00 (fits at the size it was authored)");
+    		}
+    		val6.transform.position = point;
+    		stringBuilder.AppendLine("placement   : " + ((object)point/*cast due to constrained. prefix*/).ToString());
+    		stringBuilder.AppendLine("clearance   : " + clearance.ToString("F2") + " m available");
+    		stringBuilder.AppendLine("why         : " + detail);
+    		EnsureFolder("Assets/Painterly/Generated/Fountain");
+    		int num7 = SaveMeshAssets(val6, stringBuilder);
+    		EditorUtility.SetDirty((Object)(object)val6);
+    		Transform[] componentsInChildren = val6.GetComponentsInChildren<Transform>(true);
+    		for (int l = 0; l < componentsInChildren.Length; l++)
+    		{
+    			EditorUtility.SetDirty((Object)(object)((Component)componentsInChildren[l]).gameObject);
+    		}
+    		Scene scene = val6.scene;
+    		EditorSceneManager.MarkSceneDirty(scene);
+    		EditorSceneManager.SaveScene(scene);
+    		Renderer[] componentsInChildren2 = val6.GetComponentsInChildren<Renderer>(true);
+    		Bounds val21 = new Bounds(val6.transform.position, Vector3.zero);
+    		Renderer[] array3 = componentsInChildren2;
+    		foreach (Renderer val22 in array3)
+    		{
+    			val21.Encapsulate(val22.bounds);
+    		}
+    		int num8 = 0;
+    		MeshFilter[] componentsInChildren3 = val6.GetComponentsInChildren<MeshFilter>(true);
+    		foreach (MeshFilter val23 in componentsInChildren3)
+    		{
+    			if ((Object)(object)val23.sharedMesh != (Object)null)
+    			{
+    				num8 += val23.sharedMesh.triangles.Length / 3;
+    			}
+    		}
+    		stringBuilder.AppendLine("root        : " + PathOf(val6.transform));
+    		stringBuilder.AppendLine($"meshes      : {meshCount}   colliders: {colliderCount}");
+    		stringBuilder.AppendLine(string.Format("mesh assets : {0} written to {1}", num7, "Assets/Painterly/Generated/Fountain"));
+    		stringBuilder.AppendLine($"triangles   : {num8:N0}  (builder counted {num:N0})");
+    		stringBuilder.AppendLine($"bounds size : {val21.size.x:F2} x {val21.size.y:F2} x {val21.size.z:F2} m");
+    		stringBuilder.AppendLine($"bounds min  : {val21.min}");
+    		stringBuilder.AppendLine($"bounds max  : {val21.max}");
+    		stringBuilder.AppendLine($"renderers   : {componentsInChildren2.Length}");
+    		stringBuilder.AppendLine($"target      : {((object)colorRestoreTarget).GetType().Name} restore={colorRestoreTarget.Restore:F2}");
+    		stringBuilder.AppendLine("scene saved : " + scene.path);
+    		Finish(stringBuilder);
+    	}
+
+    	private static Mesh Revolve(Vector2[] profile, float a0Deg, float a1Deg, int seg, bool closedSection, float yScale, float rOffset, float tiltRad)
+    	{
+    		//IL_0043: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_011f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0140: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02d1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02d6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02e1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02e8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02f0: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02f9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_02ff: Expected Obj, but got Unknown
+    		//IL_02ff: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0305: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_030b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0311: Expected Obj, but got Unknown
+    		//IL_0312: Expected Obj, but got Unknown
+    		int num = profile.Length;
+    		int num2 = seg + 1;
+    		List<Vector3> list = new List<Vector3>(num2 * num);
+    		List<Vector2> list2 = new List<Vector2>(num2 * num);
+    		List<int> list3 = new List<int>(num2 * num * 6);
+    		float[] array = new float[num];
+    		for (int i = 1; i < num; i++)
+    		{
+    			array[i] = array[i - 1] + Vector2.Distance(profile[i - 1], profile[i]);
+    		}
+    		float num3 = 0f;
+    		for (int j = 0; j < num; j++)
+    		{
+    			num3 += profile[j].x;
+    		}
+    		num3 /= (float)Mathf.Max(1, num);
+    		for (int k = 0; k < num2; k++)
+    		{
+    			float num4 = Mathf.Lerp(a0Deg, a1Deg, (seg <= 0) ? 0f : ((float)k / (float)seg)) * ((float)Math.PI / 180f);
+    			float num5 = Mathf.Cos(num4);
+    			float num6 = Mathf.Sin(num4);
+    			for (int l = 0; l < num; l++)
+    			{
+    				float num7 = profile[l].x + rOffset;
+    				float num8 = profile[l].y * yScale;
+    				float num9 = num8 * Mathf.Cos(tiltRad);
+    				float num10 = num7 + num8 * Mathf.Sin(tiltRad);
+    				list.Add(new Vector3(num5 * num10, num9, num6 * num10));
+    				list2.Add(new Vector2(array[l] * 0.5f, num4 * num3 * 0.5f));
+    			}
+    		}
+    		int num11 = (closedSection ? num : (num - 1));
+    		for (int m = 0; m < seg; m++)
+    		{
+    			for (int n = 0; n < num11; n++)
+    			{
+    				int num12 = (n + 1) % num;
+    				int item = m * num + n;
+    				int item2 = m * num + num12;
+    				int item3 = (m + 1) * num + n;
+    				int item4 = (m + 1) * num + num12;
+    				bool flag = profile[n].x <= 1E-05f && rOffset <= 1E-05f;
+    				bool flag2 = profile[num12].x <= 1E-05f && rOffset <= 1E-05f;
+    				if (!(flag & flag2))
+    				{
+    					if (flag)
+    					{
+    						list3.Add(item);
+    						list3.Add(item4);
+    						list3.Add(item2);
+    						continue;
+    					}
+    					if (flag2)
+    					{
+    						list3.Add(item);
+    						list3.Add(item4);
+    						list3.Add(item3);
+    						continue;
+    					}
+    					list3.Add(item);
+    					list3.Add(item4);
+    					list3.Add(item3);
+    					list3.Add(item);
+    					list3.Add(item2);
+    					list3.Add(item4);
+    				}
+    			}
+    		}
+    		if (!(Mathf.Abs(a1Deg - a0Deg) >= 359.9f))
+    		{
+    			AddCap(list, list2, list3, profile, 0f, yScale, rOffset, tiltRad, atStart: true);
+    			AddCap(list, list2, list3, profile, a1Deg, yScale, rOffset, tiltRad, atStart: false);
+    		}
+    		Mesh val = new Mesh
+    		{
+    			name = "FountainPart"
+    		};
+    		val.SetVertices(list);
+    		val.SetUVs(0, list2);
+    		val.SetTriangles(list3, 0);
+    		OrientOutward(val);
+    		val.RecalculateNormals();
+    		val.RecalculateBounds();
+    		Weld(val);
+    		return val;
+    	}
+
+    	private static void OrientOutward(Mesh m)
+    	{
+    		//IL_0027: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0034: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0039: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0041: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0046: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0049: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004f: Unknown result type (might be due to invalid IL or missing references)
+    		Vector3[] vertices = m.vertices;
+    		int[] triangles = m.triangles;
+    		if (triangles.Length < 3)
+    		{
+    			return;
+    		}
+    		double num = 0.0;
+    		for (int i = 0; i < triangles.Length; i += 3)
+    		{
+    			Vector3 val = vertices[triangles[i]];
+    			Vector3 val2 = vertices[triangles[i + 1]];
+    			Vector3 val3 = vertices[triangles[i + 2]];
+    			num += (double)Vector3.Dot(val, Vector3.Cross(val2, val3));
+    		}
+    		num /= 6.0;
+    		if (!(Mathf.Abs((float)num) < 1E-07f) && !(num > 0.0))
+    		{
+    			for (int j = 0; j < triangles.Length; j += 3)
+    			{
+    				int num2 = triangles[j + 1];
+    				triangles[j + 1] = triangles[j + 2];
+    				triangles[j + 2] = num2;
+    			}
+    			m.triangles = triangles;
+    		}
+    	}
+
+    	private static void AddCap(List<Vector3> verts, List<Vector2> uvs, List<int> tris, Vector2[] profile, float angleDeg, float yScale, float rOffset, float tiltRad, bool atStart)
+    	{
+    		//IL_0090: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0106: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0143: Unknown result type (might be due to invalid IL or missing references)
+    		int num = profile.Length;
+    		float num2 = 0f;
+    		float num3 = 0f;
+    		for (int i = 0; i < num - 1; i++)
+    		{
+    			num2 += profile[i].x;
+    			num3 += profile[i].y;
+    		}
+    		num2 /= (float)(num - 1);
+    		num3 /= (float)(num - 1);
+    		float num4 = angleDeg * ((float)Math.PI / 180f);
+    		float num5 = Mathf.Cos(num4);
+    		float num6 = Mathf.Sin(num4);
+    		float num7 = num3 * yScale;
+    		float num8 = num2 + rOffset + num3 * Mathf.Sin(tiltRad);
+    		int count = verts.Count;
+    		verts.Add(new Vector3(num5 * num8, num7, num6 * num8));
+    		uvs.Add(new Vector2(0.5f, 0.5f));
+    		int count2 = verts.Count;
+    		for (int j = 0; j < num - 1; j++)
+    		{
+    			float num9 = profile[j].x + rOffset;
+    			float num10 = profile[j].y * yScale;
+    			float num11 = num10 * Mathf.Cos(tiltRad);
+    			float num12 = num9 + num10 * Mathf.Sin(tiltRad);
+    			verts.Add(new Vector3(num5 * num12, num11, num6 * num12));
+    			uvs.Add(new Vector2(0.5f + profile[j].x * 0.4f, 0.5f + profile[j].y * 0.4f));
+    		}
+    		for (int k = 0; k < num - 2; k++)
+    		{
+    			int item = count2 + k;
+    			int item2 = count2 + k + 1;
+    			if (atStart)
+    			{
+    				tris.Add(count);
+    				tris.Add(item2);
+    				tris.Add(item);
+    			}
+    			else
+    			{
+    				tris.Add(count);
+    				tris.Add(item);
+    				tris.Add(item2);
+    			}
+    		}
+    	}
+
+    	private static Mesh Box(float w, float h, float d, int _ = 0)
+    	{
+    		//IL_0015: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0024: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0032: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0037: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0046: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_004b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0050: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0064: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0069: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0078: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_007d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0082: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0091: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0096: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_009b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00aa: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00af: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00db: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ed: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00f2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00f6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0108: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_010d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_010f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0110: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0115: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0120: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0122: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0124: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0129: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_012b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0140: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_014b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_014d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_014f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0154: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0156: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0173: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_017e: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0180: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0182: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0187: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0189: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01ae: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01b9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01bb: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01bd: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01c2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01c4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_01e1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0234: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0239: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0244: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_024b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0253: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_025b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0261: Expected Obj, but got Unknown
+    		//IL_0261: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0267: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_026e: Expected Obj, but got Unknown
+    		List<Vector3> list = new List<Vector3>();
+    		List<Vector2> list2 = new List<Vector2>();
+    		List<int> list3 = new List<int>();
+    		Vector3 val = new Vector3(w, h, d) * 0.5f;
+    		var array = new[]
+    		{
+    			new
+    			{
+    				n = Vector3.forward,
+    				u = Vector3.right,
+    				v = Vector3.up,
+    				w = w,
+    				h = h
+    			},
+    			new
+    			{
+    				n = Vector3.back,
+    				u = Vector3.left,
+    				v = Vector3.up,
+    				w = w,
+    				h = h
+    			},
+    			new
+    			{
+    				n = Vector3.right,
+    				u = Vector3.back,
+    				v = Vector3.up,
+    				w = d,
+    				h = h
+    			},
+    			new
+    			{
+    				n = Vector3.left,
+    				u = Vector3.forward,
+    				v = Vector3.up,
+    				w = d,
+    				h = h
+    			},
+    			new
+    			{
+    				n = Vector3.up,
+    				u = Vector3.right,
+    				v = Vector3.forward,
+    				w = w,
+    				h = d
+    			},
+    			new
+    			{
+    				n = Vector3.down,
+    				u = Vector3.right,
+    				v = Vector3.back,
+    				w = w,
+    				h = d
+    			}
+    		};
+    		foreach (var anon in array)
+    		{
+    			Vector3 n = anon.n;
+    			Vector3 val2 = anon.u * (anon.w * 0.5f);
+    			Vector3 val3 = anon.v * (anon.h * 0.5f);
+    			Vector3 val4 = Vector3.Scale(n, val);
+    			int count = list.Count;
+    			list.Add(val4 - val2 - val3);
+    			list2.Add(new Vector2(0f, 0f));
+    			list.Add(val4 + val2 - val3);
+    			list2.Add(new Vector2(anon.w * 0.5f, 0f));
+    			list.Add(val4 + val2 + val3);
+    			list2.Add(new Vector2(anon.w * 0.5f, anon.h * 0.5f));
+    			list.Add(val4 - val2 + val3);
+    			list2.Add(new Vector2(0f, anon.h * 0.5f));
+    			list3.Add(count);
+    			list3.Add(count + 2);
+    			list3.Add(count + 1);
+    			list3.Add(count);
+    			list3.Add(count + 3);
+    			list3.Add(count + 2);
+    		}
+    		Mesh val5 = new Mesh
+    		{
+    			name = "FountainBox"
+    		};
+    		val5.SetVertices(list);
+    		val5.SetUVs(0, list2);
+    		val5.SetTriangles(list3, 0);
+    		OrientOutward(val5);
+    		val5.RecalculateNormals();
+    		val5.RecalculateBounds();
+    		return val5;
+    	}
+
+    	private static Mesh Sphere(float r, int seg, int rings)
+    	{
+    		//IL_0076: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a7: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0133: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0138: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0143: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_014a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0152: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_015a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0160: Expected Obj, but got Unknown
+    		//IL_0160: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0166: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_016d: Expected Obj, but got Unknown
+    		List<Vector3> list = new List<Vector3>();
+    		List<Vector2> list2 = new List<Vector2>();
+    		List<int> list3 = new List<int>();
+    		for (int i = 0; i <= rings; i++)
+    		{
+    			float num = (float)i / (float)rings;
+    			float num2 = num * (float)Math.PI;
+    			for (int j = 0; j <= seg; j++)
+    			{
+    				float num3 = (float)j / (float)seg;
+    				float num4 = num3 * (float)Math.PI * 2f;
+    				list.Add(new Vector3(r * Mathf.Sin(num2) * Mathf.Cos(num4), r * Mathf.Cos(num2), r * Mathf.Sin(num2) * Mathf.Sin(num4)));
+    				list2.Add(new Vector2(num3 * (float)Math.PI * r * 0.5f * 2f, num * (float)Math.PI * r * 0.5f));
+    			}
+    		}
+    		for (int k = 0; k < rings; k++)
+    		{
+    			for (int l = 0; l < seg; l++)
+    			{
+    				int num5 = k * (seg + 1) + l;
+    				int num6 = num5 + seg + 1;
+    				list3.Add(num5);
+    				list3.Add(num6);
+    				list3.Add(num5 + 1);
+    				list3.Add(num5 + 1);
+    				list3.Add(num6);
+    				list3.Add(num6 + 1);
+    			}
+    		}
+    		Mesh val = new Mesh
+    		{
+    			name = "FountainHead"
+    		};
+    		val.SetVertices(list);
+    		val.SetUVs(0, list2);
+    		val.SetTriangles(list3, 0);
+    		OrientOutward(val);
+    		val.RecalculateNormals();
+    		val.RecalculateBounds();
+    		return val;
+    	}
+
+    	private static Mesh Disc(float r, int seg)
+    	{
+    		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0021: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0061: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0092: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00cd: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d2: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00dd: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00e4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ec: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00f4: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00fa: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0101: Expected Obj, but got Unknown
+    		List<Vector3> list = new List<Vector3> { Vector3.zero };
+    		List<Vector2> list2 = new List<Vector2>
+    		{
+    			new Vector2(0.5f, 0.5f)
+    		};
+    		List<int> list3 = new List<int>();
+    		for (int i = 0; i <= seg; i++)
+    		{
+    			float num = (float)i / (float)seg * (float)Math.PI * 2f;
+    			list.Add(new Vector3(Mathf.Cos(num) * r, 0f, Mathf.Sin(num) * r));
+    			list2.Add(new Vector2(0.5f + Mathf.Cos(num) * 0.5f, 0.5f + Mathf.Sin(num) * 0.5f));
+    		}
+    		for (int j = 1; j <= seg; j++)
+    		{
+    			list3.Add(0);
+    			list3.Add(j + 1);
+    			list3.Add(j);
+    		}
+    		Mesh val = new Mesh
+    		{
+    			name = "FountainWater"
+    		};
+    		val.SetVertices(list);
+    		val.SetUVs(0, list2);
+    		val.SetTriangles(list3, 0);
+    		val.RecalculateNormals();
+    		val.RecalculateBounds();
+    		return val;
+    	}
+
+    	private static void Weld(Mesh m)
+    	{
+    		//IL_0028: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0031: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0043: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0055: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0067: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_006f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0071: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0077: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0083: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00e1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00e6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0101: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0106: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_010b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0110: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_012d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0132: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0151: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0153: Unknown result type (might be due to invalid IL or missing references)
+    		Vector3[] vertices = m.vertices;
+    		Vector3[] normals = m.normals;
+    		Dictionary<Vector3Int, List<int>> dictionary = new Dictionary<Vector3Int, List<int>>(vertices.Length);
+    		Vector3Int[] array = new Vector3Int[vertices.Length];
+    		for (int i = 0; i < vertices.Length; i++)
+    		{
+    			Vector3 val = vertices[i];
+    			Vector3Int key = (array[i] = new Vector3Int(Mathf.RoundToInt(val.x * 10000f), Mathf.RoundToInt(val.y * 10000f), Mathf.RoundToInt(val.z * 10000f)));
+    			if (!dictionary.TryGetValue(key, out var value))
+    			{
+    				value = (dictionary[key] = new List<int>(2));
+    			}
+    			value.Add(i);
+    		}
+    		Vector3[] array2 = (Vector3[])normals.Clone();
+    		foreach (KeyValuePair<Vector3Int, List<int>> item in dictionary)
+    		{
+    			if (item.Value.Count < 2)
+    			{
+    				continue;
+    			}
+    			Vector3 val2 = Vector3.zero;
+    			foreach (int item2 in item.Value)
+    			{
+    				val2 += normals[item2];
+    			}
+    			Vector3 normalized = val2.normalized;
+    			foreach (int item3 in item.Value)
+    			{
+    				array2[item3] = normalized;
+    			}
+    		}
+    		m.normals = array2;
+    	}
+
+    	private static int AddMesh(GameObject go, Mesh mesh, Material mat, StringBuilder sb, ref int meshCount, ref int colliderCount, string childName = null, bool withCollider = true)
+    	{
+    		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_001f: Expected Obj, but got Unknown
+    		if (childName != null)
+    		{
+    			GameObject val = new GameObject(childName);
+    			val.transform.SetParent(go.transform, false);
+    			go = val;
+    		}
+    		go.AddComponent<MeshFilter>().sharedMesh = mesh;
+    		((Renderer)go.AddComponent<MeshRenderer>()).sharedMaterial = mat;
+    		go.isStatic = true;
+    		if (withCollider)
+    		{
+    			MeshCollider val2 = go.AddComponent<MeshCollider>();
+    			val2.sharedMesh = mesh;
+    			val2.convex = false;
+    			colliderCount++;
+    		}
+    		meshCount++;
+    		if (!((Object)(object)mesh != (Object)null))
+    		{
+    			return 0;
+    		}
+    		return mesh.triangles.Length / 3;
+    	}
+
+    	private static void EnsureFolder(string assetFolder)
+    	{
+    		assetFolder = assetFolder.Replace('\\', '/').TrimEnd('/');
+    		if (AssetDatabase.IsValidFolder(assetFolder))
+    		{
+    			return;
+    		}
+    		int num = assetFolder.LastIndexOf('/');
+    		if (num > 0)
+    		{
+    			string text = assetFolder.Substring(0, num);
+    			EnsureFolder(text);
+    			if (!AssetDatabase.IsValidFolder(text))
+    			{
+    				AssetDatabase.Refresh();
+    			}
+    			if (!AssetDatabase.IsValidFolder(assetFolder))
+    			{
+    				AssetDatabase.CreateFolder(text, assetFolder.Substring(num + 1));
+    			}
+    		}
+    	}
+
+    	private static int SaveMeshAssets(GameObject root, StringBuilder sb)
+    	{
+    		int num = 0;
+    		MeshFilter[] componentsInChildren = root.GetComponentsInChildren<MeshFilter>(true);
+    		foreach (MeshFilter val in componentsInChildren)
+    		{
+    			if (!((Object)(object)val.sharedMesh == (Object)null))
+    			{
+    				string text = ((Object)((Component)val).gameObject.transform.parent).name + "_" + ((Object)((Component)val).gameObject).name;
+    				((Object)val.sharedMesh).name = text;
+    				string text2 = "Assets/Painterly/Generated/Fountain/" + text + ".asset";
+    				if ((Object)(object)AssetDatabase.LoadAssetAtPath<Mesh>(text2) != (Object)null)
+    				{
+    					AssetDatabase.DeleteAsset(text2);
+    				}
+    				AssetDatabase.CreateAsset((Object)(object)val.sharedMesh, text2);
+    				if ((Object)(object)AssetDatabase.LoadAssetAtPath<Mesh>(text2) != (Object)null)
+    				{
+    					num++;
+    				}
+    				else
+    				{
+    					sb.AppendLine("  mesh asset NOT written: " + text2);
+    				}
+    			}
+    		}
+    		AssetDatabase.SaveAssets();
+    		AssetDatabase.Refresh();
+    		return num;
+    	}
+
+    	private static Material EnsureWaterMaterial(StringBuilder sb)
+    	{
+    		//IL_004d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0052: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0077: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0081: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0091: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b1: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00cb: Expected Obj, but got Unknown
+    		Material val = AssetDatabase.LoadAssetAtPath<Material>("Assets/Painterly/Materials/FountainWater.mat");
+    		if ((Object)(object)val != (Object)null)
+    		{
+    			return val;
+    		}
+    		Shader val2 = AssetDatabase.LoadAssetAtPath<Shader>("Assets/Painterly/Shaders/PainterlyLit.shader");
+    		if ((Object)(object)val2 == (Object)null)
+    		{
+    			val2 = Shader.Find("Echoes/PainterlyLit");
+    		}
+    		if ((Object)(object)val2 == (Object)null)
+    		{
+    			sb.AppendLine("FATAL: PainterlyLit shader not found; water will be skipped");
+    			return null;
+    		}
+    		Material val3 = new Material(val2)
+    		{
+    			name = "FountainWater"
+    		};
+    		val3.SetColor("_BaseColor", new Color(0.62f, 0.7f, 0.74f, 1f));
+    		val3.SetFloat("_Smoothness", 0.92f);
+    		val3.SetFloat("_Metallic", 0f);
+    		val3.SetFloat("_ColorRestore", 0f);
+    		val3.SetFloat("_RestoreBoost", 1f);
+    		AssetDatabase.CreateAsset((Object)val3, "Assets/Painterly/Materials/FountainWater.mat");
+    		AssetDatabase.SaveAssets();
+    		AssetDatabase.ImportAsset("Assets/Painterly/Materials/FountainWater.mat");
+    		sb.AppendLine("created water material -> Assets/Painterly/Materials/FountainWater.mat");
+    		return AssetDatabase.LoadAssetAtPath<Material>("Assets/Painterly/Materials/FountainWater.mat");
+    	}
+
+    	private static float FootprintRadius(GameObject root)
+    	{
+    		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0021: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0026: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0036: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0049: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0050: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_006b: Unknown result type (might be due to invalid IL or missing references)
+    		Vector3 position = root.transform.position;
+    		float num = 0f;
+    		Renderer[] componentsInChildren = root.GetComponentsInChildren<Renderer>(true);
+    		for (int i = 0; i < componentsInChildren.Length; i++)
+    		{
+    			Bounds bounds = componentsInChildren[i].bounds;
+    			Vector2 val = new Vector2(bounds.center.x - position.x, bounds.center.z - position.z);
+    			num = Mathf.Max(num, val.magnitude + Mathf.Max(bounds.extents.x, bounds.extents.z));
+    		}
+    		return num;
+    	}
+
+    	private static void ScaleBuilt(GameObject root, float s)
+    	{
+    		//IL_003d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0043: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0048: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00fa: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0100: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0072: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0078: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_007d: Unknown result type (might be due to invalid IL or missing references)
+    		MeshFilter[] componentsInChildren = root.GetComponentsInChildren<MeshFilter>(true);
+    		foreach (MeshFilter val in componentsInChildren)
+    		{
+    			Mesh sharedMesh = val.sharedMesh;
+    			if (!((Object)(object)sharedMesh == (Object)null))
+    			{
+    				Vector3[] vertices = sharedMesh.vertices;
+    				for (int j = 0; j < vertices.Length; j++)
+    				{
+    					ref Vector3 reference = ref vertices[j];
+    					reference *= s;
+    				}
+    				Vector2[] uv = sharedMesh.uv;
+    				for (int k = 0; k < uv.Length; k++)
+    				{
+    					ref Vector2 reference2 = ref uv[k];
+    					reference2 *= s;
+    				}
+    				sharedMesh.vertices = vertices;
+    				sharedMesh.uv = uv;
+    				sharedMesh.RecalculateBounds();
+    				MeshCollider component = ((Component)val).GetComponent<MeshCollider>();
+    				if ((Object)(object)component != (Object)null)
+    				{
+    					component.sharedMesh = null;
+    					component.sharedMesh = sharedMesh;
+    				}
+    			}
+    		}
+    		Transform[] componentsInChildren2 = root.GetComponentsInChildren<Transform>(true);
+    		foreach (Transform val2 in componentsInChildren2)
+    		{
+    			if ((Object)(object)val2 != (Object)(object)root.transform)
+    			{
+    				val2.localPosition *= s;
+    			}
+    		}
+    	}
+
+    	private static float MedianClearance(SquarePlacement.Scan scan)
+    	{
+    		if (scan == null || scan.Spots.Count == 0)
+    		{
+    			return 0f;
+    		}
+    		List<float> list = (from s in scan.Spots
+    			select s.Clearance into v
+    			orderby v
+    			select v).ToList();
+    		return list[list.Count / 2];
+    	}
+
+    	private static string PathOf(Transform t)
+    	{
+    		if ((Object)(object)t == (Object)null)
+    		{
+    			return "<none>";
+    		}
+    		StringBuilder stringBuilder = new StringBuilder(((Object)t).name);
+    		Transform parent = t.parent;
+    		while ((Object)(object)parent != (Object)null)
+    		{
+    			stringBuilder.Insert(0, ((Object)parent).name + "/");
+    			parent = parent.parent;
+    		}
+    		return stringBuilder.ToString();
+    	}
+
+    	private static void Finish(StringBuilder sb)
+    	{
+    		Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(Directory.GetCurrentDirectory(), "Temp/fountain.txt")));
+    		File.WriteAllText("Temp/fountain.txt", sb.ToString());
+    		Debug.Log((object)sb.ToString());
+    	}
     }
 }

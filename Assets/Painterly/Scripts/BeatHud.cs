@@ -1,189 +1,185 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Echoes.Painterly
 {
-    /// <summary>
-    /// One line of instruction, for whichever beat wants one.
-    ///
-    /// Static because there is only ever one prompt on screen and every beat
-    /// needs to be able to set it without holding a reference to whatever
-    /// draws it. A reference would work too, and would also mean that a beat
-    /// loaded before the HUD — which is every beat, since the HUD sits on Ari
-    /// and beats sit in the world — silently drops the one thing that tells the
-    /// player what to do.
-    ///
-    /// Static state is wiped on play mode exit by the component below, so a
-    /// prompt cannot survive into the next run and greet the player with
-    /// instructions for a beat they have not reached.
-    /// </summary>
-    public static class BeatPrompt
-    {
-        static string _text = "";
-        static float _until = -1f;
-        static bool _sticky;
 
-        /// <summary>What is on screen right now. Read by the HUD, and by probes.</summary>
-        public static string Current =>
-            _sticky || Time.time < _until ? _text : "";
-
-        /// <summary>
-        /// Show a line for a while.
-        ///
-        /// <paramref name="seconds"/> of zero or less makes it sticky — it stays
-        /// until something replaces it or clears it. Sticky is the right default
-        /// for anything the player has to act on, because a prompt that times
-        /// out while the player is walking up to it is worse than no prompt: it
-        /// reads as the game having decided they did not need it.
-        /// </summary>
-        public static void Show(string text, float seconds = 0f)
-        {
-            _text = text ?? "";
-            _sticky = seconds <= 0f;
-            _until = _sticky ? -1f : Time.time + seconds;
-        }
-
-        public static void Clear()
-        {
-            _text = "";
-            _until = -1f;
-            _sticky = false;
-        }
-
-        /// <summary>Wipe everything. Called when play mode stops.</summary>
-        public static void ResetAll() => Clear();
-    }
-
-    /// <summary>
-    /// Draws <see cref="BeatPrompt"/>, and nothing else.
-    ///
-    /// Separate from the beats so that the level has exactly one place where
-    /// text is drawn. Ten beats each with their own OnGUI is ten copies of a
-    /// font size, ten of a shadow style, and ten chances for two prompts to be
-    /// on screen at once with the last one to Update winning — which is how a
-    /// player ends up being told to touch a tree after they already have.
-    ///
-    /// OnGUI rather than uGUI or TextMeshPro. It needs no scene, no prefab, no
-    /// font asset and no canvas, so it works in a scene that has none of those
-    /// and cannot be broken by one that does. It is also the ugliest option and
-    /// should be replaced when real UI arrives — the replacement is this file
-    /// and the static class above it, and nothing else.
-    /// </summary>
     [AddComponentMenu("Echoes/Beat HUD")]
     public sealed class BeatHud : MonoBehaviour
     {
-        [Tooltip("Where the prompt sits, in normalised screen space. Low and " +
-                 "centred: under the middle of the screen, clear of Ari and of " +
-                 "the follow camera's horizon.")]
-        [SerializeField] Vector2 promptAt = new Vector2(0.5f, 0.22f);
+    	[Tooltip("Where the prompt sits, in normalised screen space. Low and centred: under the middle of the screen, clear of Ari and of the follow camera's horizon.")]
+    	[SerializeField]
+    	private Vector2 promptAt = new Vector2(0.5f, 0.22f);
 
-        [Tooltip("Draw the prompt at all. Off once real UI exists.")]
-        [SerializeField] bool drawPrompt = true;
+    	[Tooltip("Draw the prompt at all. Off once real UI exists.")]
+    	[SerializeField]
+    	private bool drawPrompt = true;
 
-        GUIStyle _style;
+    	private GUIStyle _style;
 
-        // Last text the height was measured for.
-        //
-        // CalcHeight is not free and OnGUI runs several times a frame, so the
-        // measurement is cached against the string it was taken from. A prompt
-        // that changes every beat is still a handful of distinct strings, and
-        // the cache is wrong for at most one frame after a change — which is
-        // indistinguishable, because the new text is being drawn anyway.
-        string _measuredFor;
-        float _measuredWidth;
-        float _measuredHeight;
-        int _styleForHeight = -1;
+    	private GUIStyle _cardStyle;
 
-        /// <summary>
-        /// Breathing room above and below the text inside its rect.
-        ///
-        /// CalcHeight returns the tight height of the glyphs. A rect exactly that
-        /// tall puts the first and last line flush against the edge, and the
-        /// descenders of a line that wrapped onto the extra one get sheared.
-        /// </summary>
-        const float Padding = 10f;
+    	private GUIStyle _rowStyle;
 
-        void OnEnable()
-        {
-            // A prompt that outlives the session is a prompt that greets the
-            // player with the previous run's instructions. Time.time resets on
-            // entering play mode but statics do not.
-            BeatPrompt.ResetAll();
-        }
+    	private GUIStyle _tagStyle;
 
-        void OnDisable() => BeatPrompt.ResetAll();
+    	private int _styleForHeight = -1;
 
-        /// <summary>
-        /// How tall this text will actually be when wrapped to this width.
-        ///
-        /// Measured with CalcHeight, which is the same layout pass GUI.Label
-        /// runs, so the number is the height the text wants rather than a
-        /// guess from line count. Cached against the string and the width
-        /// because OnGUI runs several times a frame.
-        /// </summary>
-        float MeasuredHeight(GUIStyle style, string text, float width)
-        {
-            if (_measuredFor != text || _measuredWidth != width || _measuredHeight <= 0f)
-            {
-                _measuredFor = text;
-                _measuredWidth = width;
-                _measuredHeight = style.CalcHeight(new GUIContent(text), width);
-            }
+    	private const float Padding = 14f;
 
-            return _measuredHeight + Padding;
-        }
+    	[Range(0.3f, 0.98f)]
+    	[SerializeField]
+    	private float promptWidth = 0.9f;
 
-        void OnGUI()
-        {
-            if (!drawPrompt) return;
+    	[Range(0.3f, 0.98f)]
+    	[SerializeField]
+    	private float cardWidth = 0.82f;
 
-            var text = BeatPrompt.Current;
-            if (string.IsNullOrEmpty(text)) return;
+    	private float MaxBlockHeight => (float)Screen.height * 0.72f;
 
-            if (_style == null || _styleForHeight != Screen.height)
-            {
-                _styleForHeight = Screen.height;
-                _measuredFor = null;      // the font size just changed under it
+    	private void Update()
+    	{
+    		BeatPrompt.PollSkip();
+    	}
 
-                _style = new GUIStyle(GUI.skin.label)
-                {
-                    alignment = TextAnchor.MiddleCenter,
-                    fontSize = Mathf.RoundToInt(19f * Mathf.Max(0.7f, Screen.height / 720f)),
-                    wordWrap = true,
-                    richText = false
-                };
-                _style.normal.textColor = new Color(0.80f, 0.80f, 0.78f);
-            }
+    	private void OnEnable()
+    	{
+    		BeatPrompt.ResetAll();
+    	}
 
-            float width = Mathf.Min(Screen.width * 0.62f, 760f);
-            float height = MeasuredHeight(_style, text, width);
+    	private void OnDisable()
+    	{
+    		BeatPrompt.ResetAll();
+    	}
 
-            // The rect is sized to the text, and then kept on screen.
-            //
-            // It used to be a fixed 60 px, which is one line at 720p and a
-            // third of Mono's longest line at 1440p. GUI.Label clips to its
-            // rect, so the tail of almost every line Mono says was simply not
-            // drawn — measured at 36 px missing at 1080p and 115 px at 1440p.
-            //
-            // The clamp matters because the height is now a variable: a long
-            // line at 1440p is 175 px tall, and promptAt.y of 0.22 on a short
-            // window would push the bottom of it off the edge of the screen.
-            float y = Mathf.Clamp(Screen.height * promptAt.y, 0f,
-                                  Mathf.Max(0f, Screen.height - height - 8f));
+    	private void EnsureStyle()
+    	{
+    		//IL_0029: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0040: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0057: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0077: Unknown result type (might be due to invalid IL or missing references)
+    		if (_style == null || _styleForHeight != Screen.height)
+    		{
+    			_styleForHeight = Screen.height;
+    			_style = BeatText.Make((TextAnchor)4, BeatText.PromptTarget, wordWrap: true, BeatText.Ink);
+    			_cardStyle = BeatText.Make((TextAnchor)4, BeatText.PromptTarget, wordWrap: true, BeatText.InkBright);
+    			_rowStyle = BeatText.Make((TextAnchor)3, BeatText.RowTarget, wordWrap: false, BeatText.InkDim);
+    			_tagStyle = BeatText.Make((TextAnchor)3, Mathf.Max(10, BeatText.RowTarget / 2), wordWrap: false, BeatText.InkFaint);
+    		}
+    	}
 
-            var rect = new Rect(
-                (Screen.width - width) * promptAt.x,
-                y,
-                width, height);
+    	private void DrawCard(string body, string prompt)
+    	{
+    		//IL_0044: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0049: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0051: Expected Obj, but got Unknown
+    		//IL_00be: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00cc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00d5: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00db: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00e2: Expected Obj, but got Unknown
+    		//IL_00e9: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_011b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0128: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0160: Unknown result type (might be due to invalid IL or missing references)
+    		EnsureStyle();
+    		float num = Mathf.Min((float)Screen.width * cardWidth, (float)Screen.width - 40f);
+    		int fontSize = BeatText.Fit(_cardStyle, body, num, MaxBlockHeight, BeatText.PromptTarget);
+    		GUIStyle val = new GUIStyle(_cardStyle)
+    		{
+    			fontSize = fontSize
+    		};
+    		float num2 = BeatText.Height(val, body, num) + 14f;
+    		float num3 = (string.IsNullOrEmpty(prompt) ? 0f : ((float)Mathf.RoundToInt((float)BeatText.RowTarget * BeatText.ScreenScale) + 10f));
+    		float num4 = (float)Screen.height * 0.86f - num2 - num3 - 8f;
+    		Vector2 val2 = new Vector2(((float)Screen.width - num) * 0.5f, Mathf.Max(4f, num4));
+    		Rect val3 = new Rect(val2.x, val2.y, num, num2);
+    		GUIStyle val4 = new GUIStyle(val);
+    		val4.normal.textColor = BeatText.Shadow;
+    		GUI.Label(new Rect(val3.x + 3f, val3.y + 3f, val3.width, val3.height), body, val4);
+    		GUI.Label(val3, body, val);
+    		if (!(num3 <= 0f))
+    		{
+    			GUI.Label(new Rect(val3.x, val3.y + val3.height + 4f, val3.width, num3), prompt, _rowStyle);
+    		}
+    	}
 
-            // Shadow, not a plate. The world is colourless and dim, so a solid
-            // panel would be the highest-contrast thing on screen and would pull
-            // the eye off Ari at exactly the moment the player should be
-            // looking at the tree.
-            var shadow = new GUIStyle(_style);
-            shadow.normal.textColor = new Color(0f, 0f, 0f, 0.9f);
-            GUI.Label(new Rect(rect.x + 1.5f, rect.y + 1.5f, rect.width, rect.height),
-                      text, shadow);
-            GUI.Label(rect, text, _style);
-        }
+    	private void DrawTutorial()
+    	{
+    		//IL_009d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00a8: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ad: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00b6: Expected Obj, but got Unknown
+    		//IL_00dc: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00c6: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_010a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_00ef: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_011b: Unknown result type (might be due to invalid IL or missing references)
+    		EnsureStyle();
+    		IReadOnlyList<ControlPrompts.Row> rows = ControlPrompts.Rows;
+    		int count = rows.Count;
+    		if (count != 0)
+    		{
+    			int num = Mathf.Max(10, BeatText.RowTarget);
+    			float num2 = (float)num * 1.35f;
+    			float num3 = (float)Screen.width * 0.62f;
+    			float num4 = (float)Screen.height - 16f - num2 * (float)count;
+    			float num5 = (float)Screen.width * 0.02f;
+    			for (int i = 0; i < count; i++)
+    			{
+    				ControlPrompts.Row row = rows[i];
+    				string text = (row.Used ? "  " : "> ") + row.Keys + "   " + row.Label;
+    				Color color = GUI.color;
+    				GUIStyle val = new GUIStyle(_rowStyle)
+    				{
+    					fontSize = num
+    				};
+    				val.normal.textColor = (Color)(row.Used ? new Color(0.48f, 0.48f, 0.47f) : BeatText.InkDim);
+    				GUI.color = (Color)(row.Used ? new Color(0.45f, 0.45f, 0.44f, 0.75f) : Color.white);
+    				GUI.Label(new Rect(num5, num4, num3, num2), text, val);
+    				GUI.color = color;
+    				num4 += num2;
+    			}
+    		}
+    	}
+
+    	private void OnGUI()
+    	{
+    		if (!drawPrompt)
+    		{
+    			return;
+    		}
+    		Beat1Intro beat1Intro = Object.FindAnyObjectByType<Beat1Intro>((FindObjectsInactive)1);
+    		string text = (((Object)(object)beat1Intro != (Object)null) ? beat1Intro.CardText() : "");
+    		if (!string.IsNullOrEmpty(text))
+    		{
+    			DrawCard(text, beat1Intro.CardPrompt());
+    			return;
+    		}
+    		DrawPrompt();
+    		if (ControlPrompts.Visible)
+    		{
+    			DrawTutorial();
+    		}
+    	}
+
+    	private void DrawPrompt()
+    	{
+    		//IL_0079: Unknown result type (might be due to invalid IL or missing references)
+    		string current = BeatPrompt.Current;
+    		if (!string.IsNullOrEmpty(current))
+    		{
+    			EnsureStyle();
+    			float width = Mathf.Min((float)Screen.width * promptWidth, (float)Screen.width - 24f);
+    			BeatText.Block(_style, current, (float)Screen.width * promptAt.x, (float)Screen.height * (1f - promptAt.y) - 12f, width, MaxBlockHeight, BeatText.PromptTarget, out var _);
+    		}
+    	}
+
+    	public BeatHud()
+    	{
+    		//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0010: Unknown result type (might be due to invalid IL or missing references)
+    	}
     }
 }

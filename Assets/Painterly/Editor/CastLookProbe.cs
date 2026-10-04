@@ -7,6 +7,7 @@ using Echoes.Painterly;
 using UnityEditor;
 using UnityEngine;
 
+using Object = UnityEngine.Object;
 public static class CastLookProbe
 {
     const string ReportPath = "Temp/cast_look.txt";

@@ -6,7 +6,8 @@ using System.Reflection;
 using System.Text;
 using Echoes.Painterly;
 using UnityEditor;
-using UnityEngine;
+using UnityEngine;
+using Object = UnityEngine.Object;
 using UnityEngine.InputSystem;
 
 public static class L1DefectProbe

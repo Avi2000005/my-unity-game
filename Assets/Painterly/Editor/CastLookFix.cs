@@ -6,7 +6,8 @@ using System.Text;
 using Echoes.Painterly;
 using UnityEditor;
 using UnityEditor.SceneManagement;
-using UnityEngine;
+using UnityEngine;
+using Object = UnityEngine.Object;
 using UnityEngine.Experimental.Rendering;
 
 /// <summary>

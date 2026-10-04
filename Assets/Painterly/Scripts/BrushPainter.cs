@@ -1,245 +1,230 @@
-using UnityEngine;
+using System;
+using UnityEngine;
+using Object = UnityEngine.Object;
 using UnityEngine.InputSystem;
 
 namespace Echoes.Painterly
 {
-    /// <summary>
-    /// Ari's brush. Paints colour back into the world: finds every
-    /// <see cref="ColorRestoreTarget"/> near a point and animates it to full colour.
-    ///
-    /// This is the API a real Ari controller will call. <see cref="testMode"/> adds a
-    /// mouse-driven fallback so the whole system can be validated in the editor before
-    /// a character controller exists.
-    /// </summary>
+
     [AddComponentMenu("Echoes/Brush Painter")]
     public sealed class BrushPainter : MonoBehaviour
     {
-        [Header("Brush")]
-        [Tooltip("Radius in metres around the stroke that regains colour.")]
-        [Min(0.1f)] [SerializeField] float radius = 6f;
+    	[Header("Brush")]
+    	[Tooltip("Radius in metres around the stroke that regains colour.")]
+    	[Min(0.1f)]
+    	[SerializeField]
+    	private float radius = 6f;
 
-        [Tooltip("Seconds for colour to flow back in.")]
-        [Min(0f)] [SerializeField] float strokeDuration = 1.2f;
+    	[Tooltip("Seconds for colour to flow back in.")]
+    	[Min(0f)]
+    	[SerializeField]
+    	private float strokeDuration = 1.2f;
 
-        [Tooltip("Cooldown between strokes, per the combat loop design.")]
-        [Min(0f)] [SerializeField] float cooldown = 0.6f;
+    	[Tooltip("Cooldown between strokes, per the combat loop design.")]
+    	[Min(0f)]
+    	[SerializeField]
+    	private float cooldown = 0.6f;
 
-        [Header("Test mode")]
-        [Tooltip("Paint with the left mouse button. Turn this off once Ari can drive " +
-                 "the brush himself.")]
-        [SerializeField] bool testMode = true;
+    	[Header("Test mode")]
+    	[Tooltip("Paint with the left mouse button. Turn this off once Ari can drive the brush himself.")]
+    	[SerializeField]
+    	private bool testMode = true;
 
-        [Tooltip("Camera used for test-mode aiming. Falls back to Camera.main.")]
-        [SerializeField] Camera aimCamera;
+    	[Tooltip("Camera used for test-mode aiming. Falls back to Camera.main.")]
+    	[SerializeField]
+    	private Camera aimCamera;
 
-        [SerializeField] float maxRayDistance = 250f;
+    	[SerializeField]
+    	private float maxRayDistance = 250f;
 
-        [Header("Feedback")]
-        [Tooltip("Ari. Found on this object or in her children if left empty. She " +
-                 "swings on a stroke, because a click that repaints the world " +
-                 "while she stands still reads as the mouse doing something " +
-                 "rather than as a brush stroke.")]
-        [SerializeField] AriMover ari;
+    	[Header("Feedback")]
+    	[Tooltip("Ari. Found on this object or in her children if left empty. She swings on a stroke, because a click that repaints the world while she stands still reads as the mouse doing something rather than as a brush stroke.")]
+    	[SerializeField]
+    	private AriMover ari;
 
-        [Tooltip("Show a mark where the stroke lands. The colour coming back is " +
-                 "measured at about 7.6% of full range on a dull surface, which " +
-                 "is close to invisible, so without this the player has no way " +
-                 "of knowing the click registered.")]
-        [SerializeField] bool showStrokeMark = true;
+    	[Tooltip("Show a mark where the stroke lands. The colour coming back is measured at about 7.6% of full range on a dull surface, which is close to invisible, so without this the player has no way of knowing the click registered.")]
+    	[SerializeField]
+    	private bool showStrokeMark = true;
 
-        [Tooltip("Radius of the mark, as a fraction of the stroke radius.")]
-        [Range(0.1f, 2f)] [SerializeField] float markScale = 1f;
+    	[Tooltip("Radius of the mark, as a fraction of the stroke radius.")]
+    	[Range(0.1f, 2f)]
+    	[SerializeField]
+    	private float markScale = 1f;
 
-        [Header("Debug keys")]
-        [Tooltip("G greys the whole world again, R restores everything. Useful for A/B.")]
-        [SerializeField] bool debugKeys = true;
+    	[Header("Debug keys")]
+    	[Tooltip("G greys the whole world again, R restores everything. Useful for A/B.")]
+    	[SerializeField]
+    	private bool debugKeys = true;
 
-        float _nextStrokeTime;
+    	private float _nextStrokeTime;
 
-        /// <summary>
-        /// Raised when a *stroke* lands: position painted, and how many
-        /// ColorRestoreTargets it reached.
-        ///
-        /// Fires from <see cref="TryStroke"/> only, and that is deliberate. A
-        /// beat that cares whether Ari swung the brush — Beat 3's tree is the
-        /// first thing that does — must not be told about a paint it performed
-        /// itself, and <see cref="PaintAt"/> is the door every programmatic paint
-        /// in the level comes through. Firing on both would have the tree
-        /// awakening itself the moment a beat called PaintAt to make the burst,
-        /// with Ari standing well outside touching distance.
-        ///
-        /// Not fired for a rejected stroke either, so a subscriber can treat
-        /// this as "the player swung and it counted".
-        /// </summary>
-        public event System.Action<Vector3, int> Stroked;
+    	private Vector3 _lastNormal = Vector3.up;
 
-        /// <summary>Radius used by <see cref="PaintAt"/>.</summary>
-        public float Radius => radius;
+    	public float Radius => radius;
 
-        /// <summary>
-        /// Is a stroke allowed right now? Public because a beat that shows a
-        /// "swing the brush" prompt needs to know whether the prompt is
-        /// currently lying to the player.
-        /// </summary>
-        public bool CanSwing => CanStroke();
+    	public bool CanSwing => CanStroke();
 
-        /// <summary>
-        /// Paint colour back in around a world point. Returns how many targets were hit.
-        /// This is the entry point a real Ari controller should call on a brush swipe.
-        /// </summary>
-        public int PaintAt(Vector3 worldPosition, float overrideRadius = -1f, float overrideDuration = -1f)
-        {
-            float r = overrideRadius > 0f ? overrideRadius : radius;
-            return ColorRestoreTarget.RestoreInRadius(worldPosition, r, 1f, overrideDuration);
-        }
+    	public event Action<Vector3, int> Stroked;
 
-        /// <summary>Raycast a screen position and paint whatever it lands on.</summary>
-        public int PaintFromScreenPoint(Vector3 screenPosition)
-        {
-            var hit = ResolveScreenPoint(screenPosition);
-            if (!hit.HasValue) return 0;
-            return PaintAt(hit.Value);
-        }
+    	public int PaintAt(Vector3 worldPosition, float overrideRadius = -1f, float overrideDuration = -1f)
+    	{
+    		//IL_0012: Unknown result type (might be due to invalid IL or missing references)
+    		float num = ((overrideRadius > 0f) ? overrideRadius : radius);
+    		return ColorRestoreTarget.RestoreInRadius(worldPosition, num, 1f, overrideDuration);
+    	}
 
-        /// <summary>
-        /// Screen point to world point, or null when the ray hits nothing.
-        ///
-        /// Split out so the click path can go through <see cref="TryStroke"/> and
-        /// therefore through the same cooldown a controller swing pays. Testing
-        /// CanStroke() at the call site checked the cooldown but never charged it,
-        /// so holding the left button repainted every frame instead of once per
-        /// stroke.
-        /// </summary>
-        Vector3? ResolveScreenPoint(Vector3 screenPosition)
-        {
-            var cam = aimCamera != null ? aimCamera : Camera.main;
-            if (cam == null) return null;
+    	public int PaintFromScreenPoint(Vector3 screenPosition)
+    	{
+    		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0016: Unknown result type (might be due to invalid IL or missing references)
+    		Vector3? val = ResolveScreenPoint(screenPosition);
+    		if (!val.HasValue)
+    		{
+    			return 0;
+    		}
+    		return PaintAt(val.Value);
+    	}
 
-            Ray ray = cam.ScreenPointToRay(screenPosition);
-            if (!Physics.Raycast(ray, out RaycastHit hit, maxRayDistance)) return null;
+    	private Vector3? ResolveScreenPoint(Vector3 screenPosition)
+    	{
+    		//IL_0030: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0031: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0052: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0057: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_005e: Unknown result type (might be due to invalid IL or missing references)
+    		Camera val = (((Object)(object)aimCamera != (Object)null) ? aimCamera : Camera.main);
+    		if ((Object)(object)val == (Object)null)
+    		{
+    			return null;
+    		}
+    		RaycastHit val2 = default;
+    		if (!Physics.Raycast(val.ScreenPointToRay(screenPosition), out val2, maxRayDistance))
+    		{
+    			return null;
+    		}
+    		_lastNormal = val2.normal;
+    		return val2.point;
+    	}
 
-            _lastNormal = hit.normal;
-            return hit.point;
-        }
+    	private void Update()
+    	{
+    		//IL_0025: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002a: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0041: Unknown result type (might be due to invalid IL or missing references)
+    		if (testMode)
+    		{
+    			Mouse current = Mouse.current;
+    			if (current != null && current.leftButton.wasPressedThisFrame)
+    			{
+    				Vector3? val = ResolveScreenPoint((current.position.ReadValue()));
+    				if (val.HasValue && TryStroke(val.Value))
+    				{
+    					Debug.Log((object)$"[Brush] stroke, radius {radius}", (Object)(object)this);
+    				}
+    			}
+    		}
+    		if (!debugKeys)
+    		{
+    			return;
+    		}
+    		Keyboard current2 = Keyboard.current;
+    		if (current2 == null)
+    		{
+    			return;
+    		}
+    		if (current2.gKey.wasPressedThisFrame)
+    		{
+    			ColorRestoreTarget.SetAllImmediate(0f);
+    			Debug.Log((object)"[Brush] world greyed");
+    		}
+    		if (!current2.rKey.wasPressedThisFrame)
+    		{
+    			return;
+    		}
+    		int num = 0;
+    		foreach (ColorRestoreTarget item in ColorRestoreTarget.AllActive)
+    		{
+    			if ((Object)(object)item != (Object)null)
+    			{
+    				item.RestoreTo(1f, strokeDuration);
+    				num++;
+    			}
+    		}
+    		Debug.Log((object)$"[Brush] restored {num} target(s)");
+    	}
 
-        /// <summary>
-        /// Surface normal of the last resolved point, for laying the mark flat
-        /// against whatever was hit. A mark that keeps facing the world axis
-        /// stands proud of a wall or vanishes into the paving, and either way
-        /// reads as a bug rather than as a brush stroke.
-        /// </summary>
-        Vector3 _lastNormal = Vector3.up;
+    	private bool CanStroke()
+    	{
+    		return Time.time >= _nextStrokeTime;
+    	}
 
-        void Update()
-        {
-            if (testMode)
-            {
-                var mouse = Mouse.current;
-                if (mouse != null && mouse.leftButton.wasPressedThisFrame)
-                {
-                    // Resolve first, then stroke: ResolveScreenPoint can report "the
-                    // ray hit nothing", and there is no stroke to charge a cooldown
-                    // for in that case.
-                    var hit = ResolveScreenPoint(mouse.position.ReadValue());
-                    if (hit.HasValue && TryStroke(hit.Value))
-                        Debug.Log($"[Brush] stroke, radius {radius}", this);
-                }
-            }
+    	private void OnValidate()
+    	{
+    		radius = Mathf.Max(0.1f, radius);
+    		strokeDuration = Mathf.Max(0f, strokeDuration);
+    		cooldown = Mathf.Max(0f, cooldown);
+    	}
 
-            if (!debugKeys) return;
+    	public bool TryStroke(Vector3 worldPosition)
+    	{
+    		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_002f: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0041: Unknown result type (might be due to invalid IL or missing references)
+    		if (!CanStroke())
+    		{
+    			return false;
+    		}
+    		_nextStrokeTime = Time.time + cooldown;
+    		int arg = PaintAt(worldPosition);
+    		FeelStroke(worldPosition);
+    		Stroked?.Invoke(worldPosition, arg);
+    		return true;
+    	}
 
-            var kb = Keyboard.current;
-            if (kb == null) return;
+    	private void FeelStroke(Vector3 worldPosition)
+    	{
+    		//IL_003c: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_003e: Unknown result type (might be due to invalid IL or missing references)
+    		if ((Object)(object)ari == (Object)null)
+    		{
+    			ari = FindAri();
+    		}
+    		if ((Object)(object)ari != (Object)null)
+    		{
+    			ari.PlaySwing();
+    		}
+    		if (showStrokeMark)
+    		{
+    			BrushStrokeFx.Spawn(worldPosition, _lastNormal, radius * markScale);
+    		}
+    	}
 
-            if (kb.gKey.wasPressedThisFrame)
-            {
-                ColorRestoreTarget.SetAllImmediate(0f);
-                Debug.Log("[Brush] world greyed");
-            }
+    	private AriMover FindAri()
+    	{
+    		AriMover componentInParent = ((Component)this).GetComponentInParent<AriMover>(true);
+    		if ((Object)(object)componentInParent != (Object)null)
+    		{
+    			return componentInParent;
+    		}
+    		Transform[] array = Object.FindObjectsByType<Transform>((FindObjectsInactive)1);
+    		foreach (Transform val in array)
+    		{
+    			if (((Object)val).name == "Ari")
+    			{
+    				AriMover componentInChildren = ((Component)val).GetComponentInChildren<AriMover>(true);
+    				if ((Object)(object)componentInChildren != (Object)null)
+    				{
+    					return componentInChildren;
+    				}
+    			}
+    		}
+    		return null;
+    	}
 
-            if (kb.rKey.wasPressedThisFrame)
-            {
-                int n = 0;
-                foreach (var t in ColorRestoreTarget.AllActive)
-                {
-                    if (t != null) { t.RestoreTo(1f, strokeDuration); n++; }
-                }
-                Debug.Log($"[Brush] restored {n} target(s)");
-            }
-        }
-
-        bool CanStroke() => Time.time >= _nextStrokeTime;
-
-        void OnValidate()
-        {
-            radius = Mathf.Max(0.1f, radius);
-            strokeDuration = Mathf.Max(0f, strokeDuration);
-            cooldown = Mathf.Max(0f, cooldown);
-        }
-
-        /// <summary>Called by Ari's real brush swing.</summary>
-        public bool TryStroke(Vector3 worldPosition)
-        {
-            if (!CanStroke()) return false;
-            _nextStrokeTime = Time.time + cooldown;
-
-            int hit = PaintAt(worldPosition);
-            FeelStroke(worldPosition);
-            Stroked?.Invoke(worldPosition, hit);
-            return true;
-        }
-
-        /// <summary>
-        /// The two things that make a click read as a stroke.
-        ///
-        /// Both are feedback and neither is the mechanic. The paint itself is
-        /// PaintAt, above; this is only what tells the player it happened.
-        ///
-        /// Order matters and it is swing first. A mark that appears on the same
-        /// frame the arm starts moving reads as the mark being thrown, and a
-        /// brush that throws its paint rather than laying it looks wrong before
-        /// the player has consciously decided anything.
-        /// </summary>
-        void FeelStroke(Vector3 worldPosition)
-        {
-            if (ari == null) ari = FindAri();
-
-            // No Ari is not a reason to skip the mark. The mark answers "did my
-            // click land", and that question is still worth answering in a scene
-            // where the girl has not been placed yet.
-            if (ari != null) ari.PlaySwing();
-
-            if (showStrokeMark)
-                BrushStrokeFx.Spawn(worldPosition, _lastNormal, radius * markScale);
-        }
-
-        /// <summary>
-        /// Ari, wherever she is.
-        ///
-        /// Searched rather than wired, because the brush and the girl are
-        /// separate objects in the level and a required reference between them
-        /// means every future controller has to remember to set it. Found
-        /// including inactive objects: Ari is deactivated while the game is not
-        /// running, so the ordinary lookups return nothing at exactly the moment
-        /// this is first called from an editor test.
-        /// </summary>
-        AriMover FindAri()
-        {
-            // Instance method, not static: GetComponentInParent is a member of
-            // Component and a static one has no component to ask. BrushPainter
-            // is itself a component, so the brush can be a child of the girl and
-            // find her without a wire between the two.
-            var own = GetComponentInParent<AriMover>(true);
-            if (own != null) return own;
-
-            foreach (var t in FindObjectsByType<Transform>(FindObjectsInactive.Include))
-                if (t.name == "Ari")
-                {
-                    var m = t.GetComponentInChildren<AriMover>(true);
-                    if (m != null) return m;
-                }
-
-            return null;
-        }
+    	public BrushPainter()
+    	{
+    		//IL_004d: Unknown result type (might be due to invalid IL or missing references)
+    		//IL_0052: Unknown result type (might be due to invalid IL or missing references)
+    	}
     }
 }
