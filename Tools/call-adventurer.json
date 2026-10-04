@@ -1,0 +1,7 @@
+{
+  "tool": "set_material_properties",
+  "args": {
+    "material": "Assets/Painterly/Materials/Ari_Painterly.mat",
+    "properties": "{\"_BaseMap\":\"Assets/Art/Props/Adventurer/Adventurer_basecolor.png\",\"_ColorRestore\":1,\"_BaseColor\":[1,1,1,1]}"
+  }
+}

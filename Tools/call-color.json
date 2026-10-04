@@ -1,0 +1,7 @@
+{
+  "tool": "set_material_properties",
+  "args": {
+    "material": "Assets/Painterly/Materials/Ari_Painterly.mat",
+    "properties": "{\"_BaseColor\":[1,1,1,1],\"_ColorRestore\":1,\"_RestoreBoost\":1}"
+  }
+}

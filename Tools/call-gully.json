@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  55000,
+                 "entry":  "GullyBuilder.Run",
+                 "file":  "Assets/Painterly/Editor/GullyBuilder.cs"
+             },
+    "tool":  "run_script"
+}

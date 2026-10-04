@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  52000,
+                 "entry":  "Beat4Setup.Run",
+                 "file":  "Assets/Painterly/Editor/Beat4Setup.cs"
+             },
+    "tool":  "run_script"
+}

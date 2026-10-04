@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  52000,
+                 "entry":  "WakeClipTrim.RunChosen",
+                 "file":  "Assets/Painterly/Editor/WakeClipTrim.cs"
+             },
+    "tool":  "run_script"
+}

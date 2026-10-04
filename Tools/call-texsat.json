@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/TextureSaturationProbe.cs",
+    "entry": "Echoes.Painterly.EditorTools.TextureSaturationProbe.Run",
+    "timeout_ms": 120000
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/EmbeddedTextureExtract.cs",
+    "entry": "Echoes.Painterly.EditorTools.EmbeddedTextureExtract.Run",
+    "timeout_ms": 110000
+  }
+}

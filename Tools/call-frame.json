@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  52000,
+                 "entry":  "FrameProbe.Run",
+                 "file":  "Assets/Painterly/Editor/FrameProbe.cs"
+             },
+    "tool":  "run_script"
+}

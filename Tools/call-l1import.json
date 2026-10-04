@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/L1AssetImport.cs",
+    "entry": "Echoes.Painterly.EditorTools.L1AssetImport.Run",
+    "timeout_ms": 900000
+  }
+}

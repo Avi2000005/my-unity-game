@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  55000,
+                 "entry":  "WidthMap.Run",
+                 "file":  "Assets/Painterly/Editor/WidthMap.cs"
+             },
+    "tool":  "run_script"
+}

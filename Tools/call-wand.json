@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/WandSetup.cs",
+    "entry": "Echoes.Painterly.EditorTools.WandSetup.Run",
+    "timeout_ms": 45000
+  }
+}

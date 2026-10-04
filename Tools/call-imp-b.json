@@ -1,0 +1,8 @@
+{
+  "tool": "import_asset",
+  "args": {
+    "source": "C:\\Users\\chate\\Downloads\\Walking (1).fbx",
+    "path": "Assets/Art/Ari/Models/Walking2.fbx",
+    "confirm": true
+  }
+}

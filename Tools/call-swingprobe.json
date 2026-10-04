@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  52000,
+                 "entry":  "SwingClipProbe.Run",
+                 "file":  "Assets/Painterly/Editor/SwingClipProbe.cs"
+             },
+    "tool":  "run_script"
+}

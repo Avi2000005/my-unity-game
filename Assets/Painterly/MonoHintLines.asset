@@ -1,0 +1,141 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 566f55af2836fc747887b34ddc49a64a, type: 3}
+  m_Name: MonoHintLines
+  m_EditorClassIdentifier: Assembly-CSharp::Echoes.Painterly.MonoHintLines
+  lines:
+  - id: beat3.wake
+    text: Light. I felt it on the bark, and I thought I was dreaming again. Hello. I'm Mono. I'm not going to leave, if that's all right.
+    kind: 0
+    rung: 1
+    minGapSeconds: 25
+    muted: 0
+  - id: beat3.follow
+    text: Keep going. The gully is longer than it looks, and it goes somewhere. It always goes somewhere. That is the good news.
+    kind: 0
+    rung: 1
+    minGapSeconds: 25
+    muted: 0
+  - id: beat3.leg1
+    text: You paint. I have never seen anyone paint before. I only remember the colour, not the doing of it.
+    kind: 0
+    rung: 1
+    minGapSeconds: 25
+    muted: 0
+  - id: beat3.leg2
+    text: Careful here. The stones are loose. I have been asleep a long time, but I remember this path by my knees.
+    kind: 0
+    rung: 1
+    minGapSeconds: 25
+    muted: 0
+  - id: beat3.leg3
+    text: There. Through. Was that hard? This part is not supposed to be hard. This part is always not hard.
+    kind: 0
+    rung: 1
+    minGapSeconds: 25
+    muted: 0
+  - id: beat3.arrive
+    text: This is as far as I go on my own for now. The rest is yours. I'll be right behind you. I always am.
+    kind: 0
+    rung: 1
+    minGapSeconds: 25
+    muted: 0
+  - id: beat6.rung1
+    text: "The rim is marked. Those chevrons are the water's own way of running \u2014 every one of them points downhill."
+    kind: 1
+    rung: 1
+    minGapSeconds: 25
+    muted: 0
+  - id: beat6.rung2
+    text: Start at the top. The highest notch on the rim. From there the water could only ever go one way.
+    kind: 1
+    rung: 2
+    minGapSeconds: 25
+    muted: 0
+  - id: beat6.rung3
+    text: "Highest notch, then follow the chevrons down, one at a time. Four notches. The fifth will disagree with the water \u2014 and that disagreement is your answer. It is the decoy."
+    kind: 1
+    rung: 3
+    minGapSeconds: 25
+    muted: 0
+  - id: amb.grey
+    text: Everything here is grey. It wasn't always. I could tell you what colour it was, but I'd only be guessing, and I'd rather you looked.
+    kind: 2
+    rung: 1
+    minGapSeconds: 30
+    muted: 0
+  - id: amb.sky
+    text: You could paint the sky, you know. I don't think anyone has tried the sky.
+    kind: 2
+    rung: 1
+    minGapSeconds: 55
+    muted: 0
+  - id: amb.quiet
+    text: If you're tired, say so. I'll keep quiet. I'm very good at keeping quiet.
+    kind: 2
+    rung: 1
+    minGapSeconds: 70
+    muted: 0
+  - id: amb.fountain
+    text: There's a fountain a little further on. It used to make a noise. I'd forgotten that noises could do that.
+    kind: 2
+    rung: 1
+    minGapSeconds: 45
+    muted: 0
+  - id: beat4.hold
+    text: "That is a low place. I will fit; you will not. Stay on the plate \u2014 I can feel it wanting to be held down."
+    kind: 0
+    rung: 1
+    minGapSeconds: 25
+    muted: 0
+  - id: beat4.open
+    text: It let go. It is open. Go on through, I will come round by the road. There is a road. There is always a road.
+    kind: 0
+    rung: 1
+    minGapSeconds: 25
+    muted: 0
+  - id: beat4.after
+    text: Two doors and only one of us could open each one. That is going to be a habit, I think. I do not mind it.
+    kind: 0
+    rung: 1
+    minGapSeconds: 25
+    muted: 0
+  - id: beat5.push
+    text: "You moved it. Good. But look \u2014 it is getting up. Whatever that was, it was not enough. It will not be enough."
+    kind: 0
+    rung: 1
+    minGapSeconds: 25
+    muted: 0
+  - id: beat5.nokill
+    text: You cannot kill it. Not with that. There is nothing here yet that would answer to that, and I have looked.
+    kind: 0
+    rung: 1
+    minGapSeconds: 25
+    muted: 0
+  - id: beat5.hits_back
+    text: "It reached you. Are you all right? \u2014 Good. Then neither of us can end this, and that changes what we do next."
+    kind: 0
+    rung: 1
+    minGapSeconds: 25
+    muted: 0
+  - id: beat5.unseen
+    text: "It has stopped. It is walking back to where it was sitting, and it has not even turned its head to watch you go. \u2014 It lost you. That is a thing you did, not a thing you were spared."
+    kind: 0
+    rung: 1
+    minGapSeconds: 25
+    muted: 0
+  - id: beat5.done
+    text: There are more of them. Further in, and closer together. We go slowly, and we go together, or not at all.
+    kind: 0
+    rung: 1
+    minGapSeconds: 25
+    muted: 0

@@ -1,0 +1,8 @@
+{
+  "tool": "import_asset",
+  "args": {
+    "source": "C:\\Users\\chate\\Downloads\\Ari_character.fbx",
+    "path": "Assets/Art/Ari/Models/Ari_character.fbx",
+    "confirm": true
+  }
+}

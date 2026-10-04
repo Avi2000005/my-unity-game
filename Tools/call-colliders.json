@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/VillageColliders.cs",
+    "entry": "Echoes.Painterly.EditorTools.VillageColliders.Run",
+    "timeout_ms": 120000
+  }
+}

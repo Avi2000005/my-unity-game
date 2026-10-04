@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/AriAnimatorFix.cs",
+    "entry": "Echoes.Painterly.EditorTools.AriAnimatorFix.Run",
+    "timeout_ms": 60000
+  }
+}

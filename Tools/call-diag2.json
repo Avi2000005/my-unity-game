@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  25000,
+                 "entry":  "__no_entry__",
+                 "file":  "Assets/Painterly/Scripts/ZzCompileCanary.cs"
+             },
+    "tool":  "run_script"
+}

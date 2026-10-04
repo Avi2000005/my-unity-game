@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  52000,
+                 "entry":  "BlurProbe.Run",
+                 "file":  "Assets/Painterly/Editor/BlurProbe.cs"
+             },
+    "tool":  "run_script"
+}

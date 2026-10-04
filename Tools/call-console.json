@@ -1,0 +1,7 @@
+{
+  "tool": "console",
+  "args": {
+    "tail": 12,
+    "level": "log"
+  }
+}

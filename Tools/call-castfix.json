@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  55000,
+                 "entry":  "CastLookFix.Run",
+                 "file":  "Assets/Painterly/Editor/CastLookFix.cs"
+             },
+    "tool":  "run_script"
+}

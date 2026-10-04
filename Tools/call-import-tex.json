@@ -1,0 +1,8 @@
+{
+  "tool": "import_asset",
+  "args": {
+    "source": "C:\\Users\\chate\\Downloads\\adventurer+boy+3d+model\\tripo_convert_6aa45a22-8c15-4e4d-8516-4b6e15e87688.fbm\\adventurer_boy_3d_model_basecolor.PNG",
+    "path": "Assets/Art/Props/Adventurer/Adventurer_basecolor.png",
+    "confirm": true
+  }
+}

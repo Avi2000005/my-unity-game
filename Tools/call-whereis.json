@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  52000,
+                 "entry":  "WhereIs.Run",
+                 "file":  "Assets/Painterly/Editor/WhereIs.cs"
+             },
+    "tool":  "run_script"
+}

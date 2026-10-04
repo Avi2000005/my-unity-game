@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  52000,
+                 "entry":  "BlurFix.Run",
+                 "file":  "Assets/Painterly/Editor/BlurFix.cs"
+             },
+    "tool":  "run_script"
+}

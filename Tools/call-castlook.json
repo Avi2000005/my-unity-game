@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  55000,
+                 "entry":  "CastLookProbe.Run",
+                 "file":  "Assets/Painterly/Editor/CastLookProbe.cs"
+             },
+    "tool":  "run_script"
+}

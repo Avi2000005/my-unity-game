@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  52000,
+                 "entry":  "CrawlspaceMap.Run",
+                 "file":  "Assets/Painterly/Editor/CrawlspaceMap.cs"
+             },
+    "tool":  "run_script"
+}

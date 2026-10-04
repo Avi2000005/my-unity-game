@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/AnimatorProbe.cs",
+    "entry": "Echoes.Painterly.EditorTools.AnimatorProbe.Run",
+    "timeout_ms": 45000
+  }
+}

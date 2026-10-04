@@ -1,0 +1,7 @@
+{
+  "tool": "get_component_properties",
+  "args": {
+    "target": "Ari",
+    "type": "SkinnedMeshRenderer"
+  }
+}

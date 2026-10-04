@@ -1,0 +1,6 @@
+{
+  "tool": "save_scene",
+  "args": {
+    "path": "Assets/Scenes/SampleScene.unity"
+  }
+}

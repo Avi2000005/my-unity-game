@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  55000,
+                 "entry":  "TreeSightline.Run",
+                 "file":  "Assets/Painterly/Editor/TreeSightline.cs"
+             },
+    "tool":  "run_script"
+}

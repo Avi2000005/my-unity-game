@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/RecompileNudge.cs",
+    "entry": "RecompileNudge.Run",
+    "timeout_ms": 45000
+  }
+}

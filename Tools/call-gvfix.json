@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  52000,
+                 "entry":  "GameViewFix.Run",
+                 "file":  "Assets/Painterly/Editor/GameViewFix.cs"
+             },
+    "tool":  "run_script"
+}

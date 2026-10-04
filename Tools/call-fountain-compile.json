@@ -1,0 +1,9 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/FountainBuild.cs",
+    "entry": "Echoes.Painterly.EditorTools.FountainBuild.Run",
+    "timeout_ms": 60000,
+    "dry_run": true
+  }
+}

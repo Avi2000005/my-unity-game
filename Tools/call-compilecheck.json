@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Scripts/MonoCompanion.cs",
+    "entry": "Echoes.Painterly.MonoCompanion.__compile_probe_no_such_method",
+    "timeout_ms": 40000
+  }
+}

@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  55000,
+                 "entry":  "L1DefectProbe.Run",
+                 "file":  "Assets/Painterly/Editor/L1DefectProbe.cs"
+             },
+    "tool":  "run_script"
+}

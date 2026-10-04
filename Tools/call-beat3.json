@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/Beat3Setup.cs",
+    "entry": "Echoes.Painterly.EditorTools.Beat3Setup.Run",
+    "timeout_ms": 55000
+  }
+}

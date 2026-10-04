@@ -1,0 +1,7 @@
+{
+  "tool": "set_material_properties",
+  "args": {
+    "material": "Assets/Painterly/Materials/Ari_Painterly.mat",
+    "properties": "{\"_BaseMap\":\"Assets/Art/Props/Wand/Wand.png\",\"_ColorRestore\":1,\"_Smoothness\":0.35}"
+  }
+}

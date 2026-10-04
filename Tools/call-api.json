@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  30000,
+                 "entry":  "PhysicsApiProbe.Run",
+                 "file":  "Assets/Painterly/Editor/PhysicsApiProbe.cs"
+             },
+    "tool":  "run_script"
+}

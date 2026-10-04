@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  52000,
+                 "entry":  "AriControllerBuilder.Run",
+                 "file":  "Assets/Painterly/Editor/AriControllerBuilder.cs"
+             },
+    "tool":  "run_script"
+}

@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  52000,
+                 "entry":  "StatusProbe.Run",
+                 "file":  "Assets/Painterly/Editor/StatusProbe.cs"
+             },
+    "tool":  "run_script"
+}

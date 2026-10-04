@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  52000,
+                 "entry":  "SwingClipSurvey.Run",
+                 "file":  "Assets/Painterly/Editor/SwingClipSurvey.cs"
+             },
+    "tool":  "run_script"
+}

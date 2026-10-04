@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/FountainOcclusionProbe.cs",
+    "entry": "Echoes.Painterly.EditorTools.FountainOcclusionProbe.Run",
+    "timeout_ms": 150000
+  }
+}

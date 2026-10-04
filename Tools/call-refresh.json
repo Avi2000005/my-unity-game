@@ -1,0 +1,7 @@
+{
+  "tool": "eval",
+  "args": {
+    "code": "UnityEditor.AssetDatabase.Refresh(UnityEditor.ImportAssetOptions.ForceUpdate); return (object)(\"refresh issued\");",
+    "timeout": 60000
+  }
+}

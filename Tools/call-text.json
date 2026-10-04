@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  52000,
+                 "entry":  "TextProbe.Run",
+                 "file":  "Assets/Painterly/Editor/TextProbe.cs"
+             },
+    "tool":  "run_script"
+}

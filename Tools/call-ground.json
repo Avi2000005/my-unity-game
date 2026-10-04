@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  50000,
+                 "entry":  "GroundProfile.Run",
+                 "file":  "Assets/Painterly/Editor/GroundProfile.cs"
+             },
+    "tool":  "run_script"
+}

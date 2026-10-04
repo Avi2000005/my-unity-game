@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/SquareLayoutProbe.cs",
+    "entry": "Echoes.Painterly.EditorTools.SquareLayoutProbe.Run",
+    "timeout_ms": 150000
+  }
+}

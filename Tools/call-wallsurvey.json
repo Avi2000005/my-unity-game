@@ -1,0 +1,8 @@
+﻿{
+    "args":  {
+                 "timeout_ms":  55000,
+                 "entry":  "WallSurvey.Run",
+                 "file":  "Assets/Painterly/Editor/WallSurvey.cs"
+             },
+    "tool":  "run_script"
+}

@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/HouseStateProbe.cs",
+    "entry": "Echoes.Painterly.EditorTools.HouseStateProbe.Run",
+    "timeout_ms": 120000
+  }
+}

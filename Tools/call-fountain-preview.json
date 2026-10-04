@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/FountainPreview.cs",
+    "entry": "Echoes.Painterly.EditorTools.FountainPreview.Run",
+    "timeout_ms": 120000
+  }
+}

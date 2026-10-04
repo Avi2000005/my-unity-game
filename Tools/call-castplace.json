@@ -1,0 +1,8 @@
+{
+  "tool": "run_script",
+  "args": {
+    "file": "Assets/Painterly/Editor/CastPlacement.cs",
+    "entry": "Echoes.Painterly.EditorTools.CastPlacement.Run",
+    "timeout_ms": 55000
+  }
+}

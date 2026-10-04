@@ -1,0 +1,6 @@
+{
+  "tool": "get_animator_controller",
+  "args": {
+    "controller": "Assets/Art/Ari/Ari.controller"
+  }
+}
