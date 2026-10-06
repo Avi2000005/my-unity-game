@@ -13,7 +13,7 @@ public static class TreeSightline
     const string ReportPath = "Temp/tree_sightline.txt";
 
     /// <summary>How far the eye sits above the floor. Ari's capsule is 1.80 m
-    /// and she is thirteen, so this is her eye, not an adult's.</summary>
+    /// and he is thirteen, so this is his eye, not an adult's.</summary>
     const float Eye = 1.60f;
 
     /// <summary>Height the sight line aims at — the middle of the stump, which
@@ -70,7 +70,7 @@ public static class TreeSightline
         var ari = GameObject.Find("Ari");
         var treeRoot = tree.transform.root;
 
-        sb.AppendLine("CAN ARI SEE THE TREE SHE HAS TO TOUCH");
+        sb.AppendLine("CAN ARI SEE THE TREE HE HAS TO TOUCH");
         sb.AppendLine();
         sb.AppendLine("Beat 3 asks the player to swing a brush at a grey stump. If " +
                       "the stump is behind a fence from every angle the camera can " +
@@ -78,7 +78,7 @@ public static class TreeSightline
                       "wrong except that it is invisible. The ring below is eight " +
                       "places a follow camera can stand, " + RingRadius.ToString("0.0") +
                       " m out and " + Eye.ToString("0.00") + " m up, which is where " +
-                      "it actually ends up while she walks up to it.");
+                      "it actually ends up while he walks up to it.");
         sb.AppendLine();
 
         var treeAt = tree.transform.position;
@@ -119,8 +119,8 @@ public static class TreeSightline
                 int vis = Visible(null, "", at, treeRoot, ari);
 
                 // Prefer what a player would call a better spot: more of the ring
-                // can see it, then being closer to where she starts, then being
-                // squarely in front of her rather than behind her.
+                // can see it, then being closer to where he starts, then being
+                // squarely in front of his rather than behind him.
                 float score = vis * 10f;
                 if (ari != null)
                     score -= Vector3.Distance(at, ari.transform.position) * 0.3f;
@@ -246,7 +246,7 @@ public static class TreeSightline
 
     /// <summary>
     /// A hit on the tree itself, or on Ari, is not an obstruction. The tree is
-    /// what is being looked at and Ari is standing in her own shot.
+    /// what is being looked at and Ari is standing in his own shot.
     /// </summary>
     static bool IsTreeOrPlayer(Collider col, Transform treeRoot, GameObject ari)
     {

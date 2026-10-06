@@ -104,7 +104,7 @@ namespace Echoes.Painterly.EditorTools
             // for it would add seven orphan clips to the project.
             ("villian_character.fbx",                    "ColorThief.fbx",         null, false),
 
-            // --- Ari's remaining clips. Her Idle, Walk and Jump are already
+            // --- Ari's remaining clips. His Idle, Walk and Jump are already
             // configured by AriImportSetup, which is not touched from here, so
             // these are purely additive.
             ("Ari_Running.fbx",              "Ari_Run.fbx",         "Ari", true),

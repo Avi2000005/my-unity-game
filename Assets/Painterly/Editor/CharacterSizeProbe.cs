@@ -25,7 +25,7 @@ public static class CharacterSizeProbe
     /// Three measurements per character, because they disagree and the
     /// disagreement is the finding:
     ///
-    ///   collider   what the physics engine stops her with. Decides whether she
+    ///   collider   what the physics engine stops him with. Decides whether he
     ///              physically fits.
     ///   mesh       what the player sees. Decides whether fitting looks right.
     ///   source     the imported model in its rest pose. The only one of the
@@ -74,11 +74,11 @@ public static class CharacterSizeProbe
 
         if (mono >= ari)
         {
-            sb.AppendLine("  *** MONO IS NOT SMALLER THAN ARI. He stands " +
-                          mono.ToString("0.00") + " m and she stands " +
+            sb.AppendLine("  *** MONO IS NOT SMALLER THAN ARI. Mono stands " +
+                          mono.ToString("0.00") + " m and Ari stands " +
                           ari.ToString("0.00") + " m. ***");
             sb.AppendLine();
-            sb.AppendLine("  There is no height band that excludes her and includes him," +
+            sb.AppendLine("  There is no height band that excludes Ari and includes Mono," +
                           " so a crawlspace cannot do this beat as it stands. Three" +
                           " ways out, and they are not equivalent:");
             sb.AppendLine();
@@ -87,11 +87,11 @@ public static class CharacterSizeProbe
                           " forearm. It changes nothing about how he looks.");
             sb.AppendLine("    2. Build the crawlspace to exclude Ari on WIDTH rather" +
                           " than height. Works with any two sizes, but then it is a" +
-                          " squeeze she could force her way through, and the beat" +
+                          " squeeze he could force his way through, and the beat" +
                           " stops being about size and starts being about" +
                           " obedience.");
             sb.AppendLine("    3. Give Mono a mechanic that fits a space Ari's body" +
-                          " does not, rather than a space her body is too big" +
+                          " does not, rather than a space his body is too big" +
                           " for. This is the option the brief actually describes" +
                           " — he unlocks tight-space mechanisms — and it does not" +
                           " need the two of them to be different sizes at all.");
@@ -103,19 +103,19 @@ public static class CharacterSizeProbe
                       " m, so the band is " + band.ToString("0.00") + " m wide.");
         sb.AppendLine("  A passage with its ceiling between " +
                       mono.ToString("0.00") + " and " + ari.ToString("0.00") +
-                      " m excludes her and admits him.");
+                      " m excludes Ari and admits Mono.");
         sb.AppendLine();
         sb.AppendLine("  Two things to check before it is built, both of which decide" +
                       " it rather than decorate it:");
         sb.AppendLine();
-        sb.AppendLine("    - a ceiling in the band works because her capsule is" +
+        sb.AppendLine("    - a ceiling in the band works because his capsule is" +
                       " " + ari.ToString("0.00") + " m and the hole is shorter than that,");
-        sb.AppendLine("      so there is NO height at which she fits and she cannot" +
+        sb.AppendLine("      so there is NO height at which he fits and he cannot" +
                       " jump through it either. That is arithmetic, not tuning.");
-        sb.AppendLine("    - she walks up a " + AriStep().ToString("0.00") +
+        sb.AppendLine("    - he walks up a " + AriStep().ToString("0.00") +
                       " m ledge without jumping, so the roof over the entrance has to" +
                       " come down below the crawlspace ceiling as well as over it." +
-                      " A lip she can step onto is a lip she will step onto.");
+                      " A lip he can step onto is a lip he will step onto.");
         sb.AppendLine();
         sb.AppendLine("  Note how narrow that band is. At " +
                       ((mono + ari) * 0.5f).ToString("0.00") +
@@ -156,7 +156,7 @@ public static class CharacterSizeProbe
 
         float source = Source(sb, label, sourceFbx, instanceScale);
 
-        // What the physics stops her with governs. For Ari that is the swept
+        // What the physics stops him with governs. For Ari that is the swept
         // capsule in AriMover and there is no collider at all; for Mono it is a
         // real CapsuleCollider. Both are asked for, and the mesh is reported
         // because the player will judge the fit by the mesh and the two
@@ -175,7 +175,7 @@ public static class CharacterSizeProbe
         sb.AppendLine("    the body and the mesh differ by " +
                       (source - governing).ToString("+0.00;-0.00") +
                       " m. A crawlspace has to clear the VISIBLE one so nothing" +
-                      " clips, and clear the BODY one to keep her out, and those" +
+                      " clips, and clear the BODY one to keep him out, and those" +
                       " are two different conditions and only one of them is about" +
                       " the physics.");
 
@@ -186,9 +186,9 @@ public static class CharacterSizeProbe
     /// Ari's body, asked of the component that owns it.
     ///
     /// By reflection, since this tool is compiled on its own. Ari has no
-    /// collider — her sides are a Physics.CapsuleCast inside AriMover — so a
-    /// tool that only looks for colliders reports her as having no body at all
-    /// and concludes that nothing built can keep her out.
+    /// collider — his sides are a Physics.CapsuleCast inside AriMover — so a
+    /// tool that only looks for colliders reports his as having no body at all
+    /// and concludes that nothing built can keep him out.
     /// </summary>
     static float Swept(StringBuilder sb, GameObject go)
     {
@@ -198,8 +198,8 @@ public static class CharacterSizeProbe
         if (type == null)
         {
             if (go.name == "Ari")
-                sb.AppendLine("  no AriMover on her. If her body is supposed to be a" +
-                              " swept capsule, it is not, and nothing will stop her" +
+                sb.AppendLine("  no AriMover on him. If his body is supposed to be a" +
+                              " swept capsule, it is not, and nothing will stop him" +
                               " going through a wall.");
             return 0f;
         }
@@ -221,8 +221,8 @@ public static class CharacterSizeProbe
                                                  .ToString("0.00") : "?") +
                       " m, step height " + (s != null ? Convert.ToSingle(s.GetValue(go.GetComponent(type)))
                                                        .ToString("0.00") : "?") + " m");
-        sb.AppendLine("    a cast, not a collider, so nothing on her will be found by" +
-                      " a search for colliders — which is why she looked bodiless" +
+        sb.AppendLine("    a cast, not a collider, so nothing on him will be found by" +
+                      " a search for colliders — which is why he looked bodiless" +
                       " before this was asked the right question");
 
         return height;
@@ -233,7 +233,7 @@ public static class CharacterSizeProbe
     {
         // The whole hierarchy, not just the root. The first version of this asked
         // the root only and reported "NO CapsuleCollider" for Ari, which reads as
-        // "she walks through walls" — a conclusion about the game drawn from a
+        // "he walks through walls" — a conclusion about the game drawn from a
         // question that was never asked of the object holding the collider.
         var capsules = go.GetComponentsInChildren<CapsuleCollider>(true);
         var controllers = go.GetComponentsInChildren<CharacterController>(true);
@@ -277,22 +277,22 @@ public static class CharacterSizeProbe
                               (c.enabled ? "" : " [DISABLED]"));
         }
 
-        // Tallest, not first: a character with a small capsule on her root and a
-        // taller one on a child is not 1.80 m, she is the taller of the two, and
-        // a crawlspace sized to the first one is a crawlspace she walks out of.
+        // Tallest, not first: a character with a small capsule on him root and a
+        // taller one on a child is not 1.80 m, he is the taller of the two, and
+        // a crawlspace sized to the first one is a crawlspace he walks out of.
         float tallest = 0f;
         foreach (var c in controllers) tallest = Mathf.Max(tallest, Standing(c.height, c.center.y, c.transform));
         foreach (var c in capsules) tallest = Mathf.Max(tallest, Standing(c.height, c.center.y, c.transform));
 
         if (tallest <= 0f)
         {
-            // Ari lands here and always will: her body is a swept capsule cast
-            // inside AriMover and there is no collider anywhere on her. Saying
-            // "nothing will stop her going through a wall" about Ari is wrong
-            // and expensive — the sweep does stop her, it just is not a
+            // Ari lands here and always will: his body is a swept capsule cast
+            // inside AriMover and there is no collider anywhere on him. Saying
+            // "nothing will stop him going through a wall" about Ari is wrong
+            // and expensive — the sweep does stop him, it just is not a
             // collider, so the tool has to go and ask the component instead.
             sb.AppendLine("  no usable capsule or character controller.");
-            sb.AppendLine("    (if this is Ari, that is expected: her body is a swept" +
+            sb.AppendLine("    (if this is Ari, that is expected: his body is a swept" +
                           " capsule cast in AriMover, not a collider. CrawlspaceMap" +
                           " asks that component for the real numbers.)");
         }
@@ -429,7 +429,7 @@ public static class CharacterSizeProbe
 
     /// <summary>
     /// Ari's step height, for the two checks the crawlspace actually turns on.
-    /// Returns 0 if she is not in the scene or has no AriMover.
+    /// Returns 0 if he is not in the scene or has no AriMover.
     /// </summary>
     static float AriStep()
     {

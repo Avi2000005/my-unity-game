@@ -167,12 +167,37 @@ foreach ($e in $plan) {
 
     [System.IO.File]::WriteAllText($e.Path, $e.New)
 
+    # Compare BYTES with BYTES.
+    #
+    # This line was `$now -ne $e.New.Length`, and it rolled back all 48 files.
+    # `(Get-Item).Length` is bytes on disk; `$e.New.Length` is characters in
+    # memory. Every file in this project contains em-dashes and curly
+    # apostrophes, which are 3 bytes and 2 UTF-16 units respectively, so the
+    # byte count is always the larger of the two and the assertion can never
+    # pass. The guard did not catch a fault - it *was* the fault, it just
+    # happened to fail safe instead of failing loud.
+    #
+    # The same mistake made a recovery script earlier discard 17 of 20 good
+    # files, for the same reason. If a length assertion here ever fires on a
+    # file that looks perfectly fine, the assertion is what is broken.
+    $wantBytes = [System.Text.Encoding]::UTF8.GetByteCount($e.New)
     $now = (Get-Item $e.Path).Length
-    if ($now -lt 200 -or $now -ne $e.New.Length) {
+    if ($now -lt 200 -or $now -ne $wantBytes) {
         # Put the backup straight back. This is the whole point of having one.
         $b = Join-Path $Backup $e.Path.Replace($Root + '\', '')
         Copy-Item $b $e.Path -Force
-        Write-Output ("ROLLED BACK {0}  wrote {1} bytes, expected {2}" -f $e.Path, $now, $e.New.Length)
+        Write-Output ("ROLLED BACK {0}  wrote {1} bytes, expected {2}" -f $e.Path, $now, $wantBytes)
+        $failed++
+        continue
+    }
+
+    # Read it back and compare the TEXT, not the length. A length check proves
+    # bytes arrived; it does not prove they are the right bytes. This does.
+    $readBack = [System.IO.File]::ReadAllText($e.Path)
+    if ($readBack -ne $e.New) {
+        $b = Join-Path $Backup $e.Path.Replace($Root + '\', '')
+        Copy-Item $b $e.Path -Force
+        Write-Output ("ROLLED BACK {0}  the text on disk is not the text written" -f $e.Path)
         $failed++
         continue
     }

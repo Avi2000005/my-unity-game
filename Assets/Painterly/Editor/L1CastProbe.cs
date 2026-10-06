@@ -51,7 +51,7 @@ namespace Echoes.Painterly.EditorTools
     		//IL_0584: Unknown result type (might be due to invalid IL or missing references)
     		sb.AppendLine();
     		sb.AppendLine("=== INK CRAWLERS ===");
-    		InkCrawler[] array = Object.FindObjectsByType<InkCrawler>((FindObjectsInactive)1, (FindObjectsSortMode)0);
+    		InkCrawler[] array = Object.FindObjectsByType<InkCrawler>((FindObjectsInactive)1);
     		sb.AppendLine("found " + array.Length + " InkCrawler component(s)");
     		foreach (InkCrawler inkCrawler in array)
     		{
@@ -212,7 +212,7 @@ namespace Echoes.Painterly.EditorTools
     		//IL_0324: Unknown result type (might be due to invalid IL or missing references)
     		sb.AppendLine();
     		sb.AppendLine("=== MONO ===");
-    		MonoCompanion[] array = Object.FindObjectsByType<MonoCompanion>((FindObjectsInactive)1, (FindObjectsSortMode)0);
+    		MonoCompanion[] array = Object.FindObjectsByType<MonoCompanion>((FindObjectsInactive)1);
     		sb.AppendLine("found " + array.Length);
     		for (int i = 0; i < array.Length; i++)
     		{
@@ -319,7 +319,7 @@ namespace Echoes.Painterly.EditorTools
     		{
     			sb.AppendLine("Ari's bodyHeight  : " + ariMover.BodyHeight.ToString("F3") + " m  (collider authority, unchanged)");
     			sb.AppendLine("Ari's chest, as InkCrawler measures it : " + (ariMover.BodyHeight * 0.6f).ToString("F3") + " m");
-    			sb.AppendLine("  ^ that is the number to size Mono to. It is the project's existing definition of her chest, so using it means two scripts cannot disagree about where her chest is.");
+    			sb.AppendLine("  ^ that is the number to size Mono to. It is the project's existing definition of Ari's chest, so using it means two scripts cannot disagree about where his chest is.");
     		}
     	}
 
@@ -348,7 +348,7 @@ namespace Echoes.Painterly.EditorTools
     			val = sleepingTree.TouchPoint;
     			sb.AppendLine("  _point      : " + val.ToString("F2"));
     		}
-    		ColorRestoreTarget[] array = Object.FindObjectsByType<ColorRestoreTarget>((FindObjectsInactive)1, (FindObjectsSortMode)0);
+    		ColorRestoreTarget[] array = Object.FindObjectsByType<ColorRestoreTarget>((FindObjectsInactive)1);
     		sb.AppendLine();
     		sb.AppendLine("ColorRestoreTarget components: " + array.Length);
     		float num = 0f;
@@ -407,9 +407,9 @@ namespace Echoes.Painterly.EditorTools
     		val = ((Component)ariMover).transform.localScale;
     		sb.AppendLine("  localScale " + val.ToString("F4"));
     		AriHealth component = ((Component)ariMover).GetComponent<AriHealth>();
-    		sb.AppendLine("  AriHealth   : " + (((Object)(object)component == (Object)null) ? "NOT ON HER — beats 5-7 have no health" : ("present, at " + component.Fraction.ToString("0.00"))));
+    		sb.AppendLine("  AriHealth   : " + (((Object)(object)component == (Object)null) ? "NOT ON HIM — beats 5-7 have no health" : ("present, at " + component.Fraction.ToString("0.00"))));
     		AriInteract component2 = ((Component)ariMover).GetComponent<AriInteract>();
-    		sb.AppendLine("  AriInteract : " + (((Object)(object)component2 == (Object)null) ? "NOT ON HER — there is no E button in the level yet" : "present"));
+    		sb.AppendLine("  AriInteract : " + (((Object)(object)component2 == (Object)null) ? "NOT ON HIM — there is no E button in the level yet" : "present"));
     	}
 
     	private static string Describe(Collider c)

@@ -162,14 +162,14 @@ namespace Echoes.Painterly.EditorTools
     			_ = (Object)(object)ariMover != (Object)null;
     			float num4 = Mathf.Abs(num2 - val4.x);
     			stringBuilder.AppendLine("  reach check, against AriInteract.Reach = " + reach.ToString("F2") + " m:");
-    			stringBuilder.AppendLine("    from the yard exit (x=" + num2.ToString("F0") + "): " + num4.ToString("F2") + " m  " + ((num4 <= reach) ? "OK — she can pick it up on the way" : "TOO FAR — she cannot pick it up there and must cross the yard"));
+    			stringBuilder.AppendLine("    from the yard exit (x=" + num2.ToString("F0") + "): " + num4.ToString("F2") + " m  " + ((num4 <= reach) ? "OK — he can pick it up on the way" : "TOO FAR — he cannot pick it up there and must cross the yard"));
     			ColourFragment[] array = Object.FindObjectsByType<ColourFragment>((FindObjectsInactive)1);
     			stringBuilder.AppendLine("    ColourFragments in the level: " + array.Length + " (wanted 1" + ((array.Length != 1) ? "  <-- MISMATCH" : "") + ")");
     			FountainFix[] array2 = Object.FindObjectsByType<FountainFix>((FindObjectsInactive)1);
-    			stringBuilder.AppendLine("    FountainFix components: " + array2.Length + ((array2.Length == 0) ? "  <- none, so Beat 7 cannot run even if she has the fragment" : ""));
+    			stringBuilder.AppendLine("    FountainFix components: " + array2.Length + ((array2.Length == 0) ? "  <- none, so Beat 7 cannot run even if he has the fragment" : ""));
     		}
     		stringBuilder.AppendLine();
-    		stringBuilder.AppendLine("  NOTE the order this beat needs: she picks the fragment UP while the crawlers are still active (per the brief), so this placement is only correct if the crawlers have not been retired by the time she arrives. That ordering lives in Beat5Director, not here.");
+    		stringBuilder.AppendLine("  NOTE the order this beat needs: he picks the fragment UP while the crawlers are still active (per the brief), so this placement is only correct if the crawlers have not been retired by the time he arrives. That ordering lives in Beat5Director, not here.");
     		stringBuilder.AppendLine();
     		stringBuilder.AppendLine(SaveAfter.Save("the blue fragment"));
     		Finish(stringBuilder);

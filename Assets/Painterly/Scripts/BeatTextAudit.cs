@@ -66,7 +66,7 @@ namespace Echoes.Painterly
     		stringBuilder.AppendLine("  old subtitle " + 22f + " px -> target " + BeatText.SubtitleTarget + " px");
     		stringBuilder.AppendLine("  old label   " + 15f + " px -> target " + BeatText.HudTarget + " px");
     		stringBuilder.AppendLine();
-    		stringBuilder.AppendLine("block budget  " + 0.72f + " of height = " + BeatText.MaxBlock.ToString("0") + " px");
+    		stringBuilder.AppendLine("block budget  " + BeatText.MaxBlockFraction.ToString("0.00") + " of height = " + BeatText.MaxBlock.ToString("0") + " px");
     		float width = BeatText.PromptWidth(0.9f);
     		stringBuilder.AppendLine();
     		stringBuilder.AppendLine("--- Mono's lines, at the subtitle width " + width.ToString("0") + " px, target " + BeatText.SubtitleTarget + " px ---");

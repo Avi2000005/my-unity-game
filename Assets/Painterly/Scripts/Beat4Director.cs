@@ -43,17 +43,17 @@ namespace Echoes.Painterly
     	private Transform errandPoint;
 
     	[Header("Waiting on the last beat")]
-    	[Tooltip("Beat 3's chase. If set, this beat does not begin until the chase reports Done — otherwise the gate's notice radius catches Ari while she is still running the gully, two metres short of it, and the beat fires mid-chase.")]
+    	[Tooltip("Beat 3's chase. If set, this beat does not begin until the chase reports Done — otherwise the gate's notice radius catches Ari while he is still running the gully, two metres short of it, and the beat fires mid-chase.")]
     	[SerializeField]
     	private MonoChase chase;
 
     	[Header("Ranges, flat on the ground")]
-    	[Tooltip("How close she must be to the gate before the beat notices her. Kept small because the gully's mouth is only two metres from the gate.")]
+    	[Tooltip("How close he must be to the gate before the beat notices him. Kept small because the gully's mouth is only two metres from the gate.")]
     	[Min(1f)]
     	[SerializeField]
     	private float noticeRange = 2.6f;
 
-    	[Tooltip("How far past the gate she must be before the beat counts as finished. Wider than her capsule so she cannot trip the end by brushing the threshold.")]
+    	[Tooltip("How far past the gate he must be before the beat counts as finished. Wider than his capsule so he cannot trip the end by brushing the threshold.")]
     	[Min(1f)]
     	[SerializeField]
     	private float throughRange = 2f;

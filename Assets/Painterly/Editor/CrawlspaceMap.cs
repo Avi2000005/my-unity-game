@@ -53,8 +53,8 @@ public static class CrawlspaceMap
     ///
     /// WidthMap answered the wrong question for Beat 4. It mapped how narrow the
     /// village is, and Beat 4's crawlspace is not a narrow space — it is a short
-    /// one. Ari's problem is her height, not her shoulders, and a lane 1.0 m wide
-    /// under open sky is a lane she walks down without ducking. So this measures
+    /// one. Ari's problem is his height, not his shoulders, and a lane 1.0 m wide
+    /// under open sky is a lane he walks down without ducking. So this measures
     /// the one thing that decides the beat: how far it is from the floor to the
     /// first thing overhead, at every point in the village.
     ///
@@ -193,14 +193,14 @@ public static class CrawlspaceMap
     // --- the two characters ------------------------------------------------------
 
     /// <summary>
-    /// How tall a character stands, and how she stands.
+    /// How tall a character stands, and how he stands.
     ///
     /// The collider first and the visual bounds second, because they disagree
     /// and which one is right depends on what is being asked. The collider is
-    /// what Ari actually collides with, so it is what decides whether she fits;
+    /// what Ari actually collides with, so it is what decides whether he fits;
     /// the mesh is what the player sees, so it is what decides whether fitting
     /// looks like the character squeezed in. A crawlspace sized to the collider
-    /// and not the mesh reads as her head going through the ceiling.
+    /// and not the mesh reads as his head going through the ceiling.
     /// </summary>
     static float Character(StringBuilder sb, string label, string goName)
     {
@@ -216,7 +216,7 @@ public static class CrawlspaceMap
 
         float best = 0f;
 
-        // Ari is special-cased: her body is not a collider at all.
+        // Ari is special-cased: his body is not a collider at all.
         if (label == "Ari")
         {
             float step;
@@ -224,9 +224,9 @@ public static class CrawlspaceMap
             float swept = AriBody(go.transform, out step, out note);
             sb.AppendLine("  swept body: " + swept.ToString("0.00") + " m tall (" + note + ")");
             if (step > 0f)
-                sb.AppendLine("  she can walk up a " + step.ToString("0.00") +
+                sb.AppendLine("  he can walk up a " + step.ToString("0.00") +
                               " m ledge without jumping, so anything meant to stop" +
-                              " her has to be taller than that");
+                              " his has to be taller than that");
             best = swept;
         }
         else
@@ -288,8 +288,8 @@ public static class CrawlspaceMap
                     sb.AppendLine("  NOTE the mesh is " +
                                   ((maxY - minY) - best).ToString("0.00") +
                                   " m taller than the body. A crawlspace sized to " +
-                                  "the body alone would be tall enough to admit her " +
-                                  "and short enough to clip her head, which is the " +
+                                  "the body alone would be tall enough to admit his " +
+                                  "and short enough to clip his head, which is the " +
                                   "one combination that looks broken.");
             }
         }
@@ -329,9 +329,9 @@ public static class CrawlspaceMap
     /// Ari's real body, asked of the component that owns it.
     ///
     /// By reflection, because this tool is compiled on its own with no reference
-    /// to the project's own assembly. Ari has no collider at all — her body is a
+    /// to the project's own assembly. Ari has no collider at all — his body is a
     /// swept capsule cast inside AriMover — so a tool that only looks for
-    /// colliders finds nothing and concludes she walks through walls.
+    /// colliders finds nothing and concludes he walks through walls.
     ///
     /// Returns 0 when there is no such component or no such member, and says
     /// which, rather than returning a null and leaving the caller to print it.
@@ -352,8 +352,8 @@ public static class CrawlspaceMap
 
         if (comp == null)
         {
-            note = "no AriMover on her, so her swept body is unknown and this map " +
-                   "cannot say what she fits through";
+            note = "no AriMover on him, so his swept body is unknown and this map " +
+                   "cannot say what he fits through";
             return 0f;
         }
 
@@ -369,8 +369,8 @@ public static class CrawlspaceMap
         var step = type.GetProperty("StepHeight");
         if (step != null) stepHeight = Convert.ToSingle(step.GetValue(comp));
 
-        note = "from AriMover's swept capsule, not a collider: she has no collider, " +
-               "the physics knows her as a cast";
+        note = "from AriMover's swept capsule, not a collider: he has no collider, " +
+               "the physics knows him as a cast";
         return Convert.ToSingle(height.GetValue(comp));
     }
 
@@ -574,7 +574,7 @@ public static class CrawlspaceMap
         else
             sb.AppendLine("  NOT A CRAWLSPACE. Ari stands " + ari.ToString("0.00") +
                           " m and the lowest ceiling here is " + lo.ToString("0.00") +
-                          " m. She would walk straight through.");
+                          " m. He would walk straight through.");
 
         if (widths[0] < mono + 0.3f)
             sb.AppendLine("  and the narrowest point is " + widths[0].ToString("0.00") +

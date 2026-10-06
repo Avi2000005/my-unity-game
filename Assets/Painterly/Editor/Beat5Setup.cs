@@ -264,7 +264,7 @@ namespace Echoes.Painterly.EditorTools
     		}
     		bool flag = AriPosedHeight(val, out var feetY, out var crownY);
     		float num5 = (flag ? (crownY - feetY) : 0f);
-    		sb.AppendLine("  seeded bounds: " + num3.ToString("F2") + " to " + (num3 + num2).ToString("F2") + ", " + num2.ToString("0.00") + " m — this spans EVERY pose her animation reaches, not her height");
+    		sb.AppendLine("  seeded bounds: " + num3.ToString("F2") + " to " + (num3 + num2).ToString("F2") + ", " + num2.ToString("0.00") + " m — this spans EVERY pose him animation reaches, not his height");
     		sb.AppendLine("  baked pose:    " + (flag ? (feetY.ToString("F2") + " to " + crownY.ToString("F2") + ", " + num5.ToString("0.00") + " m standing") : "could not be baked") + " against " + num.ToString("0.00") + " m of capsule");
     		Vector3 val4;
     		if ((Object)(object)val != (Object)null)
@@ -324,7 +324,7 @@ namespace Echoes.Painterly.EditorTools
     				}
     			}
     		}
-    		Check(sb, ref pass, ref fail, "Ari fits the body physics sweeps for her", flag && num5 <= num + 0.1f, (!flag) ? "her skin could not be baked, so her standing height is unknown and this is untested rather than passed" : ("she stands " + num5.ToString("0.00") + " m against " + num.ToString("0.00") + " m of capsule, so her crown is " + (num5 - num).ToString("0.00") + " m " + ((num5 <= num) ? "inside it — nothing of her is outside what physics knows about" : "outside it, and this is the beat that shoves her, so that is how much of her can end up inside the creature")));
+    		Check(sb, ref pass, ref fail, "Ari fits the body physics sweeps for him", flag && num5 <= num + 0.1f, (!flag) ? "his skin could not be baked, so his standing height is unknown and this is untested rather than passed" : ("he stands " + num5.ToString("0.00") + " m against " + num.ToString("0.00") + " m of capsule, so his crown is " + (num5 - num).ToString("0.00") + " m " + ((num5 <= num) ? "inside it — nothing of his is outside what physics knows about" : "outside it, and this is the beat that shoves him, so that is how much of his can end up inside the creature")));
     		sb.AppendLine("  Ari: body " + num.ToString("0.00") + " m, radius " + ariRadius.ToString("0.00") + " m, step " + ariStep.ToString("0.00") + " m, visible " + num2.ToString("0.00") + " m");
     		GameObject orAdd = GetOrAdd("L1_Beat5");
     		Clear(orAdd);
@@ -458,7 +458,7 @@ namespace Echoes.Painterly.EditorTools
     			Check(sb, ref pass, ref fail, "the crawler is the height the cover was sized against", Mathf.Abs(num18 - 0.96f) <= 0.25f, num18.ToString("0.00") + " m against " + 0.96f.ToString("0.00") + " m assumed, tolerance 0.25 m");
     			float num21 = num20 * 0.85f;
     			sb.AppendLine("  his eye at 85% is " + num21.ToString("0.00") + " m; the tall cover is " + 2.2f.ToString("0.00") + " m, the low wall " + 0.55f.ToString("0.00") + " m");
-    			Check(sb, ref pass, ref fail, "the tall cover is actually above his eye", 2.2f > num21, 2.2f.ToString("0.00") + " m wall against a " + num21.ToString("0.00") + " m eye — " + ((2.2f > num21) ? "he cannot see through it" : "he can see straight over the only thing she was meant to hide behind"));
+    			Check(sb, ref pass, ref fail, "the tall cover is actually above his eye", 2.2f > num21, 2.2f.ToString("0.00") + " m wall against a " + num21.ToString("0.00") + " m eye — " + ((2.2f > num21) ? "he cannot see through it" : "he can see straight over the only thing Ari was meant to hide behind"));
     			Check(sb, ref pass, ref fail, "the low wall is below his eye, and says so", 0.55f < num21, 0.55f.ToString("0.00") + " m against a " + num21.ToString("0.00") + " m eye — it hides nothing and must not look as though it does");
     			EnsureCollider(sb, ref pass, ref fail, val6);
     			InkCrawler inkCrawler = val6.AddComponent<InkCrawler>();
@@ -535,8 +535,8 @@ namespace Echoes.Painterly.EditorTools
     		});
     		Set(beatWarp, "index", list.Count - 1);
     		Check(sb, ref pass, ref fail, "there is a warp stop for this beat", list.Count > 0, beatWarp.Count + " stop(s) now, this one is 'beat5_enter' at " + list[list.Count - 1].ari.ToString("F2"));
-    		Check(sb, ref pass, ref fail, "the stop is past the beat's entrance", list[list.Count - 1].ari.x > 38f, "x " + list[list.Count - 1].ari.x.ToString("0.00") + " against an entrance at " + 38f.ToString("0") + " — " + ((list[list.Count - 1].ari.x > 38f) ? "the beat starts on arrival" : "she would have to walk into it"));
-    		Check(sb, ref pass, ref fail, "the stop is short of the crawler", 49f - list[list.Count - 1].ari.x > 7f, (49f - list[list.Count - 1].ari.x).ToString("0.0") + " m from the post against " + 7f.ToString("0") + " m of notice — she lands " + (49f - list[list.Count - 1].ari.x - 7f).ToString("0.0") + " m outside it and walks in under her own steam" + ((49f - list[list.Count - 1].ari.x <= 7f) ? " — she is spotted the frame she lands, which is not a first look at a crawler, it is the start of a chase" : ""));
+    		Check(sb, ref pass, ref fail, "the stop is past the beat's entrance", list[list.Count - 1].ari.x > 38f, "x " + list[list.Count - 1].ari.x.ToString("0.00") + " against an entrance at " + 38f.ToString("0") + " — " + ((list[list.Count - 1].ari.x > 38f) ? "the beat starts on arrival" : "he would have to walk into it"));
+    		Check(sb, ref pass, ref fail, "the stop is short of the crawler", 49f - list[list.Count - 1].ari.x > 7f, (49f - list[list.Count - 1].ari.x).ToString("0.0") + " m from the post against " + 7f.ToString("0") + " m of notice — he lands " + (49f - list[list.Count - 1].ari.x - 7f).ToString("0.0") + " m outside it and walks in under his own steam" + ((49f - list[list.Count - 1].ari.x <= 7f) ? " — he is spotted the frame he lands, which is not a first look at a crawler, it is the start of a chase" : ""));
     	}
 
     	private static void EnsureCollider(StringBuilder sb, ref int pass, ref int fail, GameObject go)
@@ -622,7 +622,7 @@ namespace Echoes.Painterly.EditorTools
     			}
     		}
     		Check(sb, ref pass, ref fail, "the crawler has no health of its own and cannot be killed", list.Count == 0, (list.Count == 0) ? ("no member of " + type.Name + " is a health pool, a damage entry point or a death. It has " + list2.Count + " member(s) that reach Ari's health instead (" + string.Join(", ", list2.ToArray()) + "), which is the opposite.") : ("found on the crawler itself: " + string.Join(", ", list.ToArray())));
-    		Check(sb, ref pass, ref fail, "the crawler can hurt Ari, which is what makes this beat losable", list2.Count > 0, (list2.Count > 0) ? (list2.Count + " member(s) reach Ari's health: " + string.Join(", ", list2.ToArray())) : "NOTHING on the crawler can damage her, so a lunge is free and this beat still cannot be lost");
+    		Check(sb, ref pass, ref fail, "the crawler can hurt Ari, which is what makes this beat losable", list2.Count > 0, (list2.Count > 0) ? (list2.Count + " member(s) reach Ari's health: " + string.Join(", ", list2.ToArray())) : "NOTHING on the crawler can damage his, so a lunge is free and this beat still cannot be lost");
     		AriHealth ariHealth = Object.FindAnyObjectByType<AriHealth>((FindObjectsInactive)1);
     		if ((Object)(object)ariHealth == (Object)null)
     		{
@@ -631,8 +631,8 @@ namespace Echoes.Painterly.EditorTools
     		else
     		{
     			float hitCost = ariHealth.HitCost;
-    			Check(sb, ref pass, ref fail, "a hit costs 10-15% of her remaining health", hitCost >= 0.1f && hitCost <= 0.15f, (hitCost * 100f).ToString("0.0") + "% of remaining, cooldown " + ((hitCost > 0f) ? "so three crawlers landing in one frame is one hit, not three" : "NONE — every hit would be free"));
-    			Check(sb, ref pass, ref fail, "she is not dead yet at full health", !ariHealth.IsDead, "health " + ariHealth.Fraction.ToString("0.00") + (ariHealth.IsDead ? " — DEAD" : (", hits taken " + ariHealth.Hits)));
+    			Check(sb, ref pass, ref fail, "a hit costs 10-15% of his remaining health", hitCost >= 0.1f && hitCost <= 0.15f, (hitCost * 100f).ToString("0.0") + "% of remaining, cooldown " + ((hitCost > 0f) ? "so three crawlers landing in one frame is one hit, not three" : "NONE — every hit would be free"));
+    			Check(sb, ref pass, ref fail, "he is not dead yet at full health", !ariHealth.IsDead, "health " + ariHealth.Fraction.ToString("0.00") + (ariHealth.IsDead ? " — DEAD" : (", hits taken " + ariHealth.Hits)));
     		}
     		Animator componentInChildren = go.GetComponentInChildren<Animator>(true);
     		if ((Object)(object)componentInChildren == (Object)null)
@@ -742,17 +742,17 @@ namespace Echoes.Painterly.EditorTools
     		float num7 = Src(crawler, "giveUpSeconds", 6f);
     		float num8 = Src(crawler, "crawlSpeed", 1.5f);
     		float num9 = Src(crawler, "closeSpeed", 2.6f);
-    		Check(sb, ref pass, ref fail, "it notices before it is on top of her", num > num4 + ariRadius, num.ToString("0.00") + " m notice against a " + num4.ToString("0.00") + " m lunge and a " + ariRadius.ToString("0.00") + " m body radius");
+    		Check(sb, ref pass, ref fail, "it notices before it is on top of his", num > num4 + ariRadius, num.ToString("0.00") + " m notice against a " + num4.ToString("0.00") + " m lunge and a " + ariRadius.ToString("0.00") + " m body radius");
     		float num10 = num3 - Src(crawler, "bodyRadius", 0.34f);
-    		Check(sb, ref pass, ref fail, "it stops with the brush in range", num10 <= 1.3f, "it holds " + num3.ToString("0.00") + " m off and his capsule is " + Src(crawler, "bodyRadius", 0.34f).ToString("0.00") + " m, so the near face of it is " + num10.ToString("0.00") + " m from her centre against a " + 1.6f.ToString("0.00") + " m stroke" + ((num10 > 1.3f) ? " — she cannot reach him where he stops, so the brush would connect only by accident and the fight could not be taught" : (", with " + (1.6f - num10).ToString("0.00") + " m to spare for a swing aimed with a mouse")));
-    		Check(sb, ref pass, ref fail, "its standoff is not so tight she cannot swing", num3 >= ariRadius + 0.4f, num3.ToString("0.00") + " m — closer than " + (ariRadius + 0.4f).ToString("0.00") + " m and the two bodies are inside each other");
-    		Check(sb, ref pass, ref fail, "the splash reach is an arm, not the brush", ok: true, "stroke reach " + 1.6f.ToString("0.00") + " m against the brush's own colour radius " + 6f.ToString("0.00") + " m, so clicking the ground beside her cannot reach it");
-    		Check(sb, ref pass, ref fail, "a brush sweep past it would connect", 1.6f >= num5, 1.6f.ToString("0.00") + " m reach against a " + num5.ToString("0.00") + " m lunge it can throw at her");
-    		Check(sb, ref pass, ref fail, "walking is never an answer, and she is never forced to swing", num8 < 2.2f, "it crawls at " + num8.ToString("0.00") + " m/s against her " + 2.2f.ToString("0.00") + " m/s walk, so she is never caught on foot — and its post is " + 2f.ToString("0.00") + " m short of the exit, so walking east is walking towards it, not away" + ((num8 >= 2.2f) ? " — it is FASTER than she is, so every encounter becomes a chase and cover is worth nothing" : ""));
-    		Check(sb, ref pass, ref fail, "it can always be outrun", num9 < 3.6f, num9.ToString("0.00") + " m/s against her 3.60 m/s run" + ((num9 >= 3.6f) ? " — and it is FASTER than she is, so the stealth route is not actually a route and she can be caught no matter what she does" : ", so leaving is always available"));
+    		Check(sb, ref pass, ref fail, "it stops with the brush in range", num10 <= 1.3f, "it holds " + num3.ToString("0.00") + " m off and his capsule is " + Src(crawler, "bodyRadius", 0.34f).ToString("0.00") + " m, so the near face of it is " + num10.ToString("0.00") + " m from his centre against a " + 1.6f.ToString("0.00") + " m stroke" + ((num10 > 1.3f) ? " — Ari cannot reach him where he stops, so the brush would connect only by accident and the fight could not be taught" : (", with " + (1.6f - num10).ToString("0.00") + " m to spare for a swing aimed with a mouse")));
+    		Check(sb, ref pass, ref fail, "its standoff is not so tight he cannot swing", num3 >= ariRadius + 0.4f, num3.ToString("0.00") + " m — closer than " + (ariRadius + 0.4f).ToString("0.00") + " m and the two bodies are inside each other");
+    		Check(sb, ref pass, ref fail, "the splash reach is an arm, not the brush", ok: true, "stroke reach " + 1.6f.ToString("0.00") + " m against the brush's own colour radius " + 6f.ToString("0.00") + " m, so clicking the ground beside him cannot reach it");
+    		Check(sb, ref pass, ref fail, "a brush sweep past it would connect", 1.6f >= num5, 1.6f.ToString("0.00") + " m reach against a " + num5.ToString("0.00") + " m lunge it can throw at him");
+    		Check(sb, ref pass, ref fail, "walking is never an answer, and he is never forced to swing", num8 < 2.2f, "it crawls at " + num8.ToString("0.00") + " m/s against him " + 2.2f.ToString("0.00") + " m/s walk, so he is never caught on foot — and its post is " + 2f.ToString("0.00") + " m short of the exit, so walking east is walking towards it, not away" + ((num8 >= 2.2f) ? " — it is FASTER than he is, so every encounter becomes a chase and cover is worth nothing" : ""));
+    		Check(sb, ref pass, ref fail, "it can always be outrun", num9 < 3.6f, num9.ToString("0.00") + " m/s against him 3.60 m/s run" + ((num9 >= 3.6f) ? " — and it is FASTER than he is, so the stealth route is not actually a route and he can be caught no matter what he does" : ", so leaving is always available"));
     		Check(sb, ref pass, ref fail, "it forgets more slowly than it notices", num2 > num, num2.ToString("0.00") + " m forget against " + num.ToString("0.00") + " m notice");
-    		Check(sb, ref pass, ref fail, "giving up is quick enough to finish a stealth run", num7 <= 10f, num7.ToString("0.0") + " s of not seeing her, and the yard is " + 13f.ToString("0") + " m long");
-    		Check(sb, ref pass, ref fail, "a stagger outlasts the lunge it interrupts", num6 > Src(crawler, "lungeSeconds", 0.55f), num6.ToString("0.00") + " s stagger against a " + Src(crawler, "lungeSeconds", 0.55f).ToString("0.00") + " s lunge" + ((num6 <= Src(crawler, "lungeSeconds", 0.55f)) ? " — she can hit it and it still lands on her" : ", so a clean hit wins outright"));
+    		Check(sb, ref pass, ref fail, "giving up is quick enough to finish a stealth run", num7 <= 10f, num7.ToString("0.0") + " s of not seeing his, and the yard is " + 13f.ToString("0") + " m long");
+    		Check(sb, ref pass, ref fail, "a stagger outlasts the lunge it interrupts", num6 > Src(crawler, "lungeSeconds", 0.55f), num6.ToString("0.00") + " s stagger against a " + Src(crawler, "lungeSeconds", 0.55f).ToString("0.00") + " s lunge" + ((num6 <= Src(crawler, "lungeSeconds", 0.55f)) ? " — he can hit it and it still lands on him" : ", so a clean hit wins outright"));
     		sb.AppendLine();
     		sb.AppendLine("--- does the ruin wall do anything? ---");
     		Vector3 val = new Vector3(49f, ground, 10.5f);
@@ -787,7 +787,7 @@ namespace Echoes.Painterly.EditorTools
     		}
     		Check(sb, ref pass, ref fail, "the wall hides the southern lane from its post", array2[0] >= 0.6f, (array2[0] * 100f).ToString("0") + "% of the southern lane is out of its sight" + ((array2[0] < 0.6f) ? " — below 60%. The wall is not between them for most of the run, so there is no cover in this yard and 'optional stealth' is only optional in the sense that it does not exist" : ""));
     		Check(sb, ref pass, ref fail, "the two lanes are not equally good", array2[0] - array2[2] >= 0.25f, "south " + (array2[0] * 100f).ToString("0") + "% hidden against north " + (array2[2] * 100f).ToString("0") + "%" + ((array2[0] - array2[2] < 0.25f) ? " — if both routes were equally hidden there would be no reason to walk one rather than the other, and the wall would be decoration" : ", so going south is worth something"));
-    		Check(sb, ref pass, ref fail, "the fight lane is honestly exposed", array2[2] <= 0.4f, (array2[2] * 100f).ToString("0") + "% hidden on the northern lane" + ((array2[2] > 0.4f) ? " — if the north lane is also safe then the player who went round to the north took the same route and the choice was an illusion" : ", so north is the open ground where it can reach her"));
+    		Check(sb, ref pass, ref fail, "the fight lane is honestly exposed", array2[2] <= 0.4f, (array2[2] * 100f).ToString("0") + "% hidden on the northern lane" + ((array2[2] > 0.4f) ? " — if the north lane is also safe then the player who went round to the north took the same route and the choice was an illusion" : ", so north is the open ground where it can reach him"));
     		float num15 = 47f;
     		bool flag = Blocked(new Vector3(num15, ground, 6.4f), val, crawler);
     		sb.AppendLine();
@@ -796,8 +796,8 @@ namespace Echoes.Painterly.EditorTools
     		float num16 = Vector3.Distance(new Vector3(51f, ground, 6.4f), val);
     		sb.AppendLine();
     		sb.AppendLine("  the exit is " + num16.ToString("0.0") + " m from its post, inside a " + 7f.ToString("0") + " m notice radius");
-    		Check(sb, ref pass, ref fail, "no crawler could let her out on geometry alone", num16 <= 7f, num16.ToString("0.0") + " m against " + 7f.ToString("0") + " m of notice — she has to walk past where it lives, so the wall cannot finish the route on its own and something has to end the pursuit. InkCrawler.Retired is that thing; see its comment");
-    		Check(sb, ref pass, ref fail, "the crawler does have a way to give up for good", HasRetireLatch(crawler), "SeesHer() returns false once Retired is set, and Retired is set when it gives up" + (HasRetireLatch(crawler) ? "" : " — NOT SET, so it will spot her on the way out and the stealth route cannot complete"));
+    		Check(sb, ref pass, ref fail, "no crawler could let him out on geometry alone", num16 <= 7f, num16.ToString("0.0") + " m against " + 7f.ToString("0") + " m of notice — he has to walk past where it lives, so the wall cannot finish the route on its own and something has to end the pursuit. InkCrawler.Retired is that thing; see its comment");
+    		Check(sb, ref pass, ref fail, "the crawler does have a way to give up for good", HasRetireLatch(crawler), "SeesHer() returns false once Retired is set, and Retired is set when it gives up" + (HasRetireLatch(crawler) ? "" : " — NOT SET, so it will spot his on the way out and the stealth route cannot complete"));
     		sb.AppendLine();
     		sb.AppendLine("--- what is standing in the yard ---");
     		Vector3 val2 = new Vector3(37.5f, ground - 0.5f, 3.5f);
@@ -929,7 +929,7 @@ namespace Echoes.Painterly.EditorTools
     		sb.AppendLine();
     		sb.AppendLine("--- wiring ---");
     		Check(sb, ref pass, ref fail, "the crawler has a collider, or clicks pass through it", (Object)(object)crawlerGo.GetComponentInChildren<Collider>(true) != (Object)null, "BrushPainter casts its click with no layer mask, so a crawler with no collider simply cannot be aimed at");
-    		Check(sb, ref pass, ref fail, "the crawler knows Ari", (Object)(object)Src<AriMover>(crawler, "ari") != (Object)null, ((Object)(object)Src<AriMover>(crawler, "ari") != (Object)null) ? "wired" : "NOT WIRED — it can never notice her");
+    		Check(sb, ref pass, ref fail, "the crawler knows Ari", (Object)(object)Src<AriMover>(crawler, "ari") != (Object)null, ((Object)(object)Src<AriMover>(crawler, "ari") != (Object)null) ? "wired" : "NOT WIRED — it can never notice him");
     		Check(sb, ref pass, ref fail, "the director knows the crawler", (Object)(object)Src<InkCrawler>(dir, "crawler") == (Object)(object)crawler, ((Object)(object)Src<InkCrawler>(dir, "crawler") == (Object)(object)crawler) ? "wired" : "NOT WIRED — no stroke reaches it");
     		BrushPainter brushPainter = (((Object)(object)ariMover != (Object)null) ? ((Component)ariMover).GetComponent<BrushPainter>() : null);
     		StringBuilder sb2 = sb;
@@ -951,7 +951,7 @@ namespace Echoes.Painterly.EditorTools
     		float num24 = Src(dir, "exitX", 51f);
     		Check(sb, ref pass, ref fail, "the yard is entered before it is left", num24 > num23 + 5f, num23.ToString("0") + " m in, " + num24.ToString("0") + " m out — " + (num24 - num23).ToString("0") + " m of beat");
     		Check(sb, ref pass, ref fail, "the crawler starts inside the yard, past the entrance", 49f > num23 + 2f && 49f < num24, "crawler at x " + 49f.ToString("0") + ", yard " + num23.ToString("0") + " to " + num24.ToString("0"));
-    		Check(sb, ref pass, ref fail, "she sees it before it sees her", num < 49f - num23, "notice range " + num.ToString("0.0") + " m against " + (49f - num23).ToString("0") + " m of approach — she gets " + (49f - num23 - num).ToString("0.0") + " m of looking at it first" + ((num >= 49f - num23) ? " — it is already hunting before she is through the gate" : ""));
+    		Check(sb, ref pass, ref fail, "he sees it before it sees him", num < 49f - num23, "notice range " + num.ToString("0.0") + " m against " + (49f - num23).ToString("0") + " m of approach — he gets " + (49f - num23 - num).ToString("0.0") + " m of looking at it first" + ((num >= 49f - num23) ? " — it is already hunting before he is through the gate" : ""));
     		Check(sb, ref pass, ref fail, "the yard is not wider than the walk is long", 16f >= num24 - num23, "yard " + 16f.ToString("0") + " m for " + (num24 - num23).ToString("0") + " m of beat");
     	}
 

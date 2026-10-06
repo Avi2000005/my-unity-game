@@ -13,7 +13,7 @@ namespace Echoes.Painterly
     	[SerializeField]
     	private Transform target;
 
-    	[Tooltip("Height above her feet to orbit around. About chest height, so she sits low in the frame and most of the shot is the world.")]
+    	[Tooltip("Height above his feet to orbit around. About chest height, so he sits low in the frame and most of the shot is the world.")]
     	[SerializeField]
     	private float pivotHeight = 1.35f;
 
@@ -71,12 +71,12 @@ namespace Echoes.Painterly
     	[SerializeField]
     	private float autoAlignSpeed = 0.4f;
 
-    	[Tooltip("Seconds of mouse stillness before the camera starts following her heading again.")]
+    	[Tooltip("Seconds of mouse stillness before the camera starts following his heading again.")]
     	[Min(0f)]
     	[SerializeField]
     	private float autoAlignDelay = 1.1f;
 
-    	[Tooltip("Degrees per second the yaw swings around behind her.")]
+    	[Tooltip("Degrees per second the yaw swings around behind him.")]
     	[Min(1f)]
     	[SerializeField]
     	private float autoAlignRate = 90f;

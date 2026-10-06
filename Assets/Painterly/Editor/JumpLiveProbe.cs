@@ -204,9 +204,9 @@ namespace Echoes.Painterly.EditorTools
     			}
     		}
     		float y3 = ari.transform.position.y;
-    		sb.AppendLine("  left the ground: " + ((num3 > 0) ? ("yes, for " + ((float)num3 * dt).ToString("F2") + "s") : "NO — SHE NEVER LEFT THE PAVING"));
+    		sb.AppendLine("  left the ground: " + ((num3 > 0) ? ("yes, for " + ((float)num3 * dt).ToString("F2") + "s") : "NO — HE NEVER LEFT THE PAVING"));
     		sb.AppendLine("  peak y=" + num.ToString("F4") + " at " + num2.ToString("F2") + "s  =>  " + (num - y).ToString("F3") + " m up  (jumpHeight is set to 1.2)");
-    		sb.AppendLine("  landed back at y=" + y3.ToString("F4") + ", " + (y3 - y).ToString("F4") + " m from where she took off" + ((num4 == 1) ? "  (one landing, no bounce)" : ("  LANDINGS=" + num4)));
+    		sb.AppendLine("  landed back at y=" + y3.ToString("F4") + ", " + (y3 - y).ToString("F4") + " m from where he took off" + ((num4 == 1) ? "  (one landing, no bounce)" : ("  LANDINGS=" + num4)));
     		sb.AppendLine("  mover reported LastJumpHeight = " + mover.LastJumpHeight.ToString("F3") + " m");
     		sb.AppendLine("  grounded now=" + mover.IsGrounded);
     		sb.AppendLine("  graph entered Ari_Jump: " + flag);
@@ -217,11 +217,11 @@ namespace Echoes.Painterly.EditorTools
     			anim.Update(dt);
     		}
     		string text2 = ClipNow(anim);
-    		sb.AppendLine("  state once settled: " + text2 + ((text2.Contains("Ari_Idle") && !text2.Contains("transitioning=True")) ? "  — she is back to standing" : "  — CHECK: did not come back to rest"));
+    		sb.AppendLine("  state once settled: " + text2 + ((text2.Contains("Ari_Idle") && !text2.Contains("transitioning=True")) ? "  — he is back to standing" : "  — CHECK: did not come back to rest"));
     		if ((Object)(object)foot != (Object)null)
     		{
     			float num6 = Vector3.Distance(foot.position, footAtRest);
-    			sb.AppendLine("  LeftFoot ended " + num6.ToString("F3") + " m from where it started — " + ((num6 > 0.02f) ? "the clip is posing her" : "THE BONES DID NOT MOVE"));
+    			sb.AppendLine("  LeftFoot ended " + num6.ToString("F3") + " m from where it started — " + ((num6 > 0.02f) ? "the clip is posing his" : "THE BONES DID NOT MOVE"));
     		}
     		else
     		{
@@ -315,7 +315,7 @@ namespace Echoes.Painterly.EditorTools
     		float num5 = num4 - y2;
     		sb.AppendLine("  single press        : peak " + num3.ToString("F3") + " m" + (isGrounded ? "" : "  (still in the air at the end of the window)"));
     		sb.AppendLine("  key held all through: peak " + num5.ToString("F3") + " m");
-    		sb.AppendLine("  difference          : " + (num5 - num3).ToString("F3") + " m — " + ((num5 - num3 < 0.05f) ? "the mid-air presses were ignored, there is no double jump" : "SHE GETS A SECOND HOP, which the design does not give her"));
+    		sb.AppendLine("  difference          : " + (num5 - num3).ToString("F3") + " m — " + ((num5 - num3 < 0.05f) ? "the mid-air presses were ignored, there is no double jump" : "HE GETS A SECOND HOP, which the design does not give him"));
     		sb.AppendLine("  touched down inside half a second: " + flag + (flag ? "  WRONG" : "  (no, as expected)"));
     		for (int k = 0; k < Mathf.RoundToInt(2f / dt); k++)
     		{
@@ -327,7 +327,7 @@ namespace Echoes.Painterly.EditorTools
     			}
     		}
     		float y3 = ari.transform.position.y;
-    		sb.AppendLine("  after the flight: y=" + y3.ToString("F4") + " from " + y2.ToString("F4") + ", " + (y3 - y2).ToString("F4") + " m from take-off" + ((Mathf.Abs(y3 - y2) < 0.3f) ? "  — back on the paving, not through it" : "  — SHE HAS SANK THROUGH IT OR DRIFTED"));
+    		sb.AppendLine("  after the flight: y=" + y3.ToString("F4") + " from " + y2.ToString("F4") + ", " + (y3 - y2).ToString("F4") + " m from take-off" + ((Mathf.Abs(y3 - y2) < 0.3f) ? "  — back on the paving, not through it" : "  — HE HAS SANK THROUGH IT OR DRIFTED"));
     		sb.AppendLine("  grounded=" + mover.IsGrounded + ", mover measured LastJumpHeight=" + mover.LastJumpHeight.ToString("F3") + " m");
     	}
 

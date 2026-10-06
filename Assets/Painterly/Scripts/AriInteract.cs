@@ -93,6 +93,8 @@ namespace Echoes.Painterly
     				return;
     			}
     		}
+    		if (ari != null && ari.Frozen) return;
+
     		if (Time.time >= _nextScan)
     		{
     			_nextScan = Time.time + scanInterval;
@@ -121,7 +123,7 @@ namespace Echoes.Painterly
     		//IL_004b: Unknown result type (might be due to invalid IL or missing references)
     		Vector3 chest = Chest();
     		_found.Clear();
-    		MonoBehaviour[] array = Object.FindObjectsByType<MonoBehaviour>((FindObjectsInactive)1, (FindObjectsSortMode)0);
+    		MonoBehaviour[] array = Object.FindObjectsByType<MonoBehaviour>((FindObjectsInactive)1);
     		IInteractable best = null;
     		float bestRange = -1f;
     		float bestDist = float.PositiveInfinity;

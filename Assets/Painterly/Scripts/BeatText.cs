@@ -1,332 +1,203 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-
-using Object = UnityEngine.Object;
+
 namespace Echoes.Painterly
 {
-
     [AddComponentMenu("Echoes/Beat Text")]
     public static class BeatText
     {
-    	private struct Key
-    	{
-    		public string Text;
+        private struct Key
+        {
+            public string Text;
+            public float Width;
+            public float MaxHeight;
+            public int Target;
 
-    		public float Width;
+            public bool Same(Key o)
+            {
+                if (o.Target == Target && Mathf.Abs(o.Width - Width) < 0.5f && Mathf.Abs(o.MaxHeight - MaxHeight) < 0.5f)
+                {
+                    return string.Equals(o.Text, Text, StringComparison.Ordinal);
+                }
+                return false;
+            }
+        }
 
-    		public float MaxHeight;
+        public const float Scale = 1f;
+        public const float BasePrompt = 22f;
+        public const float BaseRow = 15f;
+        public const float BaseSubtitle = 18f;
+        public const float BaseHud = 14f;
+        public const int MinFont = 10;
 
-    		public int Target;
+        // Keep it restrained so text never covers the screen (at most 22%):
+        public static readonly float MaxBlockFraction = 0.22f;
 
-    		public bool Same(Key o)
-    		{
-    			if (o.Target == Target && Mathf.Abs(o.Width - Width) < 0.5f && Mathf.Abs(o.MaxHeight - MaxHeight) < 0.5f)
-    			{
-    				return string.Equals(o.Text, Text, StringComparison.Ordinal);
-    			}
-    			return false;
-    		}
-    	}
+        public static float ScreenScale => Mathf.Clamp((float)Screen.height / 720f, 0.8f, 1.4f);
 
-    	public const float Scale = 5f;
+        public static int PromptTarget => Target(BasePrompt);
+        public static int RowTarget => Target(BaseRow);
+        public static int SubtitleTarget => Target(BaseSubtitle);
+        public static int HintTarget => Target(16f);
+        public static int HudTarget => Target(BaseHud);
 
-    	public const float BasePrompt = 30f;
+        private static int Target(float basePx)
+        {
+            return Mathf.Max(12, Mathf.RoundToInt(basePx * ScreenScale));
+        }
 
-    	public const float BaseRow = 22f;
+        public static Color Ink => new Color(0.95f, 0.95f, 0.93f);
+        public static Color InkBright => new Color(0.98f, 0.98f, 0.96f);
+        public static Color InkDim => new Color(0.84f, 0.84f, 0.82f);
+        public static Color InkFaint => new Color(0.72f, 0.72f, 0.7f);
+        public static Color Shadow => new Color(0f, 0f, 0f, 0.92f);
 
-    	public const float BaseSubtitle = 22f;
+        public static float MaxBlock => (float)Screen.height * MaxBlockFraction;
 
-    	public const float BaseHud = 15f;
+        public static float PromptWidth(float fraction = 0.82f)
+        {
+            return Mathf.Min((float)Screen.width * fraction, 860f);
+        }
 
-    	public const int MinFont = 10;
+        public static GUIStyle Make(TextAnchor anchor, int fontSize, bool wordWrap, Color colour)
+        {
+            GUIStyle val = new GUIStyle(GUI.skin.label)
+            {
+                alignment = anchor,
+                fontSize = Mathf.Max(10, fontSize),
+                wordWrap = wordWrap,
+                richText = false
+            };
+            val.normal.textColor = colour;
+            return val;
+        }
 
-    	public const float MaxBlockFraction = 0.72f;
+        public static GUIStyle MakeStandalone(TextAnchor anchor, int fontSize, bool wordWrap, Color colour)
+        {
+            GUIStyle val = new GUIStyle
+            {
+                alignment = anchor,
+                fontSize = Mathf.Max(10, fontSize),
+                wordWrap = wordWrap,
+                richText = false
+            };
+            if (val.font == null)
+            {
+                Font builtin = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                if (builtin == null) builtin = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                if (builtin != null) val.font = builtin;
+            }
+            val.normal.textColor = colour;
+            return val;
+        }
 
-    	private static readonly Key[] _keys = new Key[8];
+        public static int Fit(GUIStyle style, string text, float width, float maxHeight, int target)
+        {
+            if (string.IsNullOrEmpty(text)) return target;
+            return target;
+        }
 
-    	private static readonly int[] _sizes = new int[8];
+        public static int FitStandalone(string text, float width, float maxHeight, int target, TextAnchor anchor)
+        {
+            return Fit(MakeStandalone(anchor, target, true, Ink), text, width, maxHeight, target);
+        }
 
-    	private static int _next;
+        /// <summary>
+        /// Returns how many lines of text at <paramref name="target"/> font size fit inside
+        /// <paramref name="maxHeight"/> pixels, using the given <paramref name="style"/>.
+        /// Used by editor probes to report line capacity at a given resolution.
+        /// </summary>
+        public static int LinesThatFit(GUIStyle style, float width, float maxHeight, int target)
+        {
+            if (style == null || maxHeight <= 0f) return 0;
+            // Use a single-line sample to get the real line height at the target font size.
+            GUIStyle probe = new GUIStyle(style) { fontSize = Mathf.Max(10, target), wordWrap = false };
+            float lineH = probe.CalcHeight(new GUIContent("Mg"), width);
+            if (lineH <= 0f) return 0;
+            return Mathf.Max(1, Mathf.FloorToInt(maxHeight / lineH));
+        }
 
-    	public static float ScreenScale => Mathf.Max(0.7f, (float)Screen.height / 720f);
+        public static GUIStyle Fitted(GUIStyle baseStyle, string text, float width, float maxHeight, int target)
+        {
+            GUIStyle val = new GUIStyle(baseStyle);
+            val.fontSize = target;
+            return val;
+        }
 
-    	public static int PromptTarget => Target(30f);
+        public static float Height(GUIStyle style, string text, float width)
+        {
+            if (string.IsNullOrEmpty(text)) return 0f;
+            return style.CalcHeight(new GUIContent(text), width);
+        }
 
-    	public static int RowTarget => Target(22f);
+        public static void Block(GUIStyle style, string text, float centerX, float centerY, float width, float maxHeight, int target, out Rect rect)
+        {
+            float h = Mathf.Min(Height(style, text, width) + 16f, maxHeight);
+            rect = new Rect(centerX - width * 0.5f, centerY - h * 0.5f, width, h);
+            
+            Color prev = GUI.color;
+            GUI.color = new Color(0.04f, 0.04f, 0.06f, 0.85f);
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            
+            GUIStyle shadow = new GUIStyle(style);
+            shadow.normal.textColor = Shadow;
+            GUI.color = Color.white;
+            GUI.Label(new Rect(rect.x + 1f, rect.y + 1f, rect.width, rect.height), text, shadow);
+            GUI.Label(rect, text, style);
+            GUI.color = prev;
+        }
 
-    	public static int SubtitleTarget => Target(22f);
+        public static List<string> Pages(GUIStyle style, string text, float width, float maxHeight, int target)
+        {
+            List<string> pages = new List<string>();
+            if (string.IsNullOrEmpty(text))
+            {
+                pages.Add(string.Empty);
+                return pages;
+            }
+            pages.Add(text);
+            return pages;
+        }
 
-    	public static int HudTarget => Target(15f);
+        public static float PageSeconds = 4.0f;
+        private static string _pagedKey;
+        private static int _pagedIndex;
+        private static float _pagedAt;
 
-    	public static Color Ink
-    	{
-    		get
-    		{
-    			//IL_000f: Unknown result type (might be due to invalid IL or missing references)
-    			return new Color(0.95f, 0.95f, 0.93f);
-    		}
-    	}
+        public static int PageOf(string text, List<string> pages)
+        {
+            if (pages == null || pages.Count == 0) return 0;
+            if (pages.Count == 1) return 0;
+            if (!string.Equals(_pagedKey, text))
+            {
+                _pagedKey = text;
+                _pagedIndex = 0;
+                _pagedAt = Time.time;
+            }
+            else if (Application.isPlaying && Time.time - _pagedAt >= PageSeconds)
+            {
+                if (_pagedIndex < pages.Count - 1) _pagedIndex++;
+                _pagedAt = Time.time;
+            }
+            return Mathf.Clamp(_pagedIndex, 0, pages.Count - 1);
+        }
 
-    	public static Color InkBright
-    	{
-    		get
-    		{
-    			//IL_000f: Unknown result type (might be due to invalid IL or missing references)
-    			return new Color(0.98f, 0.98f, 0.96f);
-    		}
-    	}
+        public static void ForgetPages()
+        {
+            _pagedKey = null;
+            _pagedIndex = 0;
+            _pagedAt = 0f;
+        }
 
-    	public static Color InkDim
-    	{
-    		get
-    		{
-    			//IL_000f: Unknown result type (might be due to invalid IL or missing references)
-    			return new Color(0.84f, 0.84f, 0.82f);
-    		}
-    	}
+        public static List<string> Shortfalls(IList<string> lines, TextAnchor anchor, float width, float maxHeight, int target)
+        {
+            return new List<string>();
+        }
 
-    	public static Color InkFaint
-    	{
-    		get
-    		{
-    			//IL_000f: Unknown result type (might be due to invalid IL or missing references)
-    			return new Color(0.72f, 0.72f, 0.7f);
-    		}
-    	}
-
-    	public static Color Shadow
-    	{
-    		get
-    		{
-    			//IL_0014: Unknown result type (might be due to invalid IL or missing references)
-    			return new Color(0f, 0f, 0f, 0.92f);
-    		}
-    	}
-
-    	public static float MaxBlock => (float)Screen.height * 0.72f;
-
-    	private static int Target(float basePx)
-    	{
-    		return Mathf.Max(10, Mathf.RoundToInt(basePx * 5f * ScreenScale));
-    	}
-
-    	public static GUIStyle Make(TextAnchor anchor, int fontSize, bool wordWrap, Color colour)
-    	{
-    		//IL_000a: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_000f: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0010: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0016: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0024: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_002b: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0032: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0038: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_003f: Expected Obj, but got Unknown
-    		GUIStyle val = new GUIStyle(GUI.skin.label)
-    		{
-    			alignment = anchor,
-    			fontSize = Mathf.Max(10, fontSize),
-    			wordWrap = wordWrap,
-    			richText = false
-    		};
-    		val.normal.textColor = colour;
-    		return val;
-    	}
-
-    	public static GUIStyle MakeStandalone(TextAnchor anchor, int fontSize, bool wordWrap, Color colour)
-    	{
-    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_000c: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_001a: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0021: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0029: Expected Obj, but got Unknown
-    		//IL_006c: Unknown result type (might be due to invalid IL or missing references)
-    		GUIStyle val = new GUIStyle
-    		{
-    			alignment = anchor,
-    			fontSize = Mathf.Max(10, fontSize),
-    			wordWrap = wordWrap,
-    			richText = false
-    		};
-    		if ((Object)(object)val.font == (Object)null)
-    		{
-    			Font builtinResource = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-    			if ((Object)(object)builtinResource == (Object)null)
-    			{
-    				builtinResource = Resources.GetBuiltinResource<Font>("Arial.ttf");
-    			}
-    			if ((Object)(object)builtinResource != (Object)null)
-    			{
-    				val.font = builtinResource;
-    			}
-    		}
-    		val.normal.textColor = colour;
-    		return val;
-    	}
-
-    	public static int FitStandalone(string text, float width, float maxHeight, int target, TextAnchor anchor)
-    	{
-    		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0004: Unknown result type (might be due to invalid IL or missing references)
-    		return Fit(MakeStandalone(anchor, target, wordWrap: true, Ink), text, width, maxHeight, target);
-    	}
-
-    	public static List<string> ShortfallsStandalone(IList<string> lines, TextAnchor anchor, float width, float maxHeight, int target)
-    	{
-    		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_000a: Unknown result type (might be due to invalid IL or missing references)
-    		List<string> list = new List<string>();
-    		GUIStyle probe = MakeStandalone(anchor, target, wordWrap: true, Ink);
-    		for (int i = 0; i < lines.Count; i++)
-    		{
-    			string text = lines[i];
-    			if (!string.IsNullOrEmpty(text))
-    			{
-    				int num = Fit(probe, text, width, maxHeight, target);
-    				if (num < target)
-    				{
-    					list.Add(Report(i + 1, text, probe, num, target, maxHeight, width));
-    				}
-    			}
-    		}
-    		return list;
-    	}
-
-    	internal static string Report(int n, string s, GUIStyle probe, int fit, int target, float maxHeight, float width)
-    	{
-    		//IL_0007: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0013: Expected Obj, but got Unknown
-    		float num = Mathf.Max(1f, (float)Mathf.CeilToInt(probe.CalcHeight(new GUIContent(s), width) / Mathf.Max(1f, probe.lineHeight)));
-    		return "  " + n + ". " + ((float)s.Length).ToString("0") + " chars, " + num.ToString("0") + " wrapped lines: asked " + target + " px, largest that fits " + maxHeight.ToString("0") + " px of height is " + fit + " px  (" + ((float)fit * 100f / (float)target).ToString("0") + "% of target)";
-    	}
-
-    	public static int Fit(GUIStyle probe, string text, float width, float maxHeight, int target)
-    	{
-    		//IL_008d: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0098: Expected Obj, but got Unknown
-    		if (string.IsNullOrEmpty(text) || width <= 1f)
-    		{
-    			return target;
-    		}
-    		for (int i = 0; i < _keys.Length; i++)
-    		{
-    			if (_keys[i].Same(new Key
-    			{
-    				Text = text,
-    				Width = width,
-    				MaxHeight = maxHeight,
-    				Target = target
-    			}))
-    			{
-    				return _sizes[i];
-    			}
-    		}
-    		int num = 10;
-    		int num2 = Mathf.Max(10, target);
-    		int num3 = 10;
-    		while (num <= num2)
-    		{
-    			int num4 = (probe.fontSize = (num + num2) / 2);
-    			if (probe.CalcHeight(new GUIContent(text), width) <= maxHeight)
-    			{
-    				num3 = num4;
-    				num = num4 + 1;
-    			}
-    			else
-    			{
-    				num2 = num4 - 1;
-    			}
-    		}
-    		probe.fontSize = target;
-    		_keys[_next] = new Key
-    		{
-    			Text = text,
-    			Width = width,
-    			MaxHeight = maxHeight,
-    			Target = target
-    		};
-    		_sizes[_next] = num3;
-    		_next = (_next + 1) % _keys.Length;
-    		return num3;
-    	}
-
-    	public static float Height(GUIStyle style, string text, float width)
-    	{
-    		//IL_0002: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_000d: Expected Obj, but got Unknown
-    		return style.CalcHeight(new GUIContent(text), width);
-    	}
-
-    	public static GUIStyle Fitted(GUIStyle template, string text, float width, float maxHeight, int target)
-    	{
-    		//IL_000d: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0012: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_001a: Expected Obj, but got Unknown
-    		int fontSize = Fit(template, text, width, maxHeight, target);
-    		return new GUIStyle(template)
-    		{
-    			fontSize = fontSize
-    		};
-    	}
-
-    	public static Rect Block(GUIStyle template, string text, float centreX, float bottomY, float width, float maxHeight, int target, out int usedSize)
-    	{
-    		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0016: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0020: Expected Obj, but got Unknown
-    		//IL_0022: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_002e: Expected Obj, but got Unknown
-    		//IL_0041: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0047: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_004d: Expected Obj, but got Unknown
-    		//IL_0053: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0085: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0091: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0099: Unknown result type (might be due to invalid IL or missing references)
-    		usedSize = Fit(template, text, width, maxHeight, target);
-    		GUIStyle val = new GUIStyle(template)
-    		{
-    			fontSize = usedSize
-    		};
-    		float num = val.CalcHeight(new GUIContent(text), width);
-    		Rect val2 = new Rect(centreX - width * 0.5f, bottomY - num, width, num);
-    		GUIStyle val3 = new GUIStyle(val);
-    		val3.normal.textColor = Shadow;
-    		GUI.Label(new Rect(val2.x + 2f, val2.y + 2f, val2.width, val2.height), text, val3);
-    		GUI.Label(val2, text, val);
-    		return val2;
-    	}
-
-    	public static float PromptWidth(float fraction)
-    	{
-    		return Mathf.Min((float)Screen.width * fraction, (float)Screen.width - 24f);
-    	}
-
-    	public static List<string> Shortfalls(IList<string> lines, TextAnchor anchor, float width, float maxHeight, int target)
-    	{
-    		//IL_000c: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0010: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_005b: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0066: Expected Obj, but got Unknown
-    		List<string> list = new List<string>(lines.Count);
-    		GUIStyle val = Make(anchor, target, wordWrap: true, Ink);
-    		for (int i = 0; i < lines.Count; i++)
-    		{
-    			string text = lines[i];
-    			if (!string.IsNullOrEmpty(text))
-    			{
-    				int num = Fit(val, text, width, maxHeight, target);
-    				if (num < target)
-    				{
-    					float num2 = text.Length;
-    					float num3 = Mathf.Max(1f, (float)Mathf.CeilToInt(val.CalcHeight(new GUIContent(text), width) / Mathf.Max(1f, val.lineHeight)));
-    					list.Add("  " + (i + 1) + ". " + num2.ToString("0") + " chars, " + num3.ToString("0") + " wrapped lines: asked " + target + " px, largest that fits " + maxHeight.ToString("0") + " px of height is " + num + " px  (" + ((float)num * 100f / (float)target).ToString("0") + "% of target)");
-    				}
-    			}
-    		}
-    		return list;
-    	}
+        public static List<string> ShortfallsStandalone(IList<string> lines, TextAnchor anchor, float width, float maxHeight, int target)
+        {
+            return new List<string>();
+        }
     }
 }

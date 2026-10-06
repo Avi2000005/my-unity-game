@@ -56,7 +56,7 @@ namespace Echoes.Painterly.EditorTools
     		stringBuilder.AppendLine();
     		if ((Object)(object)ariMover == (Object)null)
     		{
-    			stringBuilder.AppendLine("  Ari: NOT IN THE SCENE — if she is not there, nothing will respond to movement.");
+    			stringBuilder.AppendLine("  Ari: NOT IN THE SCENE — if he is not there, nothing will respond to movement.");
     		}
     		else
     		{

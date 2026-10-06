@@ -98,14 +98,14 @@ namespace Echoes.Painterly.EditorTools
     		}
     		Vector3 position4 = ((Component)main).transform.position;
     		float num3 = Vector3.Distance(position2, position4);
-    		stringBuilder.AppendLine($"  camera moved {num3:F3} (expect > 3 — it must trail her)");
+    		stringBuilder.AppendLine($"  camera moved {num3:F3} (expect > 3 — it must trail his)");
     		stringBuilder.AppendLine("  camera at " + Fmt(position4));
     		stringBuilder.AppendLine($"  distance to Ari = {Vector3.Distance(position4, position3):F3}");
     		Vector3 val2 = position4 - position2;
     		Vector3 normalized = val2.normalized;
     		val2 = position3 - position;
     		bool flag = Vector3.Dot(normalized, val2.normalized) > 0.9f;
-    		stringBuilder.AppendLine($"  trailing her (not sliding sideways): {flag}");
+    		stringBuilder.AppendLine($"  trailing his (not sliding sideways): {flag}");
     		stringBuilder.AppendLine($"  Ari in frustum now = {InFrustum(main, val)}");
     		stringBuilder.AppendLine("\n--- zoom ---");
     		SetDistance(ariFollowCamera, 0.01f);
@@ -126,7 +126,7 @@ namespace Echoes.Painterly.EditorTools
     		stringBuilder.AppendLine($"  asked -89 -> {num6:F1} (must be >= -8)");
     		stringBuilder.AppendLine($"  asked  89 -> {num7:F1} (must be <= 72)");
     		stringBuilder.AppendLine("\n--- sanity ---");
-    		stringBuilder.AppendLine($"  camera y {((Component)main).transform.position.y:F3} vs Ari y {val.transform.position.y:F3} " + "(camera must stay above her feet)");
+    		stringBuilder.AppendLine($"  camera y {((Component)main).transform.position.y:F3} vs Ari y {val.transform.position.y:F3} " + "(camera must stay above his feet)");
     		val.transform.position = position;
     		((Component)main).transform.position = position2;
     		Finish(stringBuilder);

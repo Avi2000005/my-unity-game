@@ -70,7 +70,8 @@ namespace Echoes.Painterly
     			return false;
     		}
     		bool flag = false;
-    		if (!((Keyboard.current == null) ? Input.GetKeyDown((KeyCode)115) : Keyboard.current.sKey.wasPressedThisFrame))
+    		Keyboard current = Keyboard.current;
+        if (current == null || !current.sKey.wasPressedThisFrame)
     		{
     			return false;
     		}

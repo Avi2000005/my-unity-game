@@ -21,7 +21,7 @@ namespace Echoes.Painterly
     	[Tooltip("Metres per second while a sprint input is held. The walk clip plays at walkSpeed; anything faster reuses it, which is fine at this scale but is the first thing to replace with a run clip.")]
     	[Min(0f)]
     	[SerializeField]
-    	private float runSpeed = 3.6f;
+    	private float runSpeed = 5.2f;
 
     	[Tooltip("Degrees per second when turning to face the direction of travel.")]
     	[Min(1f)]
@@ -29,7 +29,7 @@ namespace Echoes.Painterly
     	private float turnRate = 720f;
 
     	[Header("Ground")]
-    	[Tooltip("How far below her feet to look for ground.")]
+    	[Tooltip("How far below his feet to look for ground.")]
     	[Min(0.1f)]
     	[SerializeField]
     	private float groundProbe = 1.5f;
@@ -38,7 +38,7 @@ namespace Echoes.Painterly
     	[SerializeField]
     	private LayerMask groundMask = (-1);
 
-    	[Tooltip("How level a surface must be before she will stand on it, as the up-component of its normal. 1 is flat, 0.7 is about 45 degrees. This is what keeps her off roofs and out of wall caps once the whole village has colliders.")]
+    	[Tooltip("How level a surface must be before he will stand on it, as the up-component of its normal. 1 is flat, 0.7 is about 45 degrees. This is what keeps him off roofs and out of wall caps once the whole village has colliders.")]
     	[Range(0f, 1f)]
     	[SerializeField]
     	private float minGroundSlope = 0.7f;
@@ -48,7 +48,7 @@ namespace Echoes.Painterly
     	[SerializeField]
     	private float soleOffset = 0.1717f;
 
-    	[Tooltip("Metres per second she closes a height difference. The paving, the paths and the kerb line sit at three different heights so they do not z-fight, which means snapping straight to the surface pops her up a few centimetres at every tile seam. Easing it keeps her on the ground without the stair-stepping.")]
+    	[Tooltip("Metres per second he closes a height difference. The paving, the paths and the kerb line sit at three different heights so they do not z-fight, which means snapping straight to the surface pops him up a few centimetres at every tile seam. Easing it keeps him on the ground without the stair-stepping.")]
     	[Min(0.1f)]
     	[SerializeField]
     	private float groundFollow = 6f;
@@ -63,7 +63,7 @@ namespace Echoes.Painterly
     	private bool useScreenControls;
 
     	[Header("Jump")]
-    	[Tooltip("Jump. Only read while she is already on something solid, so holding it down does not make her bounce the moment she lands.")]
+    	[Tooltip("Jump. Only read while he is already on something solid, so holding it down does not make his bounce the moment he lands.")]
     	[SerializeField]
     	private Key jumpKey = Key.Space;
 
@@ -77,37 +77,37 @@ namespace Echoes.Painterly
     	[SerializeField]
     	private float gravity = 18f;
 
-    	[Tooltip("How much of her ground speed she keeps while off the ground, 0 to 1. Some, so a jump can be steered in the air; not all, so she cannot change direction instantly at the apex.")]
+    	[Tooltip("How much of his ground speed he keeps while off the ground, 0 to 1. Some, so a jump can be steered in the air; not all, so he cannot change direction instantly at the apex.")]
     	[Range(0f, 1f)]
     	[SerializeField]
     	private float airControl = 0.6f;
 
-    	[Tooltip("How far above the surface still counts as having landed, in metres. Without it, a frame at a low frame rate steps her past the paving and she falls through it.")]
+    	[Tooltip("How far above the surface still counts as having landed, in metres. Without it, a frame at a low frame rate steps his past the paving and he falls through it.")]
     	[Min(0f)]
     	[SerializeField]
     	private float landTolerance = 0.25f;
 
     	[Header("Walls")]
-    	[Tooltip("Whether she is stopped by the sides of things. On by default because the narrow-alley beat and every building interior are unbuildable without it: she used to walk through houses, and once the hop landed she jumped through them too.")]
+    	[Tooltip("Whether he is stopped by the sides of things. On by default because the narrow-alley beat and every building interior are unbuildable without it: he used to walk through houses, and once the hop landed he jumped through them too.")]
     	[SerializeField]
     	private bool collideWithWalls = true;
 
-    	[Tooltip("Radius of the body she pushes around with, in metres. 0.30 is deliberately wider than she looks. A tight capsule reads as more accurate and is not: it catches on the corner of every doorframe in a village made of boxes, and the result is a player who appears to be clipping into geometry rather than one who is brushing past it.")]
+    	[Tooltip("Radius of the body he pushes around with, in metres. 0.30 is deliberately wider than he looks. A tight capsule reads as more accurate and is not: it catches on the corner of every doorframe in a village made of boxes, and the result is a player who appears to be clipping into geometry rather than one who is brushing past it.")]
     	[Min(0.05f)]
     	[SerializeField]
     	private float bodyRadius = 0.3f;
 
-    	[Tooltip("Total height of the body, soles to crown. Matches the 1.80 measured on her mesh; a separate number from soleOffset because that one is read off the skin at runtime.")]
+    	[Tooltip("Total height of the body, soles to crown. Matches the 1.80 measured on his mesh; a separate number from soleOffset because that one is read off the skin at runtime.")]
     	[Min(0.5f)]
     	[SerializeField]
     	private float bodyHeight = 1.8f;
 
-    	[Tooltip("How far above her soles the sides of the body start. The paving she stands on is level with the soles, and a capsule whose bottom sphere is tangent to a surface is a coin toss: it either reports a hit on the floor or misses a wall, depending on which way the float rounds. Lifting it clear of the ground costs a collision with anything shorter than this and makes the floor case impossible.")]
+    	[Tooltip("How far above his soles the sides of the body start. The paving he stands on is level with the soles, and a capsule whose bottom sphere is tangent to a surface is a coin toss: it either reports a hit on the floor or misses a wall, depending on which way the float rounds. Lifting it clear of the ground costs a collision with anything shorter than this and makes the floor case impossible.")]
     	[Min(0f)]
     	[SerializeField]
     	private float bodyBottomLift = 0.1f;
 
-    	[Tooltip("How high a kerb or a single step she walks up without jumping. The village's paths and paving sit at three different heights, so without this she is stopped by every seam between them.")]
+    	[Tooltip("How high a kerb or a single step he walks up without jumping. The village's paths and paving sit at three different heights, so without this he is stopped by every seam between them.")]
     	[Min(0f)]
     	[SerializeField]
     	private float stepHeight = 0.35f;
@@ -171,6 +171,7 @@ namespace Echoes.Painterly
 
     	public bool IsAirborne => !IsGrounded;
 
+    	public static AriMover I { get; private set; }
     	public bool Frozen { get; set; }
 
     	public bool TouchingWall { get; private set; }
@@ -257,12 +258,18 @@ namespace Echoes.Painterly
 
     	private void Awake()
     	{
+    		I = this;
     		Bind();
     		if (!((Behaviour)_animator).enabled)
     		{
     			((Behaviour)_animator).enabled = true;
     		}
     		MeasureSoleOffset();
+    	}
+
+    	private void OnDestroy()
+    	{
+    		if (I == this) I = null;
     	}
 
     	private void Bind()
@@ -365,7 +372,7 @@ namespace Echoes.Painterly
     		{
     			wish = (flag ? val2 : Vector3.zero);
     		}
-    		bool running = KeyHeld(runKey) || (useScreenControls && ScreenRun);
+    		bool running = IsRunHeld() || KeyHeld(runKey);
     		bool jump = JumpPressed();
     		Step(wish, running, Time.deltaTime, jump);
     	}
@@ -410,6 +417,39 @@ namespace Echoes.Painterly
     			return result;
     		}
     		return result.normalized;
+    	}
+
+    	public static bool IsRunHeld()
+    	{
+    		Keyboard kb = Keyboard.current;
+    		if (kb != null)
+    		{
+    			if (kb.leftShiftKey.isPressed ||
+    			    kb.rightShiftKey.isPressed ||
+    			    kb.leftCtrlKey.isPressed)
+    			{
+    				return true;
+    			}
+    		}
+
+    		Gamepad pad = Gamepad.current;
+    		if (pad != null)
+    		{
+    			if (pad.leftTrigger.isPressed ||
+    			    pad.rightTrigger.isPressed ||
+    			    pad.leftStickButton.isPressed ||
+    			    pad.rightShoulder.isPressed)
+    			{
+    				return true;
+    			}
+    		}
+
+    		if (ScreenRun)
+    		{
+    			return true;
+    		}
+
+    		return false;
     	}
 
     	private static bool KeyHeld(Key key)

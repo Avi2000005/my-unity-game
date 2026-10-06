@@ -137,7 +137,7 @@ namespace Echoes.Painterly.EditorTools
     				Vector3 position = val3 - val4 * 7f + Vector3.up * 3.2f;
     				((Component)main).transform.position = position;
     				LookAt(((Component)main).transform, val3 + Vector3.up * (num * 0.5f));
-    				stringBuilder.AppendLine("  she was out of frame, so the camera was reframed: " + $"pos {((Component)main).transform.position} rot {((Component)main).transform.eulerAngles}");
+    				stringBuilder.AppendLine("  he was out of frame, so the camera was reframed: " + $"pos {((Component)main).transform.position} rot {((Component)main).transform.eulerAngles}");
     				stringBuilder.AppendLine($"  in frustum after reframing: {InFrustum(main, b)}");
     			}
     		}
@@ -178,7 +178,7 @@ namespace Echoes.Painterly.EditorTools
     			if (!InFrustum(main, bounds))
     			{
     				LookAt(((Component)main).transform, bounds.center);
-    				stringBuilder.AppendLine($"  aimed the camera at her: rot now {((Component)main).transform.eulerAngles}");
+    				stringBuilder.AppendLine($"  aimed the camera at him: rot now {((Component)main).transform.eulerAngles}");
     				stringBuilder.AppendLine($"  in frustum after aiming: {InFrustum(main, bounds)}");
     			}
     		}

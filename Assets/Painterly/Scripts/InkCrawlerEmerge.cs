@@ -2,250 +2,231 @@ using UnityEngine;
 
 namespace Echoes.Painterly
 {
-
     [AddComponentMenu("Echoes/Ink Crawler Emerge")]
     [RequireComponent(typeof(InkCrawler))]
     public sealed class InkCrawlerEmerge : MonoBehaviour, IResettable
     {
-    	public enum Phase
-    	{
-    		Submerged,
-    		Rising,
-    		Up
-    	}
+        public enum Phase
+        {
+            Submerged,
+            Rising,
+            Up
+        }
 
-    	[Header("Timing")]
-    	[Tooltip("Seconds from fully under to standing. Long enough to see, short enough that the beat does not stop and wait.")]
-    	[Min(0.05f)]
-    	[SerializeField]
-    	private float emergeSeconds = 1.1f;
+        [Header("Timing")]
+        [Min(0.05f)]
+        [SerializeField]
+        private float emergeSeconds = 0.5f;
 
-    	[Tooltip("Seconds to sink again on a reset. Shorter than the rise, because a retry should not make the player watch three crawlers disappear slowly.")]
-    	[Min(0.05f)]
-    	[SerializeField]
-    	private float sinkSeconds = 0.45f;
+        [Min(0.05f)]
+        [SerializeField]
+        private float sinkSeconds = 0.45f;
 
-    	[Tooltip("How deep under the floor to put it. Zero means measure it from the collider, which is what stops a crawler being only half-sunk by a number that was typed for a different model.")]
-    	[Min(0f)]
-    	[SerializeField]
-    	private float extraDepth = 0.35f;
+        [Min(0f)]
+        [SerializeField]
+        private float extraDepth = 0.35f;
 
-    	[Header("Behaviour")]
-    	[Tooltip("Start under the floor. Off is for a crawler that is meant to be standing there when the level opens.")]
-    	[SerializeField]
-    	private bool startSubmerged = true;
+        [Header("Behaviour")]
+        [SerializeField]
+        private bool startSubmerged = false;
 
-    	[Tooltip("Put the collider back at this fraction of the rise rather than at the top. Slightly early on purpose: a crawler that is already standing but cannot be hit for a quarter of a second reads as a bug in the stagger rule, which is the one rule this beat is teaching.")]
-    	[Range(0f, 1f)]
-    	[SerializeField]
-    	private float colliderAt = 0.6f;
+        [Range(0f, 1f)]
+        [SerializeField]
+        private float colliderAt = 0.3f;
 
-    	[SerializeField]
-    	private bool log = true;
+        [SerializeField]
+        private bool log = true;
 
-    	private InkCrawler _crawler;
+        [SerializeField]
+        private Vector3 authoredStand;
 
-    	private Collider[] _colliders;
+        [SerializeField]
+        private bool hasAuthoredStand;
 
-    	private Renderer[] _renderers;
+        private InkCrawler _crawler;
+        private Collider[] _colliders;
+        private Renderer[] _renderers;
+        private Vector3 _rest;
+        private bool _restCaptured;
+        private float _t;
+        private float _leg;
+        private float _depth;
+        private int _rises;
 
-    	private Vector3 _rest;
+        public Phase Now { get; private set; } = Phase.Up;
+        public bool IsReady => Now == Phase.Up;
+        public float EmergeSeconds => emergeSeconds;
 
-    	private bool _restCaptured;
+        public Vector3 RestPoint => _rest;
 
-    	private float _t;
+        public Vector3 StandPoint
+        {
+            get
+            {
+                if (!_restCaptured) return transform.position;
+                return _rest;
+            }
+        }
 
-    	private float _leg;
+        private void Awake()
+        {
+            _crawler = GetComponent<InkCrawler>();
+            _colliders = GetComponentsInChildren<Collider>(true);
+            _renderers = GetComponentsInChildren<Renderer>(true);
+            _rest = transform.position;
+            _restCaptured = true;
+            _depth = Depth();
 
-    	private float _depth;
+            // Default to fully visible and ready:
+            Now = Phase.Up;
+            SetSolid(true);
 
-    	private int _rises;
+            if (startSubmerged)
+            {
+                Submerge(silent: true);
+            }
+        }
 
-    	public Phase Now { get; private set; } = Phase.Up;
+        private float Depth()
+        {
+            float num = 0f;
+            SkinnedMeshRenderer skin = GetComponentInChildren<SkinnedMeshRenderer>(true);
+            if (skin != null)
+            {
+                float h = SkinHeight.Measure(skin, out var _, out var _);
+                if (h > 0.0001f) num = h;
+            }
+            if (num <= 0.0001f && _colliders != null)
+            {
+                for (int i = 0; i < _colliders.Length; i++)
+                {
+                    if (_colliders[i] != null)
+                    {
+                        num = Mathf.Max(num, _colliders[i].bounds.size.y);
+                    }
+                }
+            }
+            return num + Mathf.Max(0f, extraDepth);
+        }
 
-    	public bool IsReady => Now == Phase.Up;
+        public void Submerge(bool silent = false)
+        {
+            if (!_restCaptured)
+            {
+                _rest = transform.position;
+                _restCaptured = true;
+            }
+            _depth = Depth();
+            Now = Phase.Submerged;
+            _t = 0f;
+            Vector3 rest = _rest;
+            rest.y -= _depth;
+            transform.position = rest;
+            SetSolid(false);
+        }
 
-    	public float EmergeSeconds => emergeSeconds;
+        public void Emerge()
+        {
+            Now = Phase.Up;
+            if (_restCaptured)
+            {
+                transform.position = _rest;
+            }
+            SetSolid(true);
+            _rises++;
+            if (log)
+            {
+                Debug.Log("[Echoes] " + name + " emerged and solid at " + transform.position);
+            }
+        }
 
-    	public Vector3 RestPoint
-    	{
-    		get
-    		{
-    			//IL_0001: Unknown result type (might be due to invalid IL or missing references)
-    			return _rest;
-    		}
-    	}
+        private void Update()
+        {
+            if (Now == Phase.Rising)
+            {
+                _t += Time.deltaTime / Mathf.Max(0.01f, emergeSeconds);
+                _leg = Mathf.Clamp01(_t);
+                float curved = 1f - (1f - _leg) * (1f - _leg);
+                Vector3 pos = transform.position;
+                pos.y = Mathf.Lerp(_rest.y - _depth, _rest.y, curved);
+                transform.position = pos;
 
-    	public Vector3 StandPoint
-    	{
-    		get
-    		{
-    			//IL_0015: Unknown result type (might be due to invalid IL or missing references)
-    			//IL_000e: Unknown result type (might be due to invalid IL or missing references)
-    			if (!_restCaptured)
-    			{
-    				return ((Component)this).transform.position;
-    			}
-    			return _rest;
-    		}
-    	}
+                if (_leg >= colliderAt && !Solid())
+                {
+                    SetSolid(true);
+                }
 
-    	private void Awake()
-    	{
-    		//IL_002d: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0032: Unknown result type (might be due to invalid IL or missing references)
-    		_crawler = ((Component)this).GetComponent<InkCrawler>();
-    		_colliders = ((Component)this).GetComponentsInChildren<Collider>(true);
-    		_renderers = ((Component)this).GetComponentsInChildren<Renderer>(true);
-    		_rest = ((Component)this).transform.position;
-    		_depth = Depth();
-    		if (startSubmerged)
-    		{
-    			Submerge(silent: true);
-    		}
-    	}
+                if (_leg >= 1f)
+                {
+                    transform.position = _rest;
+                    Now = Phase.Up;
+                    SetSolid(true);
+                }
+            }
+            else if (Now == Phase.Up)
+            {
+                // Ensure always solid and visible when Up
+                if (!Solid())
+                {
+                    SetSolid(true);
+                }
+            }
+        }
 
-    	private float Depth()
-    	{
-    		//IL_0057: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_005c: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0060: Unknown result type (might be due to invalid IL or missing references)
-    		float num = 0f;
-    		SkinnedMeshRenderer componentInChildren = ((Component)this).GetComponentInChildren<SkinnedMeshRenderer>(true);
-    		if ((Object)(object)componentInChildren != (Object)null)
-    		{
-    			float num2 = SkinHeight.Measure((Renderer)(object)componentInChildren, out var _, out var _);
-    			if (num2 > 0.0001f)
-    			{
-    				num = num2;
-    			}
-    		}
-    		if (num <= 0.0001f)
-    		{
-    			for (int i = 0; i < _colliders.Length; i++)
-    			{
-    				if (!((Object)(object)_colliders[i] == (Object)null))
-    				{
-    					float num3 = num;
-    					Bounds bounds = _colliders[i].bounds;
-    					num = Mathf.Max(num3, bounds.size.y);
-    				}
-    			}
-    			if (num > 0.0001f && log)
-    			{
-    				Debug.LogWarning((object)("[Echoes] " + ((Object)this).name + " has no measurable skin, so its sink depth is taken from the collider (" + num.ToString("0.00") + " m). It is sinking a box, not the thing the player sees."), (Object)(object)this);
-    			}
-    		}
-    		return num + Mathf.Max(0f, extraDepth);
-    	}
+        private bool Solid()
+        {
+            if (_renderers != null && _renderers.Length > 0 && _renderers[0] != null)
+            {
+                return _renderers[0].enabled;
+            }
+            return true;
+        }
 
-    	public void Submerge(bool silent = false)
-    	{
-    		//IL_003f: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0044: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_005c: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_000f: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0014: Unknown result type (might be due to invalid IL or missing references)
-    		if (!_restCaptured)
-    		{
-    			_rest = ((Component)this).transform.position;
-    			_restCaptured = true;
-    		}
-    		_depth = Depth();
-    		Now = Phase.Submerged;
-    		_t = 0f;
-    		Vector3 rest = _rest;
-    		rest.y -= _depth;
-    		((Component)this).transform.position = rest;
-    		SetSolid(on: false);
-    		if (!silent && log)
-    		{
-    			Debug.Log((object)("[Echoes] " + ((Object)this).name + " sunk " + _depth.ToString("0.00") + " m"), (Object)(object)this);
-    		}
-    	}
+        public void SetSolid(bool on)
+        {
+            if (_colliders != null)
+            {
+                for (int i = 0; i < _colliders.Length; i++)
+                {
+                    if (_colliders[i] != null) _colliders[i].enabled = on;
+                }
+            }
 
-    	public void Emerge()
-    	{
-    		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0036: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_003b: Unknown result type (might be due to invalid IL or missing references)
-    		if (Now != Phase.Up)
-    		{
-    			_rest = new Vector3(((Component)this).transform.position.x, _rest.y, ((Component)this).transform.position.z);
-    			Now = Phase.Rising;
-    			_t = 0f;
-    			_rises++;
-    			if (log)
-    			{
-    				Debug.Log((object)("[Echoes] " + ((Object)this).name + " rising, rise " + _rises), (Object)(object)this);
-    			}
-    		}
-    	}
+            if (_renderers != null)
+            {
+                for (int j = 0; j < _renderers.Length; j++)
+                {
+                    if (_renderers[j] != null) _renderers[j].enabled = on;
+                }
+            }
+        }
 
-    	private void Update()
-    	{
-    		//IL_0064: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_0069: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_009a: Unknown result type (might be due to invalid IL or missing references)
-    		//IL_00d2: Unknown result type (might be due to invalid IL or missing references)
-    		if (Now != Phase.Rising)
-    		{
-    			return;
-    		}
-    		_t += Time.deltaTime / Mathf.Max(0.01f, emergeSeconds);
-    		_leg = Mathf.Clamp01(_t);
-    		float num = 1f - (1f - _leg) * (1f - _leg);
-    		Vector3 position = ((Component)this).transform.position;
-    		position.y = Mathf.Lerp(_rest.y - _depth, _rest.y, num);
-    		((Component)this).transform.position = position;
-    		if (_leg >= colliderAt && !Solid())
-    		{
-    			SetSolid(on: true);
-    		}
-    		if (!(_leg < 1f))
-    		{
-    			((Component)this).transform.position = _rest;
-    			Now = Phase.Up;
-    			SetSolid(on: true);
-    			if (log)
-    			{
-    				Debug.Log((object)("[Echoes] " + ((Object)this).name + " up at " + _rest.ToString("F2")), (Object)(object)this);
-    			}
-    		}
-    	}
+        public void ResetForCheckpoint()
+        {
+            if (_restCaptured)
+            {
+                transform.position = _rest;
+            }
+            Now = Phase.Up;
+            SetSolid(true);
+            _rises = 0;
+        }
 
-    	private bool Solid()
-    	{
-    		if (_colliders != null && _colliders.Length != 0)
-    		{
-    			return _colliders[0].enabled;
-    		}
-    		return false;
-    	}
+        public Vector3 AuthoredStand => authoredStand;
+        public bool HasAuthoredStand => hasAuthoredStand;
 
-    	private void SetSolid(bool on)
-    	{
-    		for (int i = 0; i < _colliders.Length; i++)
-    		{
-    			if ((Object)(object)_colliders[i] != (Object)null)
-    			{
-    				_colliders[i].enabled = on;
-    			}
-    		}
-    		for (int j = 0; j < _renderers.Length; j++)
-    		{
-    			if ((Object)(object)_renderers[j] != (Object)null)
-    			{
-    				_renderers[j].enabled = on;
-    			}
-    		}
-    	}
+        public void RememberAuthoredStand(Vector3 where)
+        {
+            if (hasAuthoredStand) return;
+            authoredStand = where;
+            hasAuthoredStand = true;
+        }
 
-    	public void ResetForCheckpoint()
-    	{
-    		Submerge(silent: true);
-    		_rises = 0;
-    	}
+        public bool RestoreAuthoredStand()
+        {
+            if (!hasAuthoredStand) return false;
+            transform.position = authoredStand;
+            return true;
+        }
     }
 }

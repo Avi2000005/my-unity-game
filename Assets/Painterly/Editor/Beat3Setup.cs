@@ -37,9 +37,9 @@ namespace Echoes.Painterly.EditorTools
         const float GullyMinWidth = 1.2f;
 
         /// <summary>
-        /// Narrowest passage Ari can actually get down. Her capsule is 0.60 m
-        /// across and the wall sweep stops her on contact, so a measured 0.7 m
-        /// is a gap she jams against and the beat is unplayable at its first
+        /// Narrowest passage Ari can actually get down. His capsule is 0.60 m
+        /// across and the wall sweep stops him on contact, so a measured 0.7 m
+        /// is a gap he jams against and the beat is unplayable at its first
         /// corner. 0.9 m is a margin over the body, not a round number.
         /// </summary>
         const float MinWalkableWidth = 0.9f;
@@ -132,7 +132,7 @@ namespace Echoes.Painterly.EditorTools
             sb.AppendLine("Ari  at " + ariPos.ToString("F2"));
             sb.AppendLine("Mono at " + monoPos.ToString("F2") + ", " +
                           Vector3.Distance(Flat(monoPos), Flat(ariPos)).ToString("0.0") +
-                          " m from her");
+                          " m from him");
             sb.AppendLine();
 
             // --- 2. the line list ---
@@ -246,6 +246,16 @@ namespace Echoes.Painterly.EditorTools
             Rung(3, "Highest notch, then follow the chevrons down, one at a time. " +
                     "Four notches. The fifth will disagree with the water — and " +
                     "that disagreement is your answer. It is the decoy.");
+
+            // --- the pickup. ColourFragment.pickupLineId is "beat6.take" and it calls
+            //     MonoCompanion.SayBeat with it, so if this id is absent the one
+            //     moment the player is told they have the fragment is the one
+            //     moment the game says nothing at all. It was absent: the asset
+            //     held 21 ids and beat6.take was not one of them, which is why
+            //     this id is added here rather than being noticed in play.
+            Beat("beat6.take",
+                 "That is it. That is the colour. Don't put it down - the " +
+                 "fountain will want it, and it is a long way back from here.");
 
             // --- ambient, for the rest of the level ---
             Ambient("amb.grey", "Everything here is grey. It wasn't always. I could " +
@@ -614,9 +624,9 @@ namespace Echoes.Painterly.EditorTools
 
                 float width = left + right;
 
-                // Ari's capsule is 0.60 m across and her sweep stops her on
+                // Ari's capsule is 0.60 m across and his sweep stops him on
                 // contact with both walls at once, so anything under 0.9 m is
-                // not a gully she can run down — it is a gap she wedges into.
+                // not a gully he can run down — it is a gap he wedges into.
                 if (width < MinWalkableWidth)
                 {
                     // The width that failed is kept, and put in the out
@@ -793,7 +803,7 @@ namespace Echoes.Painterly.EditorTools
         /// Not "did the tool run" — every line above can be true and the beat
         /// still unplayable, because the things that actually matter are all
         /// about reachability: can Ari walk to the tree, is the tree somewhere
-        /// the camera can see, does a stroke from where she stands reach it at
+        /// the camera can see, does a stroke from where he stands reach it at
         /// all. Those are measurable and all three have been wrong before.
         /// </summary>
         static void Verify(StringBuilder sb, SleepingTree tree, MonoChase chase,
@@ -805,7 +815,7 @@ namespace Echoes.Painterly.EditorTools
             var ari = ariGo.GetComponent<AriMover>();
             var point = tree.TouchPoint;
 
-            // Is the tree somewhere she can stand and swing?
+            // Is the tree somewhere he can stand and swing?
             float walkable = 0f;
             for (int i = 0; i < 8; i++)
             {
@@ -820,15 +830,15 @@ namespace Echoes.Painterly.EditorTools
                     walkable += 1f / 8f;
             }
 
-            sb.AppendLine("ground she can stand on within 1.6 m of the tree: " +
+            sb.AppendLine("ground he can stand on within 1.6 m of the tree: " +
                           (walkable * 100f).ToString("0") + "% (a body of " +
                           "Ari's size, 8 directions)");
             if (walkable < 0.5f)
-                sb.AppendLine("  BAD: she cannot get next to it. The stroke test " +
-                              "needs her inside " + tree.TouchDistance.ToString("0.0") +
-                              " m, and she cannot stand there.");
+                sb.AppendLine("  BAD: he cannot get next to it. The stroke test " +
+                              "needs his inside " + tree.TouchDistance.ToString("0.0") +
+                              " m, and he cannot stand there.");
 
-            // Can she see it from the square, i.e. is it not inside a house?
+            // Can he see it from the square, i.e. is it not inside a house?
             var cam = Camera.main;
             if (cam != null)
             {
@@ -848,7 +858,7 @@ namespace Echoes.Painterly.EditorTools
                 else
                 {
                     sb.AppendLine("from Camera.main the tree is in clear view " +
-                                  "(she will have to walk to it)");
+                                  "(he will have to walk to it)");
                 }
             }
 

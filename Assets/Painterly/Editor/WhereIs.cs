@@ -298,7 +298,7 @@ public static class WhereIs
         sb.AppendLine("profile down the middle of the box. 'head' is the ceiling" +
                       " over the floor; 'lane' is the free width at 1.0 m up,");
         sb.AppendLine("which is where Ari's body is, so a lane narrower than" +
-                      " 0.70 m is one she cannot walk down.");
+                      " 0.70 m is one he cannot walk down.");
         sb.AppendLine("lane is capped at " + (LaneCap).ToString("0.00") +
                       " m — that reading means 'nothing within " +
                       (LaneCap * 0.5f).ToString("0.0") + " m either way', not that the" +

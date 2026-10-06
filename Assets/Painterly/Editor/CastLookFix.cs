@@ -118,9 +118,9 @@ public static class CastLookFix
             bumpScale = 0f,
             paintable = false,
             expected = "6.8% of white",
-            why = "darkest, and NOT paintable. Beat 7 is her reveal and nothing " +
-                  "in Level 1 is allowed to put colour on her — if she could be " +
-                  "painted she would stop being a silhouette."
+            why = "darkest, and NOT paintable. Beat 7 is his reveal and nothing " +
+                  "in Level 1 is allowed to put colour on him — if he could be " +
+                  "painted he would stop being a silhouette."
         },
     };
 
@@ -251,7 +251,7 @@ public static class CastLookFix
                 else if (existing != null)
                 {
                     UnityEngine.Object.DestroyImmediate(existing);
-                    target = "removed, nothing in Level 1 may paint her";
+                    target = "removed, nothing in Level 1 may paint his";
                 }
 
                 sb.AppendLine(style.who + "  '" + unit.name + "'  at " +
@@ -397,7 +397,7 @@ public static class CastLookFix
                 {
                     wrong++;
                     sb.AppendLine("  " + unit.name + ": NOT paintable but still carries a ColorRestoreTarget, " +
-                                  "so she could be painted and stop being a silhouette");
+                                  "so he could be painted and stop being a silhouette");
                 }
             }
         }

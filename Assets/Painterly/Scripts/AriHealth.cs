@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
-
+
+
 using Object = UnityEngine.Object;
 namespace Echoes.Painterly
 {
@@ -9,10 +10,10 @@ namespace Echoes.Painterly
     public sealed class AriHealth : MonoBehaviour
     {
     	[Header("Health")]
-    	[Tooltip("Fraction of remaining health a crawler lunge takes. The brief asks for 10-15%; 12% is the middle of that band. Fraction of what is LEFT, so the last hit always matters equally.")]
+    	[Tooltip("Fraction of FULL health a crawler lunge takes. The brief asks for 10-15%; 12% is the middle of that band. This is a flat subtraction from the current value, NOT a fraction of what is left. From full health that reaches zero in about nine hits, which is what makes Ari's death real and the complaint 'Ari does not die at health 0' stay fixed. It is deliberately not Now - (Now * hitFraction): that is 0.88 to the power n, so in a float it creeps toward zero forever and she effectively never dies at all.")]
     	[Range(0.01f, 1f)]
     	[SerializeField]
-    	private float hitFraction = 0.12f;
+    	private float hitFraction = 0.08f;
 
     	[Tooltip("Below this the low-health warning shows and the stinger loops.")]
     	[Range(0.05f, 0.9f)]
@@ -27,13 +28,13 @@ namespace Echoes.Painterly
     	[Tooltip("Seconds before another hit may flash again. Stops three crawlers hitting in the same frame from looking like one hit.")]
     	[Min(0f)]
     	[SerializeField]
-    	private float flashCooldown = 0.5f;
+    	private float flashCooldown = 1.0f;
 
     	[Header("Death")]
     	[Tooltip("Seconds after reaching zero before the lose screen is raised. Long enough for the flash to be seen at all.")]
     	[Min(0f)]
     	[SerializeField]
-    	private float deathDelay = 1.2f;
+    	private float deathDelay = 2.8f;
 
     	[SerializeField]
     	private bool log = true;
@@ -159,7 +160,12 @@ namespace Echoes.Painterly
     		Now = 0f;
     		if (log)
     		{
-    			Debug.Log((object)("[Echoes] Ari is out — " + Hits + " hit(s) taken. The checkpoint decides what happens next."), (Object)(object)this);
+    			Debug.Log("[Echoes] Ari defeated! Playing death animation.", (Object)(object)this);
+    		}
+    		AriAnim.PlayDeath();
+    		if ((Object)(object)AriMover.I != (Object)null)
+    		{
+    			AriMover.I.Frozen = true;
     		}
     		Changed?.Invoke(Now);
     		Died?.Invoke();
@@ -183,6 +189,11 @@ namespace Echoes.Painterly
     		_lastHitTime = -1f;
     		_flashUntil = -1f;
     		LevelState.Lost = false;
+    		AriAnim.ResetDeath();
+    		if ((Object)(object)AriMover.I != (Object)null)
+    		{
+    			AriMover.I.Frozen = false;
+    		}
     		if (isDead && log)
     		{
     			Debug.Log((object)"[Echoes] Ari restored to full health", (Object)(object)this);

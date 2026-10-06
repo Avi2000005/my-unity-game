@@ -18,6 +18,7 @@ namespace Echoes.Painterly
     	private static readonly int SwingId = Animator.StringToHash("Swing");
 
     	private static readonly int SpeedId = Animator.StringToHash("Speed");
+    	private static readonly int DieId = Animator.StringToHash("Die");
 
     	private static Vector3? _talkFace;
 
@@ -135,6 +136,37 @@ namespace Echoes.Painterly
     		}
     	}
 
+    	public static void PlayDeath()
+    	{
+    		Animator val = Resolve();
+    		if ((Object)(object)val != (Object)null)
+    		{
+    			val.ResetTrigger(TalkId);
+    			val.ResetTrigger(CollectId);
+    			val.ResetTrigger(SwingId);
+    			if (Has(val, RunId, "Run")) val.SetBool(RunId, false);
+    			if (Has(val, SpeedId, "Speed")) val.SetFloat(SpeedId, 0f);
+    			if (Has(val, DieId, "Die"))
+    			{
+    				val.SetTrigger(DieId);
+    			}
+    			val.Play("Ari_Death", 0, 0f);
+    		}
+    	}
+
+    	public static void ResetDeath()
+    	{
+    		Animator val = Resolve();
+    		if ((Object)(object)val != (Object)null)
+    		{
+    			if (Has(val, DieId, "Die"))
+    			{
+    				val.ResetTrigger(DieId);
+    			}
+    			val.Play("Ari_Idle", 0, 0f);
+    		}
+    	}
+
     	private static Animator Resolve()
     	{
     		if ((Object)(object)_anim != (Object)null)
@@ -156,7 +188,7 @@ namespace Echoes.Painterly
     		{
     			if (!_warned)
     			{
-    				Debug.LogWarning((object)("[Echoes] AriAnim: Ari has " + (((Object)(object)_anim == (Object)null) ? "no Animator" : "no controller") + ", so her run, talk and collect poses cannot play. Assign Ari.controller to her Animator."));
+    				Debug.LogWarning((object)("[Echoes] AriAnim: Ari has " + (((Object)(object)_anim == (Object)null) ? "no Animator" : "no controller") + ", so his run, talk and collect poses cannot play. Assign Ari.controller to his Animator."));
     				_warned = true;
     			}
     			return null;

@@ -177,7 +177,7 @@ namespace Echoes.Painterly.EditorTools
     		stringBuilder.AppendLine("               not renderer bounds: an earlier version unioned the renderers under L1_Beat5 and got 13.0 x 4.5 m, which is the size of the props, not of the yard, and it produced a 'too small, widen it' verdict that was measuring paint instead of ground.");
     		stringBuilder.AppendLine();
     		Vector3 val3 = EntryPoint();
-    		stringBuilder.AppendLine("  entry       : " + val3.ToString("F2") + "  (x from Beat5Director.EnterX, z from the gate she walks through — not a constant)");
+    		stringBuilder.AppendLine("  entry       : " + val3.ToString("F2") + "  (x from Beat5Director.EnterX, z from the gate he walks through — not a constant)");
     		if (flag)
     		{
     			bool flag2 = val3.x >= yard.min.x && val3.x <= yard.max.x && val3.z >= yard.min.z && val3.z <= yard.max.z;
@@ -404,11 +404,11 @@ namespace Echoes.Painterly.EditorTools
     		string text2;
     		if (num5 < num2)
     		{
-    			text2 = "  <- already noticed before she is in the yard";
+    			text2 = "  <- already noticed before he is in the yard";
     		}
     		else
     		{
-    			text2 = ((num5 < num2 + 1.5f) ? ("  <- clear of the " + num2.ToString("F1") + " m radius, but only by " + (num5 - num2).ToString("F2") + " m, and the margin wanted is " + 1.5f.ToString("F1") + " m. She is barely asleep when she arrives.") : ("  <- all still dormant when she walks in, by " + (num5 - num2).ToString("F2") + " m over the radius (margin wanted: " + 1.5f.ToString("F1") + " m)"));
+    			text2 = ((num5 < num2 + 1.5f) ? ("  <- clear of the " + num2.ToString("F1") + " m radius, but only by " + (num5 - num2).ToString("F2") + " m, and the margin wanted is " + 1.5f.ToString("F1") + " m. He is barely asleep when he arrives.") : ("  <- all still dormant when he walks in, by " + (num5 - num2).ToString("F2") + " m over the radius (margin wanted: " + 1.5f.ToString("F1") + " m)"));
     		}
     		stringBuilder.AppendLine("  nearest crawler at entry: " + text + " m" + text2);
     		sb.AppendLine();
@@ -419,7 +419,7 @@ namespace Echoes.Painterly.EditorTools
     		}
     		val /= (float)crawlers.Count;
     		sb.AppendLine("encirclement — bearings from the crawlers' own centre (" + val.ToString("F2") + ") to each:");
-    		sb.AppendLine("  (not from Ari: where she will be standing when they close is unknown at edit time, and the version that measured it from her spawn reported the yard's layout as her starting position)");
+    		sb.AppendLine("  (not from Ari: where he will be standing when they close is unknown at edit time, and the version that measured it from his spawn reported the yard's layout as his starting position)");
     		SortedSet<int> sortedSet = new SortedSet<int>();
     		List<float> list = new List<float>(3);
     		int num7 = 0;
@@ -464,7 +464,7 @@ namespace Echoes.Painterly.EditorTools
     		sb.AppendLine("  distinct octants: " + sortedSet.Count + " of 3" + ((num7 > 0) ? ("  (with " + num7 + " on the centre and not counted)") : "") + "   <- a report, not the test");
     		sb.AppendLine("  smallest gap between two bearings: " + num9.ToString("F0") + " deg  " + ((num9 >= 90f) ? "<- all three point genuinely different ways" : "<- two of them point the same way however many octants they landed in. This is a line, not a pincer. NEEDS 90"));
     		float num14 = (((Object)(object)crawlers[0] != (Object)null) ? (crawlers[0].LungeRange * 3f) : 6f);
-    		sb.AppendLine("  spacing      : closest pair " + num3.ToString("F2") + " m, target band around " + num14.ToString("F2") + " m (three lunge ranges — far enough that one swing cannot hit two, near enough that two can be on her at once)");
+    		sb.AppendLine("  spacing      : closest pair " + num3.ToString("F2") + " m, target band around " + num14.ToString("F2") + " m (three lunge ranges — far enough that one swing cannot hit two, near enough that two can be on him at once)");
     		bool flag = num3 > num14 * 2f;
     		if (flag)
     		{
@@ -476,7 +476,7 @@ namespace Echoes.Painterly.EditorTools
     		string text3;
     		if (flag2)
     		{
-    			text3 = "the yard as it stands does NOT fit three crawlers readably. Specifically: " + ((num5 < num2 + 1.5f) ? ("the nearest crawler is " + num5.ToString("F2") + " m from the entrance, inside the " + (num2 + 1.5f).ToString("F1") + " m it needs (" + num2.ToString("F1") + " m notice radius plus a " + 1.5f.ToString("F1") + " m margin), so she is spotted before she is in the yard. ") : "") + ((num3 < num) ? ("the closest pair is " + num3.ToString("F2") + " m apart, inside one " + num.ToString("F1") + " m brush swing, so one swing staggers two at once. ") : "") + ((num9 < 90f) ? ("two of the three point " + num9.ToString("F0") + " degrees apart from the trio's own centre, which is a line and not an encirclement.") : "") + "Widening the yard is the remedy only for the first two. For the angle, re-run this tool to re-derive the positions.";
+    			text3 = "the yard as it stands does NOT fit three crawlers readably. Specifically: " + ((num5 < num2 + 1.5f) ? ("the nearest crawler is " + num5.ToString("F2") + " m from the entrance, inside the " + (num2 + 1.5f).ToString("F1") + " m it needs (" + num2.ToString("F1") + " m notice radius plus a " + 1.5f.ToString("F1") + " m margin), so he is spotted before he is in the yard. ") : "") + ((num3 < num) ? ("the closest pair is " + num3.ToString("F2") + " m apart, inside one " + num.ToString("F1") + " m brush swing, so one swing staggers two at once. ") : "") + ((num9 < 90f) ? ("two of the three point " + num9.ToString("F0") + " degrees apart from the trio's own centre, which is a line and not an encirclement.") : "") + "Widening the yard is the remedy only for the first two. For the angle, re-run this tool to re-derive the positions.";
     		}
     		else
     		{

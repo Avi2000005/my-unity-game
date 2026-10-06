@@ -32,7 +32,7 @@ namespace Echoes.Painterly.EditorTools
     		if ((Object)(object)ariMover == (Object)null)
     		{
     			stringBuilder.AppendLine();
-    			stringBuilder.AppendLine("  FATAL: no AriMover in the scene. Everything below attaches to her, so nothing can be wired. Find her first and re-run.");
+    			stringBuilder.AppendLine("  FATAL: no AriMover in the scene. Everything below attaches to him, so nothing can be wired. Find his first and re-run.");
     			Finish(stringBuilder);
     			return;
     		}
@@ -54,7 +54,7 @@ namespace Echoes.Painterly.EditorTools
     		stringBuilder.AppendLine("wiring check:");
     		stringBuilder.AppendLine("  AriHealth      : " + (((Object)(object)component != (Object)null) ? ("hit cost " + (component.HitCost * 100f).ToString("0") + "% of remaining, low at " + (component.LowAt * 100f).ToString("0") + "%, hits taken " + component.Hits) : "MISSING — the bar will not draw and nothing can be hurt"));
     		AriInteract component2 = ((Component)ariMover).GetComponent<AriInteract>();
-    		stringBuilder.AppendLine("  AriInteract   : " + (((Object)(object)component2 != (Object)null) ? ("reach " + component2.Reach.ToString("0.0") + " m from her chest, scan " + component2.ScanInterval.ToString("0.00") + "s") : "MISSING — nothing in the level can be picked up or fixed"));
+    		stringBuilder.AppendLine("  AriInteract   : " + (((Object)(object)component2 != (Object)null) ? ("reach " + component2.Reach.ToString("0.0") + " m from his chest, scan " + component2.ScanInterval.ToString("0.00") + "s") : "MISSING — nothing in the level can be picked up or fixed"));
     		MonoBehaviour[] array = Object.FindObjectsByType<MonoBehaviour>((FindObjectsInactive)1);
     		int num3 = 0;
     		StringBuilder stringBuilder2 = new StringBuilder();

@@ -214,7 +214,7 @@ public static class SwingClipSurvey
                 // failed was 0.02s of timing against a 183% leg swing. Those are
                 // not the same size of problem. One is a shave of polish on a
                 // clip that already works; the other is Ari marching on the spot
-                // while she paints, which no amount of correct timing hides.
+                // while he paints, which no amount of correct timing hides.
                 // A tie on count should therefore never be broken in favour of a
                 // locomotion clip.
                 if (r.legTravel > r.travel * 0.10f) continue;

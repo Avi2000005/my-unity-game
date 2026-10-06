@@ -9173,7 +9173,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Echoes.Painterly.AriMover
   walkSpeed: 2.2
-  runSpeed: 3.6
+  runSpeed: 5.2
   turnRate: 720
   groundProbe: 1.5
   groundMask:
@@ -15851,6 +15851,55 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: f01cfaf9c5e92104fbdb1e673e06f6a3, type: 3}
   m_PrefabInstance: {fileID: 2098082143}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &184169933
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 184169935}
+  - component: {fileID: 184169934}
+  m_Layer: 0
+  m_Name: L1_BeatTextAudit
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &184169934
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 184169933}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bf23449620f56843811a2b1834cb289, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Echoes.Painterly.BeatTextAudit
+  extra:
+  - "Press E \u2014 set the blue fragment in the water"
+  - The basin is dry and grey. It wants water, and blue.
+  - The old tree is grey. Swing the brush at it.
+  - "Ari has never seen a colour.\n\nEverything here is black or white, and he has a brush anyway \u2014 because everything he likes, he tries to paint."
+--- !u!4 &184169935
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 184169933}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &184654760
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -56538,7 +56587,7 @@ Transform:
   m_GameObject: {fileID: 652209436}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 41.98, y: 0, z: -0.52000046}
+  m_LocalPosition: {x: 41, y: 0, z: 12}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -56564,6 +56613,8 @@ MonoBehaviour:
   startSubmerged: 1
   colliderAt: 0.6
   log: 1
+  authoredStand: {x: 41.98, y: 0, z: -0.52000046}
+  hasAuthoredStand: 1
 --- !u!1 &652424833 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 130600881b7fa53428dd5ac7d62eda82, type: 3}
@@ -62841,7 +62892,7 @@ Transform:
   m_GameObject: {fileID: 713474950}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 48.48, y: 2.2, z: 7.9799995}
+  m_LocalPosition: {x: 41, y: 0, z: 5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -62867,6 +62918,8 @@ MonoBehaviour:
   startSubmerged: 1
   colliderAt: 0.6
   log: 1
+  authoredStand: {x: 48.48, y: 2.2, z: 7.9799995}
+  hasAuthoredStand: 1
 --- !u!114 &713474953
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -89385,6 +89438,55 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: a24e96818b53ac64b994ceedb060b2d7, type: 3}
   m_PrefabInstance: {fileID: 974344117}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &974444686
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 974444688}
+  - component: {fileID: 974444687}
+  m_Layer: 0
+  m_Name: L1_BeatTextAudit
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &974444687
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 974444686}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bf23449620f56843811a2b1834cb289, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Echoes.Painterly.BeatTextAudit
+  extra:
+  - "Press E \u2014 set the blue fragment in the water"
+  - The basin is dry and grey. It wants water, and blue.
+  - The old tree is grey. Swing the brush at it.
+  - "Ari has never seen a colour.\n\nEverything here is black or white, and he has a brush anyway \u2014 because everything he likes, he tries to paint."
+--- !u!4 &974444688
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 974444686}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &975041871 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: b58323781ba474e40b07e419b713827f, type: 3}
@@ -100065,6 +100167,55 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: ce700b6d0618b5c42a59fcfadd0e3929, type: 3}
   m_PrefabInstance: {fileID: 1283918195}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1072629649
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1072629651}
+  - component: {fileID: 1072629650}
+  m_Layer: 0
+  m_Name: L1_BeatTextAudit
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1072629650
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1072629649}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bf23449620f56843811a2b1834cb289, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Echoes.Painterly.BeatTextAudit
+  extra:
+  - "Press E \u2014 set the blue fragment in the water"
+  - The basin is dry and grey. It wants water, and blue.
+  - The old tree is grey. Swing the brush at it.
+  - "Ari has never seen a colour.\n\nEverything here is black or white, and he has a brush anyway \u2014 because everything he likes, he tries to paint."
+--- !u!4 &1072629651
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1072629649}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1073018230 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: a38fd9fd1a7a7284b9279b2967badcd8, type: 3}
@@ -125546,11 +125697,13 @@ MonoBehaviour:
   introPrompt: Press E to begin.
   keyGlyphs:
   - W A S D
+  - SHIFT
   - SPACE
   - LEFT CLICK
   - E
   keyLabels:
   - move
+  - sprint / run fast
   - jump
   - swing the brush
   - interact
@@ -183656,7 +183809,7 @@ Transform:
   m_GameObject: {fileID: 1852744437}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 49.48, y: 0, z: 1.4799995}
+  m_LocalPosition: {x: 45, y: 0, z: 9}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -183682,6 +183835,8 @@ MonoBehaviour:
   startSubmerged: 1
   colliderAt: 0.6
   log: 1
+  authoredStand: {x: 49.48, y: 0, z: 1.4799995}
+  hasAuthoredStand: 1
 --- !u!114 &1852744440
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -220548,3 +220703,6 @@ SceneRoots:
   - {fileID: 150958181}
   - {fileID: 1027035382}
   - {fileID: 1866467}
+  - {fileID: 974444688}
+  - {fileID: 184169935}
+  - {fileID: 1072629651}

@@ -11,7 +11,7 @@ namespace Echoes.Painterly
     	[SerializeField]
     	private float holdSeconds = 7f;
 
-    	[Tooltip("Give the card up early once she starts walking east, so it never holds her in place longer than it has to.")]
+    	[Tooltip("Give the card up early once he starts walking east, so it never holds his in place longer than it has to.")]
     	[SerializeField]
     	private bool releaseOnWalking = true;
 
@@ -92,7 +92,7 @@ namespace Echoes.Painterly
     		}
     		if (flag || flag2)
     		{
-    			Release(flag2 ? "she started walking" : "the card timed out");
+    			Release(flag2 ? "he started walking" : "the card timed out");
     		}
     	}
 
@@ -128,7 +128,7 @@ namespace Echoes.Painterly
     		BeatPrompt.Clear();
     		if (log)
     		{
-    			Debug.Log((object)("[Echoes] beat 4.5 — released (" + why + "). The bar will now appear the first time she is hit."), (Object)(object)this);
+    			Debug.Log((object)("[Echoes] beat 4.5 — released (" + why + "). The bar will now appear the first time he is hit."), (Object)(object)this);
     		}
     	}
 

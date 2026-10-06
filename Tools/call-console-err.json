@@ -1,0 +1,9 @@
+{
+  "tool": "console",
+  "args": {
+    "action": "get",
+    "types": ["error"],
+    "count": 30,
+    "format": "plain"
+  }
+}

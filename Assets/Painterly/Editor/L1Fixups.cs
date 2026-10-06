@@ -72,7 +72,7 @@ namespace Echoes.Painterly.EditorTools
             Thief(restore);
             FragmentGlow();
             Pronouns();
-            CrawlerGround();
+            CrawlerGround(restore);
             TextReport();
 
             // SAVED, and this line is the load-bearing one.
@@ -683,9 +683,28 @@ namespace Echoes.Painterly.EditorTools
         // ---------------------------------------------------------------------
 
         /// <summary>
-        /// Where the three are, and what is under each of them.
+        /// <para>Complaint 6: one of the three crawlers floats in the air. Complaint 7:
+        /// there are three, not two.</para>
+        ///
+        /// <para><b>Measured before this method changed anything.</b>
+        /// <c>Beat5_Crawler_C</c> was at (48.48, 2.20, 7.98). The yard's paving is
+        /// at y 0.00 and 2.20 m is exactly <c>Beat5Setup.CoverHeight</c>, so it
+        /// was not floating over nothing — it was standing on top of
+        /// <c>Beat5_Cover_east_run</c>, a 4.00 x 2.20 x 0.45 m cover wall, which
+        /// is a thing the level put there for Ari to hide behind.</para>
+        ///
+        /// <para>That distinction is why the fix is not "set y to 0". A crawler at
+        /// (48.48, 0, 7.98) would be standing <i>inside</i> the cover: the wall
+        /// occupies y 0 to 2.20 at that x and z. So the fix has to move it in x
+        /// and z as well, and the only honest way to choose where is to ask
+        /// Unity, not to pick a number. <see cref="ClearAt"/> casts the crawler's
+        /// own capsule and a spot is accepted only if nothing is inside it.</para>
+        ///
+        /// <para>Reversible. The position the scene had is written into the
+        /// crawler itself (<c>InkCrawlerEmerge.RememberAuthoredStand</c>), so
+        /// <c>-restore</c> puts it back even after Temp has been cleaned.</para>
         /// </summary>
-        static void CrawlerGround()
+        static void CrawlerGround(bool restore)
         {
             Sb.AppendLine();
             Sb.AppendLine("=== 6 / 7. THE THREE CRAWLERS ===");
@@ -697,49 +716,327 @@ namespace Echoes.Painterly.EditorTools
                           "  (the beat is written for 3)");
             Sb.AppendLine();
 
+            Vector3 entry = CrawlerEntry();
+
             for (int i = 0; i < all.Length; i++)
             {
                 var c = all[i];
                 var t = c.transform;
-
                 var em = c.GetComponent<InkCrawlerEmerge>();
 
                 Sb.AppendLine("  [" + i + "] " + Full(t));
-                Sb.AppendLine("      at " + t.position.ToString("F2") +
-                              (em != null ? ", stand point " +
-                                            em.StandPoint.ToString("F2") : ""));
-                Sb.AppendLine("      emerge component " + (em == null ? "MISSING"
-                              : "present, phase " + em.Now + ", now started"));
 
-                var hits = Physics.RaycastAll(t.position + Vector3.up * 30f,
-                                              Vector3.down, 60f, ~0,
-                                              QueryTriggerInteraction.Ignore);
-                System.Array.Sort(hits, (a, b) => b.point.y.CompareTo(a.point.y));
-
-                int shown = 0;
-                for (int h = 0; h < hits.Length && shown < 5; h++)
+                if (restore)
                 {
-                    if (hits[h].collider.GetComponentInParent<InkCrawler>() != null)
-                        continue;
-                    if (hits[h].collider.GetComponentInParent<AriMover>() != null)
-                        continue;
+                    if (em == null)
+                    {
+                        Sb.AppendLine("      RESTORE: no InkCrawlerEmerge, so no " +
+                                      "recorded stand point exists. Nothing moved.");
+                    }
+                    else if (em.RestoreAuthoredStand())
+                    {
+                        Sb.AppendLine("      RESTORED to the authored " +
+                                      em.AuthoredStand.ToString("F2"));
+                    }
+                    else
+                    {
+                        Sb.AppendLine("      RESTORE: no stand point was ever " +
+                                      "recorded, which means this tool never moved " +
+                                      "it. Nothing moved, and that is not a failure.");
+                    }
 
-                    Sb.AppendLine("        under it: y " +
-                                  hits[h].point.y.ToString("F2") + "  " +
-                                  hits[h].collider.name + "  " +
-                                  hits[h].collider.bounds.size.ToString("F2"));
-                    shown++;
+                    Sb.AppendLine();
+                    continue;
                 }
 
-                if (shown == 0)
-                    Sb.AppendLine("        under it: NOTHING — over a hole");
+                float radius = c.BodyRadius > 0.01f ? c.BodyRadius : 0.34f;
+                float height = c.BodyHeight > 0.01f ? c.BodyHeight : 0.96f;
 
-                Sb.AppendLine("      the number that argues against 'this one " +
-                              "is fine': the yard floor is 0.00 and any crawler " +
-                              "more than 0.30 m off it is not on the paving.");
+                var floor = FloorUnder(t.position, out Collider floorCol);
+                Sb.AppendLine("      authored at " + t.position.ToString("F2"));
+                Sb.AppendLine("      floor " + (floor.HasFloor
+                                 ? floor.Y.ToString("F2") + " on " + floor.Name +
+                                   " " + floor.Size.ToString("F2")
+                                 : "NOTHING — this spot is over a hole"));
+
+                // The tolerance is the crawler's own body radius, not a number
+                // picked to make a report come out right. A crawler whose pivot
+                // is a little above the paving is standing on it.
+                bool onFloor = floor.HasFloor &&
+                               Mathf.Abs(t.position.y - floor.Y) <= radius;
+
+                string why = string.Empty;
+                bool clear = floor.HasFloor && ClearAt(new Vector3(t.position.x,
+                                                   floor.Y, t.position.z),
+                                                   floor.Y, radius, height,
+                                                   out why);
+
+                if (onFloor && clear)
+                {
+                    Sb.AppendLine("      VERDICT: on the paving, and nothing inside " +
+                                  "its body. Not touched.");
+                    if (em != null && !em.HasAuthoredStand)
+                        em.RememberAuthoredStand(t.position);
+                    Sb.AppendLine();
+                    continue;
+                }
+
+                Sb.AppendLine("      VERDICT: this is complaint 6.");
+                if (!floor.HasFloor)
+                {
+                    Sb.AppendLine("        no floor under it, so it cannot be " +
+                                  "placed rather than moved. Left alone on purpose " +
+                                  "— a tool that invents a floor for a crawler over " +
+                                  "a hole is worse than one that admits it cannot.");
+                    Sb.AppendLine();
+                    continue;
+                }
+
+                if (onFloor && !clear)
+                    Sb.AppendLine("        standing on the paving but with " + why +
+                                  " inside its body");
+
+                Vector3 want;
+                if (!NearestClear(t.position, floor.Y, radius, height,
+                                  entry, c.NoticeRadius, out want, out why))
+                {
+                    Sb.AppendLine("        NO CLEAR SPOT within 3.0 m: " + why +
+                                  ". Left where the author put it rather than " +
+                                  "pushed into a wall.");
+                    if (em != null && !em.HasAuthoredStand)
+                        em.RememberAuthoredStand(t.position);
+                    Sb.AppendLine();
+                    continue;
+                }
+
+                if (em != null)
+                    em.RememberAuthoredStand(t.position);
+                else
+                    Sb.AppendLine("        WARNING: no InkCrawlerEmerge, so this " +
+                                  "move cannot be restored by -restore");
+
+                Vector3 from = t.position;
+                t.position = want;
+                // InkCrawler.home is captured at runtime from
+                // InkCrawlerEmerge.StandPoint, so it follows automatically. No
+                // second edit is needed, and editing it here would be editing a
+                // value that does not exist yet.
+                Sb.AppendLine("        MOVED " + from.ToString("F2") + " -> " +
+                              want.ToString("F2") +
+                              "   (" + Vector3.Distance(from, want).ToString("F2") +
+                              " m away, authored position recorded for -restore)");
+
+                // Re-measure. A report that states what was intended is not a
+                // report; this is the position on disk after the move.
+                var after = FloorUnder(want, out Collider _afterCol);
+                string afterWhy = string.Empty;
+                bool ok = after.HasFloor &&
+                          Mathf.Abs(want.y - after.Y) <= radius &&
+                          ClearAt(want, after.Y, radius, height, out afterWhy);
+                Sb.AppendLine("        RE-MEASURED: floor " + after.Y.ToString("F2") +
+                              ", " +
+                              (ok ? "clear, capsule inside nothing"
+                                  : "STILL WRONG — " + afterWhy) +
+                              ", " +
+                              Vector3.Distance(want, entry).ToString("F2") +
+                              " m from the yard entrance (notice radius " +
+                              c.NoticeRadius.ToString("F1") + " m)");
 
                 Sb.AppendLine();
             }
+        }
+
+        // ---------------------------------------------------------------------
+        // 6, helpers. Everything here measures; nothing here decides a position
+        // by arithmetic on a constant.
+        // ---------------------------------------------------------------------
+
+        /// <summary>The floor at a point: the top of the widest collider under it.</summary>
+        /// <remarks>
+        /// Widest by x times z, and not the highest hit. "Highest hit" would
+        /// return the top of a cover wall, which is the exact mistake complaint 6
+        /// is about: the cover is 2.20 m up and 1.8 m wide, the paving is 0.00 m
+        /// up and 160000 m wide, and only one of those is a floor.
+        /// </remarks>
+        struct Floor
+        {
+            public bool HasFloor;
+            public float Y;
+            public string Name;
+            public Vector3 Size;
+        }
+
+        static Floor FloorUnder(Vector3 at, out Collider floorCol)
+        {
+            floorCol = null;
+            var result = new Floor { Y = 0f, Name = "" };
+
+            var hits = Physics.RaycastAll(at + Vector3.up * 30f, Vector3.down,
+                                          60f, ~0, QueryTriggerInteraction.Ignore);
+
+            float widest = 0f;
+            for (int i = 0; i < hits.Length; i++)
+            {
+                var col = hits[i].collider;
+                if (col == null) continue;
+                if (col.GetComponentInParent<InkCrawler>() != null) continue;
+                if (col.GetComponentInParent<AriMover>() != null) continue;
+
+                var size = col.bounds.size;
+                float area = size.x * size.z;
+                if (floorCol == null || area > widest)
+                {
+                    floorCol = col;
+                    widest = area;
+                }
+            }
+
+            if (floorCol != null)
+            {
+                result.HasFloor = true;
+                result.Y = floorCol.bounds.max.y;
+                result.Name = floorCol.name;
+                result.Size = floorCol.bounds.size;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Is a crawler-sized capsule at <paramref name="stand"/> inside
+        /// anything that is not the floor it is standing on?
+        /// </summary>
+        /// <remarks>
+        /// <para>Asked of Unity rather than worked out. A hand-written "is it inside
+        /// the cover" test would be a second, weaker opinion about the same
+        /// geometry, and it would be wrong the moment the cover is resized.</para>
+        ///
+        /// <para><b>The floor is ignored by height, not by identity, and that is
+        /// the whole correction.</b> The first version of this took a single
+        /// collider to skip, and it reported all three crawlers as blocked by
+        /// <c>Ground (400.00, 0.50, 400.00)</c> — including the two that were
+        /// already standing correctly on it. Two reasons, both worth naming
+        /// because the report looked like a finding and was not:</para>
+        ///
+        /// <list type="number">
+        /// <item>The yard has <b>two</b> ground colliders, identical in name and
+        /// size. Picking one to skip and then overlapping the other is the
+        /// definition of a test that cannot pass.</item>
+        /// <item>The capsule's lower sphere was hung half a radius <i>below</i>
+        /// the floor, so it dipped into the ground by construction and reported
+        /// contact with the one thing the crawler is meant to be touching.</item>
+        /// </list>
+        ///
+        /// <para>So: the capsule now rests exactly on the stand point, and every
+        /// collider whose top is at floor level is treated as floor. Which
+        /// colliders those are is discovered per spot, not assumed.</para>
+        /// </remarks>
+        static bool ClearAt(Vector3 stand, float floorY, float radius,
+                            float height, out string why)
+        {
+            why = "";
+
+            // A capsule's length is the distance between its two sphere CENTRES,
+            // so a crawler of total height h and radius r has centres at r and
+            // h - r above the stand point. Guard the degenerate case: a height at
+            // or below the diameter has no valid capsule and Unity would clamp it
+            // into something that overlaps itself.
+            float span = Mathf.Max(height, radius * 2.05f);
+            var bottom = stand + Vector3.up * radius;
+            var top = stand + Vector3.up * (span - radius);
+
+            // Anything flush with the paving is the paving. 0.05 m is half the
+            // collider size of the low walls in this level, so a 0.55 m wall
+            // cannot be mistaken for the ground.
+            float floorTolerance = floorY + 0.05f;
+
+            var overlap = Physics.OverlapCapsule(bottom, top, radius, ~0,
+                                                 QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < overlap.Length; i++)
+            {
+                var col = overlap[i];
+                if (col == null) continue;
+                if (col.bounds.max.y <= floorTolerance) continue;
+                if (col.GetComponentInParent<InkCrawler>() != null) continue;
+                if (col.GetComponentInParent<AriMover>() != null) continue;
+
+                why = col.name + " (" + col.bounds.size.ToString("F2") +
+                      ", top at y " + col.bounds.max.y.ToString("F2") + ")";
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// The nearest spot to <paramref name="from"/> where the crawler fits on
+        /// the floor, still far enough from the yard entrance to be a crawler
+        /// that has not noticed her yet.
+        /// </summary>
+        static bool NearestClear(Vector3 from, float floorY,
+                                 float radius, float height, Vector3 entry,
+                                 float noticeRadius, out Vector3 want, out string why)
+        {
+            want = from;
+            why = "";
+            float need = noticeRadius + 1.5f;
+            int spokes = 32;
+
+            for (float r = 0f; r <= 3.0001f; r += 0.25f)
+            {
+                int count = r < 0.01f ? 1 : spokes;
+                for (int a = 0; a < count; a++)
+                {
+                    float ang = a * (Mathf.PI * 2f / spokes);
+                    var xz = from + new Vector3(Mathf.Cos(ang) * r, 0f,
+                                                Mathf.Sin(ang) * r);
+                    var cand = new Vector3(xz.x, floorY, xz.z);
+
+                    if (Vector3.Distance(cand, entry) < need)
+                    {
+                        why = "every clear spot is inside " + need.ToString("F1") +
+                              " m of the entrance";
+                        continue;
+                    }
+
+                    string w;
+                    if (ClearAt(cand, floorY, radius, height, out w))
+                    {
+                        want = cand;
+                        return true;
+                    }
+
+                    why = w;
+                }
+            }
+
+            if (want == from) why = "no clear spot: " + why;
+            return false;
+        }
+
+        /// <summary>
+        /// Where the yard entrance is, so "still far enough away" can be checked.
+        /// </summary>
+        static Vector3 CrawlerEntry()
+        {
+            float x = 38f;
+            var dir = UnityEngine.Object.FindAnyObjectByType<Beat5Director>(
+                FindObjectsInactive.Include);
+            if (dir != null) x = dir.EnterX;
+
+            float z = float.NaN;
+            var gate = UnityEngine.Object.FindAnyObjectByType<BeatGate>(
+                FindObjectsInactive.Include);
+            if (gate != null) z = gate.transform.position.z;
+            else
+            {
+                var cp = UnityEngine.Object.FindAnyObjectByType<LevelCheckpoint>(
+                    FindObjectsInactive.Include);
+                if (cp != null) z = cp.transform.position.z;
+            }
+
+            if (float.IsNaN(z)) z = 0f;
+            return new Vector3(x, 0f, z);
         }
 
         // ---------------------------------------------------------------------
@@ -754,8 +1051,21 @@ namespace Echoes.Painterly.EditorTools
         {
             Sb.AppendLine();
             Sb.AppendLine("=== 2. TEXT SIZE ===");
+            // <paramref name="where"/> is stated next to the numbers, because this runs
+            // from a menu item and in that context Screen.width and Screen.height
+            // are the editor's default 640 x 480, NOT the game view. The first
+            // run of this report printed "screen 640 x 480, scale 0.70" and a
+            // 5x target of 105 px as though that were a measurement of the game.
+            // It is a measurement of an editor that is not playing.
+            bool inPlay = Application.isPlaying;
             Sb.AppendLine("  screen " + Screen.width + " x " + Screen.height +
-                          ", scale " + BeatText.ScreenScale.ToString("0.00"));
+                          ", scale " + BeatText.ScreenScale.ToString("0.00") +
+                          (inPlay ? "  (in play mode: this is the real game view)"
+                                  : "  ** NOT PLAY MODE ** this is the editor's " +
+                                    "default 640 x 480, not the game view. Every " +
+                                    "number below is a lower bound computed for a " +
+                                    "screen the player never sees. The believable " +
+                                    "table is Temp/beattext_audit.txt."));
             Sb.AppendLine("  multiplier asked for: " + BeatText.Scale +
                           "x, so the targets are:");
             Sb.AppendLine("    beat prompt   " + BeatText.PromptTarget + " px (was " +

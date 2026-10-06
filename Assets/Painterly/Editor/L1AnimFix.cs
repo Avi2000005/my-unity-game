@@ -143,7 +143,7 @@ namespace Echoes.Painterly.EditorTools
     			AnimatorStateTransition val8 = val6.AddExitTransition();
     			val8.hasExitTime = true;
     			val8.exitTime = 0.92f;
-    			sb.AppendLine("    + Ari_Talk -> Ari_Idle at 92% (a talk pose held to the end of the clip looks like she is glitching)");
+    			sb.AppendLine("    + Ari_Talk -> Ari_Idle at 92% (a talk pose held to the end of the clip looks like he is glitching)");
     		}
     		LinkTrigger(sb, val2, val7, "Collect");
     		LinkTrigger(sb, val3, val7, "Collect");
@@ -173,8 +173,8 @@ namespace Echoes.Painterly.EditorTools
     		sb.AppendLine();
     		sb.AppendLine("  the code must set these, or the states never play:");
     		sb.AppendLine("    Run     (bool)   AriMover, from the run key");
-    		sb.AppendLine("    Talk    (trigger) when Mono starts a line to her");
-    		sb.AppendLine("    Collect (trigger) when she picks the fragment up");
+    		sb.AppendLine("    Talk    (trigger) when Mono starts a line to him");
+    		sb.AppendLine("    Collect (trigger) when he picks the fragment up");
     	}
 
     	private static void ReportCrawlers(StringBuilder sb)

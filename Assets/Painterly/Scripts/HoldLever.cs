@@ -9,16 +9,16 @@ namespace Echoes.Painterly
     public sealed class HoldLever : MonoBehaviour
     {
     	[Header("Who is holding it")]
-    	[Tooltip("Ari. Left empty she is found by name at Awake.")]
+    	[Tooltip("Ari. Left empty he is found by name at Awake.")]
     	[SerializeField]
     	private AriMover ari;
 
-    	[Tooltip("How close she must be, measured flat on the ground. Loose on purpose: she is stopped by her capsule rather than her centre, so a tight radius would go live while she still looked like she was beside it.")]
+    	[Tooltip("How close he must be, measured flat on the ground. Loose on purpose: he is stopped by his capsule rather than his centre, so a tight radius would go live while he still looked like he was beside it.")]
     	[Min(0.2f)]
     	[SerializeField]
     	private float radius = 1.05f;
 
-    	[Tooltip("Only counts while she is on the ground. Standing on a wall is not holding a lever, and a capsule sweep lets her stand on things a plate should not respond to.")]
+    	[Tooltip("Only counts while he is on the ground. Standing on a wall is not holding a lever, and a capsule sweep lets him stand on things a plate should not respond to.")]
     	[SerializeField]
     	private bool requireGrounded = true;
 

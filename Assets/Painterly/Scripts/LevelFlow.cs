@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-
+
+
 using Object = UnityEngine.Object;
 namespace Echoes.Painterly
 {
@@ -213,7 +214,7 @@ namespace Echoes.Painterly
 
     	public static int ResetEveryBeat()
     	{
-    		MonoBehaviour[] array = Object.FindObjectsByType<MonoBehaviour>((FindObjectsInactive)1, (FindObjectsSortMode)0);
+    		MonoBehaviour[] array = Object.FindObjectsByType<MonoBehaviour>((FindObjectsInactive)1);
     		int num = 0;
     		for (int i = 0; i < array.Length; i++)
     		{

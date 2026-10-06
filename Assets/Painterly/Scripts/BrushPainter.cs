@@ -1,5 +1,6 @@
 using System;
-using UnityEngine;
+using UnityEngine;
+
 using Object = UnityEngine.Object;
 using UnityEngine.InputSystem;
 
@@ -38,7 +39,7 @@ namespace Echoes.Painterly
     	private float maxRayDistance = 250f;
 
     	[Header("Feedback")]
-    	[Tooltip("Ari. Found on this object or in her children if left empty. She swings on a stroke, because a click that repaints the world while she stands still reads as the mouse doing something rather than as a brush stroke.")]
+    	[Tooltip("Ari. Found on this object or in his children if left empty. He swings on a stroke, because a click that repaints the world while he stands still reads as the mouse doing something rather than as a brush stroke.")]
     	[SerializeField]
     	private AriMover ari;
 
@@ -108,6 +109,7 @@ namespace Echoes.Painterly
 
     	private void Update()
     	{
+    		if (ari != null && ari.Frozen) return;
     		//IL_0025: Unknown result type (might be due to invalid IL or missing references)
     		//IL_002a: Unknown result type (might be due to invalid IL or missing references)
     		//IL_0041: Unknown result type (might be due to invalid IL or missing references)

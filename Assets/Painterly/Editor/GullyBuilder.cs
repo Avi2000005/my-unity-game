@@ -23,12 +23,12 @@ public static class GullyBuilder
     /// wider.
     ///
     /// Measured against two numbers. Ari's capsule is 0.60 m across, so
-    /// anything under 0.90 m is somewhere she wedges rather than walks, and the
-    /// wall sweep stops her on contact with both walls at once, which is what
+    /// anything under 0.90 m is somewhere he wedges rather than walks, and the
+    /// wall sweep stops him on contact with both walls at once, which is what
     /// makes a gully read as a gully. Anything over 2.00 m and two characters
     /// can pass each other without turning, and the camera stops having to
     /// follow and can go back to leading. 1.60 m leaves a hand's width either
-    /// side of her, which is enough to walk and not enough to overtake.
+    /// side of his, which is enough to walk and not enough to overtake.
     /// </summary>
     const float Width = 1.60f;
 
@@ -36,8 +36,8 @@ public static class GullyBuilder
     /// it, short enough that the beat is not a commute.</summary>
     const float Length = 14f;
 
-    /// <summary>Wall height. Ari is 1.80 m, so anything shorter is a fence she
-    /// can see over and a chase she can watch from outside.</summary>
+    /// <summary>Wall height. Ari is 1.80 m, so anything shorter is a fence he
+    /// can see over and a chase he can watch from outside.</summary>
     const float WallHeight = 2.00f;
 
     const float WallThickness = 0.40f;
@@ -287,7 +287,7 @@ public static class GullyBuilder
                       " samples");
         sb.AppendLine("lowest ceiling: " +
                       (lowestCeiling > 900f ? "open sky" : lowestCeiling.ToString("0.00") + " m") +
-                      "  (she is " + (AriRadius * 2f + 1.2f).ToString("0.0") + " m tall, " +
+                      "  (he is " + (AriRadius * 2f + 1.2f).ToString("0.0") + " m tall, " +
                       "needs 1.80 m)");
         sb.AppendLine();
 
@@ -311,7 +311,7 @@ public static class GullyBuilder
                             + "reads as a gully and Ari can walk it"
                           : sorted[0] < 0.90f
                               ? "it pinches to " + sorted[0].ToString("0.00") +
-                                " m, which is narrower than her shoulders"
+                                " m, which is narrower than his shoulders"
                               : "the median is " + sorted[sorted.Count / 2].ToString("0.00") +
                                 " m, which is wide enough to walk two abreast and " +
                                 "is not a gully"));
@@ -325,8 +325,8 @@ public static class GullyBuilder
                             "both passed on the previous run while this was " +
                             "failing, which is why it is a separate line."));
         sb.AppendLine("  passable " + (passOk ? "PASS" : "FAIL") + " — " +
-                      (passOk ? "her capsule clears every sample"
-                              : blocked + " samples have something in her volume"));
+                      (passOk ? "his capsule clears every sample"
+                              : blocked + " samples have something in him volume"));
         sb.AppendLine("  headroom " + (headOk ? "PASS" : "FAIL") + " — " +
                       (headOk ? "nothing overhead below 1.80 m"
                               : "something is " + lowestCeiling.ToString("0.00") +
@@ -337,7 +337,7 @@ public static class GullyBuilder
         {
             sb.AppendLine("THE GULLY AS BUILT DOES NOT WORK. The walls are in the " +
                           "scene and the chase is NOT wired to them, because a " +
-                          "chase through a passage she cannot walk is worse than " +
+                          "chase through a passage he cannot walk is worse than " +
                           "no chase. Fix the heading or the width and run again.");
             return;
         }
@@ -572,7 +572,7 @@ public static class GullyBuilder
         // The primitive brings a BoxCollider, sized by the transform, which is
         // what Ari's sweep will hit. Kept on Default: every collider in the
         // village is, and wallMask is ~0, so a different layer would be
-        // invisible to her.
+        // invisible to him.
 
         var rend = cube.GetComponent<Renderer>();
         if (rend != null && mat != null) rend.sharedMaterial = mat;

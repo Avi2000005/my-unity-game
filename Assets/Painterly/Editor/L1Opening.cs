@@ -52,7 +52,7 @@ namespace Echoes.Painterly.EditorTools
     		}
     		AriHealth component = ((Component)ariMover).GetComponent<AriHealth>();
     		Vector3 position = ((Component)ariMover).transform.position;
-    		stringBuilder.AppendLine("  Ari at " + position.ToString("F2") + ", AriHealth " + (((Object)(object)component != (Object)null) ? "on her" : "MISSING"));
+    		stringBuilder.AppendLine("  Ari at " + position.ToString("F2") + ", AriHealth " + (((Object)(object)component != (Object)null) ? "on him" : "MISSING"));
     		Beat1Intro beat1Intro = Object.FindAnyObjectByType<Beat1Intro>((FindObjectsInactive)1);
     		if ((Object)(object)beat1Intro == (Object)null)
     		{
@@ -63,8 +63,8 @@ namespace Echoes.Painterly.EditorTools
     		{
     			stringBuilder.AppendLine("  Beat1Intro already present on '" + ((Object)beat1Intro).name + "'");
     		}
-    		stringBuilder.AppendLine("    card is up until E is pressed; the four button prompts tick off as she uses them");
-    		stringBuilder.AppendLine("    it does NOT gate the level — she can walk off with prompts unused, which is what makes them a tutorial and not a cutscene");
+    		stringBuilder.AppendLine("    card is up until E is pressed; the four button prompts tick off as he uses them");
+    		stringBuilder.AppendLine("    it does NOT gate the level — he can walk off with prompts unused, which is what makes them a tutorial and not a cutscene");
     		Beat5Director beat5Director = Object.FindAnyObjectByType<Beat5Director>((FindObjectsInactive)1);
     		if ((Object)(object)beat5Director == (Object)null)
     		{
@@ -97,7 +97,7 @@ namespace Echoes.Painterly.EditorTools
     		}
     		stringBuilder.AppendLine("    position derived from Beat5Director.EnterX = " + enterX.ToString("F1") + " m, not typed — the beat and the checkpoint cannot drift apart");
     		position = ((Component)ariMover).transform.position;
-    		stringBuilder.AppendLine("    z taken from Ari's current " + position.z.ToString("F2") + ", so she arrives on the lane she walked in on");
+    		stringBuilder.AppendLine("    z taken from Ari's current " + position.z.ToString("F2") + ", so he arrives on the lane he walked in on");
     		int num = 0;
     		StringBuilder stringBuilder2 = new StringBuilder();
     		MonoBehaviour[] array = Object.FindObjectsByType<MonoBehaviour>((FindObjectsInactive)1);
@@ -116,7 +116,7 @@ namespace Echoes.Painterly.EditorTools
     		}
     		if ((Object)(object)component == (Object)null)
     		{
-    			stringBuilder.AppendLine("    AriHealth is NOT on her, so a retry will NOT restore her health — she would come back at whatever she died with, which is dead.");
+    			stringBuilder.AppendLine("    AriHealth is NOT on him, so a retry will NOT restore his health — he would come back at whatever he died with, which is dead.");
     		}
     		stringBuilder.AppendLine();
     		stringBuilder.AppendLine(SaveAfter.Save("beat 1 intro + beat 5 checkpoint"));

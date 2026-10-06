@@ -381,9 +381,9 @@ namespace Echoes.Painterly.EditorTools
     			float num5 = Mathf.Abs(stop.ari.x - 30f);
     			sb.AppendLine("  warp " + list.Count + " stop(s), first is '" + stop.name + "' at " + stop.ari.ToString("F2"));
     			sb.AppendLine();
-    			Check(sb, "the warp stop is on Ari's side of the gate", stop.ari.x < 30f, "x " + stop.ari.x.ToString("0.00") + " against a gate at " + 30f.ToString("0.00") + ((stop.ari.x < 30f) ? " — she arrives facing it" : " — she is warped past it and the beat cannot be tested"));
+    			Check(sb, "the warp stop is on Ari's side of the gate", stop.ari.x < 30f, "x " + stop.ari.x.ToString("0.00") + " against a gate at " + 30f.ToString("0.00") + ((stop.ari.x < 30f) ? " — he arrives facing it" : " — he is warped past it and the beat cannot be tested"));
     			Check(sb, "the warp stop is in the gate's opening", stop.ari.z >= 6.2f && stop.ari.z <= 7.8f, "z " + stop.ari.z.ToString("0.00") + " against an opening " + 6.2f.ToString("0.00") + " to " + 7.8f.ToString("0.00"));
-    			Check(sb, "the warp stop lands inside the beat's notice range", num5 <= 2.6f, num5.ToString("0.00") + " m from the gate, notice range 2.60 m — she must walk the last stride herself");
+    			Check(sb, "the warp stop lands inside the beat's notice range", num5 <= 2.6f, num5.ToString("0.00") + " m from the gate, notice range 2.60 m — he must walk the last stride herself");
     			Check(sb, "the warp stop is outside the crawlspace mouth", stop.ari.x < 29.5f || stop.ari.z < 8.6f || stop.ari.z > 9.5f, "the crawl mouth is at x " + 29.5f.ToString("0.00") + ", z " + 8.6f.ToString("0.00") + " to " + 9.5f.ToString("0.00"));
     		}
     		if ((Object)(object)monoChase == (Object)null)
@@ -476,13 +476,13 @@ namespace Echoes.Painterly.EditorTools
     		sb.AppendLine();
     		sb.AppendLine("  Ari  body " + ariBody.ToString("0.00") + " m   ceiling " + 1.1f.ToString("0.00") + " m   over by " + (ariBody - 1.1f).ToString("0.00") + " m");
     		sb.AppendLine("  Mono body " + monoBody.ToString("0.00") + " m   visible " + monoVisible.ToString("0.00") + " m   under by " + (1.1f - monoVisible).ToString("0.00") + " m");
-    		Check(sb, "Ari cannot fit — she is too tall by at least 0.3 m", ariBody - 1.1f >= 0.3f, "she is " + (ariBody - 1.1f).ToString("0.00") + " m over the ceiling");
+    		Check(sb, "Ari cannot fit — he is too tall by at least 0.3 m", ariBody - 1.1f >= 0.3f, "he is " + (ariBody - 1.1f).ToString("0.00") + " m over the ceiling");
     		Check(sb, "Mono fits — his visible head clears the roof", 1.1f - monoVisible >= 0.2f, "the roof is " + (1.1f - monoVisible).ToString("0.00") + " m above his head");
     		float num6 = 0.8999996f;
     		float num7 = ariRadius * 2f;
     		sb.AppendLine();
-    		sb.AppendLine("  the mouth is " + num6.ToString("0.00") + " m wide and Ari is " + num7.ToString("0.00") + " m across, so she would fit through it sideways by " + (num6 - num7).ToString("0.00") + " m");
-    		Check(sb, "width is wide enough that height is what stops her", num6 - num7 >= 0.15f, num6.ToString("0.00") + " m mouth against a " + num7.ToString("0.00") + " m body — the puzzle must read as 'too tall', not 'too tight'");
+    		sb.AppendLine("  the mouth is " + num6.ToString("0.00") + " m wide and Ari is " + num7.ToString("0.00") + " m across, so he would fit through it sideways by " + (num6 - num7).ToString("0.00") + " m");
+    		Check(sb, "width is wide enough that height is what stops him", num6 - num7 >= 0.15f, num6.ToString("0.00") + " m mouth against a " + num7.ToString("0.00") + " m body — the puzzle must read as 'too tall', not 'too tight'");
     		sb.AppendLine();
     		sb.AppendLine("--- the gate, tested with Ari's own capsule sweep ---");
     		float num8 = 27.8f;
@@ -491,7 +491,7 @@ namespace Echoes.Painterly.EditorTools
     		Vector3 b = new Vector3(num9, ground, 7f);
     		bool flag = Swept(a, b, ariBody, ariRadius, ground, slab.transform);
     		sb.AppendLine("  gate shut: " + (flag ? "BLOCKED by the slab" : "walks straight through"));
-    		Check(sb, "the closed gate stops Ari", flag, "a capsule sweep of " + ariBody.ToString("0.00") + " m by " + num7.ToString("0.00") + " m with her soles on the ground, east along the gate's centre line");
+    		Check(sb, "the closed gate stops Ari", flag, "a capsule sweep of " + ariBody.ToString("0.00") + " m by " + num7.ToString("0.00") + " m with his soles on the ground, east along the gate's centre line");
     		Vector3 localPosition = slab.transform.localPosition;
     		slab.transform.localPosition = localPosition + Vector3.down * 2.25f;
     		Physics.SyncTransforms();
@@ -499,12 +499,12 @@ namespace Echoes.Painterly.EditorTools
     		sb.AppendLine("  gate open: " + (flag2 ? "STILL BLOCKED" : "walks through"));
     		slab.transform.localPosition = localPosition;
     		Physics.SyncTransforms();
-    		Check(sb, "the open gate lets her through", !flag2, "same sweep with the slab " + 2.25f.ToString("0.00") + " m down, " + (flag2 ? "and it STILL blocked her" : "and she walks through"));
+    		Check(sb, "the open gate lets him through", !flag2, "same sweep with the slab " + 2.25f.ToString("0.00") + " m down, " + (flag2 ? "and it STILL blocked his" : "and he walks through"));
     		float num10 = 2.1f - ariBody;
     		float num11 = 1.6000004f - num7;
     		sb.AppendLine();
-    		Check(sb, "the opening is taller than she is", num10 >= 0.2f, "2.10 m opening against a " + ariBody.ToString("0.00") + " m body, " + num10.ToString("0.00") + " m to spare");
-    		Check(sb, "the opening is wider than she is", num11 >= 0.4f, 1.6000004f.ToString("0.00") + " m against " + num7.ToString("0.00") + " m, " + num11.ToString("0.00") + " m to spare");
+    		Check(sb, "the opening is taller than he is", num10 >= 0.2f, "2.10 m opening against a " + ariBody.ToString("0.00") + " m body, " + num10.ToString("0.00") + " m to spare");
+    		Check(sb, "the opening is wider than he is", num11 >= 0.4f, 1.6000004f.ToString("0.00") + " m against " + num7.ToString("0.00") + " m, " + num11.ToString("0.00") + " m to spare");
     		float num12 = ground + 2.1f;
     		float num13 = num12 - 2.25f;
     		sb.AppendLine();
@@ -513,8 +513,8 @@ namespace Echoes.Painterly.EditorTools
     		sb.AppendLine();
     		sb.AppendLine("--- the plate ---");
     		sb.AppendLine("  plinth top " + (ground + 0.3f).ToString("0.00") + " m, Ari's step height " + ariStep.ToString("0.00") + " m");
-    		Check(sb, "she can step onto the plinth without jumping", 0.3f <= ariStep + 0.01f, 0.3f.ToString("0.00") + " m against a " + ariStep.ToString("0.00") + " m step");
-    		sb.AppendLine("  plate at (" + 28.95f.ToString("0.00") + ", " + 5.7f.ToString("0.00") + "), " + Vector2.Distance(new Vector2(28f, 7f), new Vector2(28.95f, 5.7f)).ToString("0.00") + " m from where she comes out of the gully");
+    		Check(sb, "he can step onto the plinth without jumping", 0.3f <= ariStep + 0.01f, 0.3f.ToString("0.00") + " m against a " + ariStep.ToString("0.00") + " m step");
+    		sb.AppendLine("  plate at (" + 28.95f.ToString("0.00") + ", " + 5.7f.ToString("0.00") + "), " + Vector2.Distance(new Vector2(28f, 7f), new Vector2(28.95f, 5.7f)).ToString("0.00") + " m from where he comes out of the gully");
     		Check(sb, "the plate is clear of the gully's walls", ok: true, "the walls end at x 28.00, the plate is at " + 28.95f.ToString("0.00"));
     		sb.AppendLine();
     		sb.AppendLine("--- Mono's errand ---");
@@ -528,7 +528,7 @@ namespace Echoes.Painterly.EditorTools
     		array[1] = val.x.ToString("0.00");
     		array[2] = ", mouth at x ";
     		array[3] = 29.5f.ToString("0.00");
-    		array[4] = " — she can see ";
+    		array[4] = " — he can see ";
     		array[5] = 2f.ToString("0.00");
     		array[6] = " m in, he is ";
     		array[7] = (errand.position.x - 29.5f).ToString("0.00");

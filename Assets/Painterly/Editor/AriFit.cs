@@ -7,13 +7,13 @@
 // ----------------
 // Ari's collider is a 1.80 m capsule, chosen once and then used by every beat:
 // the 1.23 m crawl band in Beat 4, the 1.10 m ceiling, the 0.35 m step, the
-// eye height a crawler aims at, the chest the sight line ends on. Her mesh,
-// baked and measured in the pose she stands in, is 2.02 m.
+// eye height a crawler aims at, the chest the sight line ends on. His mesh,
+// baked and measured in the pose he stands in, is 2.02 m.
 //
-// So 22 cm of her head is outside the only body physics knows she has. She
-// clips the ruin she hides behind, she clips doorframes in a village made of
-// boxes, and in Beat 5 a creature shoves her with a sweep of that capsule —
-// which is how most of a stranger ends up inside her.
+// So 22 cm of his head is outside the only body physics knows he has. He
+// clips the ruin he hides behind, he clips doorframes in a village made of
+// boxes, and in Beat 5 a creature shoves him with a sweep of that capsule —
+// which is how most of a stranger ends up inside his.
 //
 // It went unnoticed for a long time because the check that should have caught
 // it was measuring the wrong thing and reporting a bigger lie in the same
@@ -31,16 +31,16 @@
 // clearances, the jump arc and the sight lines all stay exactly where four
 // beats of verified work left them.
 //
-// It also happens to make her 1.80 m instead of 2.02 m, which is a long way
+// It also happens to make his 1.80 m instead of 2.02 m, which is a long way
 // from the 1.55 m a thirteen-year-old actually is — but it is 22 cm closer,
 // it is consistent with everything already built, and chasing the last 25 cm
 // means finding a different character asset, not nudging this one.
 //
-// THE SCALE IS ABOUT HER FEET
+// THE SCALE IS ABOUT HIS FEET
 // --------------------------
 // Scaling a node shrinks it about that node's own origin. Ari's `Model` node
-// sits at her hips, so a naive scale would lift her feet off the floor by
-// about 12 cm and sink her into it by the rest — turning a head-height defect
+// sits at him hips, so a naive scale would lift his feet off the floor by
+// about 12 cm and sink his into it by the rest — turning a head-height defect
 // into a floating one, which is more visible and just as wrong.
 //
 // So the origin is moved as well: the feet are measured, the new origin is
@@ -62,7 +62,7 @@ public static class AriFit
     const string ReportPath = "Temp/arifit.txt";
 
     /// <summary>
-    /// How far her crown may sit outside the capsule once this has run.
+    /// How far his crown may sit outside the capsule once this has run.
     ///
     /// Three centimetres, not one. A crown a hair proud of the collider is
     /// ordinary in a game and invisible in motion — the difference only reads
@@ -85,7 +85,7 @@ public static class AriFit
             return;
         }
 
-        sb.AppendLine("ARIFIT — make Ari's mesh fit the body physics sweeps for her");
+        sb.AppendLine("ARIFIT — make Ari's mesh fit the body physics sweeps for him");
         sb.AppendLine();
 
         var ari = Named("Ari");
@@ -102,7 +102,7 @@ public static class AriFit
 
         // Read the target off the component rather than assuming 1.80, so this
         // tool cannot disagree with the game about what the right answer is. If
-        // someone raises her capsule later and forgets to come back here, the
+        // someone raises his capsule later and forgets to come back here, the
         // right thing happens anyway.
         var comp = ari.GetComponents<MonoBehaviour>();
         for (int i = 0; i < comp.Length; i++)
@@ -122,7 +122,7 @@ public static class AriFit
         if (!haveWant)
         {
             Fail(sb, "Ari has no component exposing a float BodyHeight, so there is " +
-                     "no number to fit her to. Guessing 1.80 here would put the tool " +
+                     "no number to fit his to. Guessing 1.80 here would put the tool " +
                      "and the game in a position to disagree silently.");
             Write(sb);
             return;
@@ -197,7 +197,7 @@ public static class AriFit
         else
         {
 
-        // --- the scale, and the origin move that keeps her feet ------------
+        // --- the scale, and the origin move that keeps his feet ------------
         //
         // `char1` sits under a node named `Model`, and `Model` carries a
         // rotation — almost certainly the 90° about X that an FBX authored
@@ -208,7 +208,7 @@ public static class AriFit
         //
         // True, and irrelevant. The refusal threw away a clean way out, because
         // **a uniform scale commutes with a rotation**, and uniform is what is
-        // wanted here anyway: she should be shorter, not thinner.
+        // wanted here anyway: he should be shorter, not thinner.
         //
         // Under S' = k·S the world position of a node-local point p goes from
         //   node + R·p      to      node + k·R·p
@@ -232,13 +232,13 @@ public static class AriFit
                       ", so the correction will be a uniform scale of " +
                       k.ToString("F4") + " rather than a Y-only one — uniform " +
                       "commutes with rotation, a single-axis scale does not, and " +
-                      "she should be shorter rather than thinner");
+                      "he should be shorter rather than thinner");
         sb.AppendLine();
 
         // --- everything that could refuse, checked before anything is written
         //
         // The earlier version set `localPosition` first and *then* asked
-        // whether the scale was writable, returning on failure with her
+        // whether the scale was writable, returning on failure with him
         // origin already moved: a half-applied change to the player character,
         // in a tool whose whole job is one measured change or none. A guard
         // placed after the first mutation is not a guard.
@@ -255,8 +255,8 @@ public static class AriFit
         if (ls0.x <= 0f || ls0.y <= 0f || ls0.z <= 0f)
         {
             Fail(sb, "'" + node.name + "' has a non-positive local scale (" +
-                     ls0.ToString("F3") + "), so multiplying it would flip her " +
-                     "inside out rather than shrink her. Nothing changed.");
+                     ls0.ToString("F3") + "), so multiplying it would flip his " +
+                     "inside out rather than shrink his. Nothing changed.");
             Write(sb);
             return;
         }
@@ -278,14 +278,14 @@ public static class AriFit
 
         // Assigned in WORLD space, on purpose. `localPosition.y = worldY -
         // rootY` is only the local Y when the parent is the root, and the skin
-        // node is two levels below it — writing that would have moved her hips
-        // by the height of her own hips node and reported a clean number.
+        // node is two levels below it — writing that would have moved his hips
+        // by the height of his own hips node and reported a clean number.
         node.position = pos1;
 
         sb.AppendLine("applied: scaled the skin node uniformly by " +
                       k.ToString("F4") + " and moved its origin by " +
                       originDrift.ToString("F3") +
-                      " m so her feet stayed on the floor");
+                      " m so his feet stayed on the floor");
         sb.AppendLine();
 
         EditorUtility.SetDirty(node.gameObject);
@@ -294,7 +294,7 @@ public static class AriFit
 
         // --- and prove it, by baking again -------------------------------
         //
-        // Outside the write branch, deliberately. On the run that changed her
+        // Outside the write branch, deliberately. On the run that changed his
         // this is the confirmation; on every later run it is the check that the
         // change is still in place and still correct. Same code either way,
         // because "did the write do what it said" and "is the result still
@@ -312,7 +312,7 @@ public static class AriFit
                       ", so the correction is visible in the scene itself and " +
                       "not only in this report");
 
-        // How far her mesh's lowest point sits from where her own collider says her
+        // How far his mesh's lowest point sits from where his own collider says his
         // soles are. This is the number that matters, and it is *not* the same
         // number as "did the feet move".
         //
@@ -332,21 +332,21 @@ public static class AriFit
         // in the world; it is wherever the hips put it this frame. Asking
         // whether it stayed still asks the animating rig to be frozen.
         //
-        // What actually has to hold is that she is standing *on the floor* —
-        // that her mesh's lowest point and the soles her collider sweeps agree.
+        // What actually has to hold is that he is standing *on the floor* —
+        // that his mesh's lowest point and the soles his collider sweeps agree.
         // That is a claim about the character, it is stable across a breathing
         // pose, and it is the thing a player would see if it broke.
-        // What her mover has *stored*, against what a bake says right now.
+        // What his mover has *stored*, against what a bake says right now.
         //
         // These are not the same measurement and the difference is the whole
         // finding. `soleOffset` is set once in `MeasureSoleOffset()`, from a
         // bake taken at runtime. In the editor that method has not run for this
         // session, so the stored value is whatever the scene was last saved
-        // with — and the scene was saved before this tool scaled her by 0.893.
+        // with — and the scene was saved before this tool scaled his by 0.893.
         //
-        // So the 6 cm gap below is NOT 6 cm of her sinking into the floor. It
+        // So the 6 cm gap below is NOT 6 cm of his sinking into the floor. It
         // is a stale cached number being compared against a freshly-meshed
-        // character, and it will resolve itself the moment she plays, because
+        // character, and it will resolve itself the moment he plays, because
         // the bake runs again and gets the right answer.
         //
         // Which means this check must say which of the two it is measuring. A
@@ -358,39 +358,39 @@ public static class AriFit
         float liveSole = ari.transform.position.y - beforeFeetY;
 
         sb.AppendLine();
-        sb.AppendLine("--- her floor, measured two ways ---");
-        sb.AppendLine("  her mover has soleOffset " + storedSole.ToString("0.0000") +
-                      " m stored in the scene, which puts her soles at y " +
+        sb.AppendLine("--- his floor, measured two ways ---");
+        sb.AppendLine("  his mover has soleOffset " + storedSole.ToString("0.0000") +
+                      " m stored in the scene, which puts his soles at y " +
                       (ari.transform.position.y - storedSole).ToString("0.000"));
-        sb.AppendLine("  a fresh bake right now puts her lowest point at y " +
-                      beforeFeetY.ToString("0.000") + ", so her real sole height " +
+        sb.AppendLine("  a fresh bake right now puts him lowest point at y " +
+                      beforeFeetY.ToString("0.000") + ", so his real sole height " +
                       "is " + liveSole.ToString("0.000") + " m");
-        // The two numbers differ by exactly the factor this tool scaled her by, and
+        // The two numbers differ by exactly the factor this tool scaled his by, and
         // that is the whole explanation. The stored `soleOffset` was baked from
         // the mesh as it was *before* the correction; the fresh bake is from the
         // mesh as it is now. Scaling by k scales every vertical distance by k,
         // so the cached height is stale by exactly 1/k.
         //
         // Reported as "stale by a factor of k", which is what was measured, and
-        // not as "scaled by 1/k" — the tool scaled her *down* by k. An earlier
+        // not as "scaled by 1/k" — the tool scaled his *down* by k. An earlier
         // version printed the reciprocal here and got the direction backwards,
         // which would have had someone hunting for an expansion.
         sb.AppendLine("  the stored value is stale by a factor of " +
                       (Mathf.Abs(1f - node.localScale.y) < 0.0001f
-                          ? "1.0000 (she was already fitted, so nothing is stale)"
+                          ? "1.0000 (he was already fitted, so nothing is stale)"
                           : (1f / node.localScale.y).ToString("F4")) +
                       " — it was baked from the mesh as it was *before* the " +
                       "correction, and scaling by k scales every vertical " +
                       "distance by k, so a cached height is stale by exactly 1/k. " +
-                      "The tool scaled her DOWN by " +
+                      "The tool scaled his DOWN by " +
                       node.localScale.y.ToString("F4") +
                       "; the reciprocal is the size of the error in the cached " +
-                      "number, not the size of what was done to her.");
+                      "number, not the size of what was done to him.");
         sb.AppendLine("  `AriMover.MeasureSoleOffset()` runs in `Awake`, so this " +
-                      "resolves itself the moment she is played and there is " +
+                      "resolves itself the moment he is played and there is " +
                       "nothing to fix here. Do not adjust `soleOffset` to close " +
                       "this gap: it is a cache against a fresh measurement, not " +
-                      "a disagreement between her mesh and her collider.");
+                      "a disagreement between his mesh and his collider.");
 
         float poseDelta = Vector3.Distance(afterFeetAt, beforeFeetAt);
 
@@ -415,13 +415,13 @@ public static class AriFit
             ? "the two bakes differ by " + poseDelta.ToString("0.000") +
               " m at the feet — that is movement, not sway, and the origin " +
               "correction is off by that much"
-            : "the two bakes put her lowest point in the same place, to within " +
+            : "the two bakes put him lowest point in the same place, to within " +
               poseDelta.ToString("0.000") +
               " m, so the correction moved nothing horizontally or vertically");
         float heightError = Mathf.Abs(after - want);
         int pass = 0, fail = 0;
 
-        Check(sb, ref pass, ref fail, "she now fits the capsule",
+        Check(sb, ref pass, ref fail, "he now fits the capsule",
               heightError <= CrownTolerance,
               after.ToString("0.000") + " m against " + want.ToString("0.00") +
               " m, off by " + heightError.ToString("0.000") + " m (tolerance " +
@@ -430,8 +430,8 @@ public static class AriFit
         // The reference here is the *fresh* bake, not the stored `soleOffset`.
         //
         // This is the correction to the correction above. The first version
-        // compared her mesh against `soleOffset` as stored in the scene, found
-        // a 6 cm gap, and would have told you she was floating — which is a
+        // compared his mesh against `soleOffset` as stored in the scene, found
+        // a 6 cm gap, and would have told you he was floating — which is a
         // confident, actionable, wrong instruction. `soleOffset` is a cached
         // runtime measurement from before this tool existed; comparing a fresh
         // bake against a stale cache tells you about the cache.
@@ -439,29 +439,29 @@ public static class AriFit
         // Measuring the mesh against itself, before and after, is the only
         // comparison that isolates *this change* from everything else in the
         // scene — and isolating the change is the only question this tool can
-        // answer honestly. Whether she is planted on the floor is a question for
-        // play mode, where her own measurement runs against her own mesh.
+        // answer honestly. Whether he is planted on the floor is a question for
+        // play mode, where his own measurement runs against his own mesh.
         //
         // So: the feet gap is a *live bake* both times, and the assertion is
-        // that the correction did not move her. Anything about the absolute gap
+        // that the correction did not move him. Anything about the absolute gap
         // belongs in play mode, not here.
         const float plantTolerance = 0.02f;
 
         float gapChange = Mathf.Abs(afterFeetY - beforeFeetY);
 
-        Check(sb, ref pass, ref fail, "the scale did not move her off the floor",
+        Check(sb, ref pass, ref fail, "the scale did not move him off the floor",
               gapChange <= plantTolerance,
-              "a fresh bake puts her lowest point at y " +
+              "a fresh bake puts him lowest point at y " +
               afterFeetY.ToString("0.000") + " against " +
               beforeFeetY.ToString("0.000") + " m before the scale — a change of " +
               gapChange.ToString("0.000") + " m (tolerance " +
               plantTolerance.ToString("0.00") + ")" +
               (gapChange > plantTolerance
-                  ? ". She is being lifted off the floor or sunk into it by the " +
+                  ? ". He is being lifted off the floor or sunk into it by the " +
                     "correction itself, which is worse than the head being proud, " +
                     "because it is visible on every single frame"
                   : " — the origin move was right, so the scale was effectively " +
-                    "taken about her feet, and this compares two live bakes " +
+                    "taken about his feet, and this compares two live bakes " +
                     "rather than a bake against a stale cached number"));
 
         // Real, not decorative.
@@ -472,19 +472,19 @@ public static class AriFit
         // wearing a check's clothes, and the whole argument of this file is
         // that a report should not say things it did not verify.
         //
-        // What it actually asserts: her mover still reports the height it
+        // What it actually asserts: his mover still reports the height it
         // reported before, so the collider really is untouched. Ari has no
-        // Collider component at all — physics knows her as a cast inside her
+        // Collider component at all — physics knows him as a cast inside his
         // mover — which is exactly why reading a *property* is the only way to
         // see the number that matters here, and why a component-level check
         // would have found nothing to look at.
         float capsuleNow = CapsuleHeight(ari);
 
-        Check(sb, ref pass, ref fail, "her collider is untouched",
+        Check(sb, ref pass, ref fail, "his collider is untouched",
               Mathf.Abs(capsuleNow - want) < 0.001f,
-              "her mover still reports " + capsuleNow.ToString("0.00") +
+              "his mover still reports " + capsuleNow.ToString("0.00") +
               " m of body, which is the " + want.ToString("0.00") +
-              " m this fitted her to" +
+              " m this fitted his to" +
               (Mathf.Abs(capsuleNow - want) < 0.001f
                   ? " — only the mesh moved, so every clearance number in " +
                     "Beats 3 and 4 still stands"
@@ -496,9 +496,9 @@ public static class AriFit
 
         sb.AppendLine();
         sb.AppendLine("This changed the player character, so it needs your eyes: run");
-        sb.AppendLine("the level and look at her against a doorframe and against");
-        sb.AppendLine("Beat 4's crawlspace roof. The measurement says she now fits;");
-        sb.AppendLine("the measurement cannot say whether she looks right.");
+        sb.AppendLine("the level and look at him against a doorframe and against");
+        sb.AppendLine("Beat 4's crawlspace roof. The measurement says he now fits;");
+        sb.AppendLine("the measurement cannot say whether he looks right.");
 
         Write(sb);
     }
@@ -506,7 +506,7 @@ public static class AriFit
     // --- measurement --------------------------------------------------------
 
     /// <summary>
-    /// How tall she stands, in the pose she stands in.
+    /// How tall he stands, in the pose he stands in.
     ///
     /// Baked, because a skinned mesh's bounds cover every pose its animation
     /// can reach and are therefore not a height at all. Same method and same
@@ -519,8 +519,8 @@ public static class AriFit
     /// The lowest vertex as a full world position, not just its Y.
     /// <para>
     /// Returned separately because the correction needs it. The first two
-    /// answer "how tall is she"; the third answers "where is she standing",
-    /// and only the third is enough to move her correctly once the skin node
+    /// answer "how tall is he"; the third answers "where is he standing",
+    /// and only the third is enough to move him correctly once the skin node
     /// is rotated — because with a rotation on the chain, a world Y cannot be
     /// turned back into a local Y by dividing by a scale, and the node's own Y
     /// says nothing about which local axis became up.
@@ -587,16 +587,16 @@ public static class AriFit
     }
 
     /// <summary>
-    /// How far her root sits above her soles, as her mover defines it.
+    /// How far his root sits above his soles, as his mover defines it.
     ///
     /// Read by reflection because it is a private field with no public getter,
-    /// and it is the only definition of "the floor she stands on" that the
+    /// and it is the only definition of "the floor he stands on" that the
     /// game itself uses. Recomputing it here — from a collider, from the root's
     /// height above the ground plane, from the mesh — would each give a
-    /// slightly different number and the check would then be comparing her
-    /// against an invention rather than against her own collider.
+    /// slightly different number and the check would then be comparing his
+    /// against an invention rather than against his own collider.
     ///
-    /// Falls back to 0 (root *is* her soles) rather than throwing, because the
+    /// Falls back to 0 (root *is* his soles) rather than throwing, because the
     /// caller's tolerance is generous enough to make a wrong fallback visible
     /// in the reported gap rather than silently plausible.
     /// </summary>
@@ -622,7 +622,7 @@ public static class AriFit
     }
 
     /// <summary>
-    /// The body height her mover reports, or NaN if nothing on her reports one.
+    /// The body height his mover reports, or NaN if nothing on him reports one.
     ///
     /// NaN rather than 0, because 0 would make the caller's comparison against
     /// 1.80 fail as a *height* failure when the real problem is that the number

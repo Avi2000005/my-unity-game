@@ -36,7 +36,7 @@ namespace Echoes.Painterly.EditorTools
     		AriMover mover = ari.GetComponent<AriMover>();
     		if ((Object)(object)anim == (Object)null || (Object)(object)mover == (Object)null)
     		{
-    			sb.AppendLine("\nAri is missing her Animator or her AriMover. Nothing to measure.");
+    			sb.AppendLine("\nAri is missing his Animator or his AriMover. Nothing to measure.");
     			Finish(sb);
     			return;
     		}
@@ -135,13 +135,13 @@ namespace Echoes.Painterly.EditorTools
     		float num = NearFaceOf(box, val, val2, sb);
     		float num2 = Vector3.Dot(Walk(ari, anim, mover, val, 2f), val);
     		float num3 = num - num2;
-    		sb.AppendLine("  she started " + num.ToString("F3") + " m from a 4x3x0.4 m wall and was asked to walk straight at it for 2 s  (unobstructed that would be 4.40 m)");
-    		sb.AppendLine("  she stopped " + num3.ToString("F3") + " m short of the face  (mover: TouchingWall=" + mover.TouchingWall + ", swept " + mover.LastSweepRatio.ToString("F2") + ", hit '" + mover.WallName + "')");
+    		sb.AppendLine("  he started " + num.ToString("F3") + " m from a 4x3x0.4 m wall and was asked to walk straight at it for 2 s  (unobstructed that would be 4.40 m)");
+    		sb.AppendLine("  he stopped " + num3.ToString("F3") + " m short of the face  (mover: TouchingWall=" + mover.TouchingWall + ", swept " + mover.LastSweepRatio.ToString("F2") + ", hit '" + mover.WallName + "')");
     		StringBuilder stringBuilder = sb;
     		string text;
     		if (num3 < -0.05f)
     		{
-    			text = "SHE WENT THROUGH IT (" + (0f - num3).ToString("F3") + " m inside). The sweep is not working.";
+    			text = "HE WENT THROUGH IT (" + (0f - num3).ToString("F3") + " m inside). The sweep is not working.";
     		}
     		else
     		{
@@ -200,17 +200,17 @@ namespace Echoes.Painterly.EditorTools
     		Vector3 val6 = Walk(ari, anim, mover, val5.normalized, 2f);
     		float num2 = Vector3.Dot(val6, val2);
     		float num3 = Vector3.Dot(val6, val);
-    		sb.AppendLine("  wall face " + num.ToString("F3") + " m ahead of where she started; asked to go forward-right for 2 s");
-    		sb.AppendLine("  she travelled " + num3.ToString("F3") + " m into the wall and " + num2.ToString("F3") + " m along it  (into - face = " + (num3 - num).ToString("F3") + " m)");
+    		sb.AppendLine("  wall face " + num.ToString("F3") + " m ahead of where he started; asked to go forward-right for 2 s");
+    		sb.AppendLine("  he travelled " + num3.ToString("F3") + " m into the wall and " + num2.ToString("F3") + " m along it  (into - face = " + (num3 - num).ToString("F3") + " m)");
     		StringBuilder stringBuilder = sb;
     		string text;
     		if (num2 > 0.8f && num3 < num + 0.4f)
     		{
-    			text = "she slid along it and stopped at it. Corners are survivable.";
+    			text = "he slid along it and stopped at it. Corners are survivable.";
     		}
     		else
     		{
-    			text = ((num2 <= 0.2f) ? "SHE IS PINNED — she stops dead instead of sliding, which makes every corner in the village unusable." : ("she got " + (num3 - num).ToString("F2") + " m through the wall. The slide is not holding."));
+    			text = ((num2 <= 0.2f) ? "HE IS PINNED — he stops dead instead of sliding, which makes every corner in the village unusable." : ("he got " + (num3 - num).ToString("F2") + " m through the wall. The slide is not holding."));
     		}
     		stringBuilder.AppendLine("  VERDICT: " + text);
     	}
@@ -246,7 +246,7 @@ namespace Echoes.Painterly.EditorTools
     		//IL_011c: Unknown result type (might be due to invalid IL or missing references)
     		//IL_013e: Unknown result type (might be due to invalid IL or missing references)
     		//IL_013f: Unknown result type (might be due to invalid IL or missing references)
-    		sb.AppendLine("\n--- a 0.25 m step in front of her ---");
+    		sb.AppendLine("\n--- a 0.25 m step in front of his ---");
     		Clear(probes);
     		Settle(mover, anim);
     		Vector3 val = CamForward();
@@ -266,9 +266,9 @@ namespace Echoes.Painterly.EditorTools
     		}
     		float num3 = Vector3.Dot(ari.transform.position - position, val);
     		float num4 = num2 - y;
-    		sb.AppendLine("  a 6x6x0.25 m step whose near face is " + NearFaceOf(val3, val, val2, sb).ToString("F3") + " m away, top at y=" + num.ToString("F3") + ", her root started at y=" + y.ToString("F3"));
-    		sb.AppendLine("  she covered " + num3.ToString("F3") + " m and her root peaked at y=" + num2.ToString("F3") + "  =>  " + num4.ToString("F3") + " m up");
-    		sb.AppendLine("  VERDICT: " + ((num4 > 0.18f) ? "she walked up it. Paving seams and kerbs will not stop her." : "SHE DID NOT GO UP IT. Every height change in the village stops her dead."));
+    		sb.AppendLine("  a 6x6x0.25 m step whose near face is " + NearFaceOf(val3, val, val2, sb).ToString("F3") + " m away, top at y=" + num.ToString("F3") + ", his root started at y=" + y.ToString("F3"));
+    		sb.AppendLine("  he covered " + num3.ToString("F3") + " m and his root peaked at y=" + num2.ToString("F3") + "  =>  " + num4.ToString("F3") + " m up");
+    		sb.AppendLine("  VERDICT: " + ((num4 > 0.18f) ? "he walked up it. Paving seams and kerbs will not stop him." : "HE DID NOT GO UP IT. Every height change in the village stops him dead."));
     	}
 
     	private static void SwitchedOff(GameObject ari, Animator anim, AriMover mover, List<GameObject> probes, StringBuilder sb)
@@ -309,8 +309,8 @@ namespace Echoes.Painterly.EditorTools
     		{
     			float num = NearFaceOf(box, val, val2, sb);
     			float num2 = Vector3.Dot(Walk(ari, anim, mover, val, 2f), val);
-    			sb.AppendLine("  collideWithWalls is now " + val4.boolValue + "; wall face " + num.ToString("F3") + " m away; she reached " + num2.ToString("F3") + " m");
-    			sb.AppendLine("  VERDICT: " + ((num2 > num + 0.05f) ? "she walked straight through it. The switch works, so the first test's stop was the sweep's doing and not a coincidence." : ("she is STILL being stopped at " + num2.ToString("F2") + " m, so something other than this flag is stopping her and the first test proved nothing.")));
+    			sb.AppendLine("  collideWithWalls is now " + val4.boolValue + "; wall face " + num.ToString("F3") + " m away; he reached " + num2.ToString("F3") + " m");
+    			sb.AppendLine("  VERDICT: " + ((num2 > num + 0.05f) ? "he walked straight through it. The switch works, so the first test's stop was the sweep's doing and not a coincidence." : ("he is STILL being stopped at " + num2.ToString("F2") + " m, so something other than this flag is stopping him and the first test proved nothing.")));
     		}
     		finally
     		{
@@ -551,7 +551,7 @@ namespace Echoes.Painterly.EditorTools
     		sb.AppendLine("  " + array.Length + " collider(s) in the scene");
     		if (array.Length == 0)
     		{
-    			sb.AppendLine("  NONE. The sweep has nothing to collide with — she will still walk through every wall until the kit has colliders.");
+    			sb.AppendLine("  NONE. The sweep has nothing to collide with — he will still walk through every wall until the kit has colliders.");
     			return;
     		}
     		foreach (IGrouping<string, Collider> item in from c in array

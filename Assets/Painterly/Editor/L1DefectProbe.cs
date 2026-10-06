@@ -171,7 +171,7 @@ public static class L1DefectProbe
             sb.AppendLine("  Ari is " + dist.ToString("F2") + " m from the touch point");
             sb.AppendLine("  AriIsClose() = " + tree.AriIsClose() +
                           (dist > Float(tso, "touchDistance")
-                              ? "   <-- she is FURTHER than touchDistance, so the prompt never shows"
+                              ? "   <-- he is FURTHER than touchDistance, so the prompt never shows"
                               : ""));
 
             int reached = ColorRestoreTarget.RestoreInRadius(tp.position, Float(tso, "burstRadius"), 1f, -1f);

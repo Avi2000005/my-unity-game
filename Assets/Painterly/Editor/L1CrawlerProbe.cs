@@ -133,7 +133,7 @@ namespace Echoes.Painterly.EditorTools
     		}
     		stringBuilder.AppendLine();
     		stringBuilder.AppendLine("=== SWEEP: Ari walking the yard, x " + num.ToString("0.0") + " to " + num2.ToString("0.0") + " ===");
-    		stringBuilder.AppendLine("  For every point she can stand, the distance to each crawler");
+    		stringBuilder.AppendLine("  For every point he can stand, the distance to each crawler");
     		stringBuilder.AppendLine("  and whether that crawler's OWN line-of-sight test passes.");
     		float num4 = float.MaxValue;
     		float num5 = float.MinValue;
@@ -229,26 +229,26 @@ namespace Echoes.Painterly.EditorTools
     			if (num14 == 0 && num17 == 0)
     			{
     				stringBuilder.AppendLine();
-    				stringBuilder.AppendLine("      VERDICT: INERT. It cannot see her anywhere she can stand.");
+    				stringBuilder.AppendLine("      VERDICT: INERT. It cannot see him anywhere he can stand.");
     				if (num18 > inkCrawler2.NoticeRadius)
     				{
     					stringBuilder.AppendLine("      The closest approach (" + num18.ToString("0.00") + " m) is further than its own " + inkCrawler2.NoticeRadius.ToString("0.00") + " m notice radius.");
     				}
     				else
     				{
-    					stringBuilder.AppendLine("      She comes inside the radius but every line from its eye to her chest is blocked by something, so the sight test never succeeds.");
+    					stringBuilder.AppendLine("      He comes inside the radius but every line from its eye to his chest is blocked by something, so the sight test never succeeds.");
     				}
     				stringBuilder.AppendLine("      It stands in the yard doing nothing and attacks never. This is the reported fault.");
     			}
     			else if (num14 == 0)
     			{
     				stringBuilder.AppendLine();
-    				stringBuilder.AppendLine("      VERDICT: she walks straight past it. Not inert — it will hunt if she comes its way (" + num17 + " cells) — but holding forward engages nothing.");
+    				stringBuilder.AppendLine("      VERDICT: he walks straight past it. Not inert — it will hunt if he comes its way (" + num17 + " cells) — but holding forward engages nothing.");
     			}
     			else
     			{
     				stringBuilder.AppendLine();
-    				stringBuilder.AppendLine("      VERDICT: it engages her on a straight walk. " + num14 + " cells on the lane, " + num17 + " on the ground.");
+    				stringBuilder.AppendLine("      VERDICT: it engages his on a straight walk. " + num14 + " cells on the lane, " + num17 + " on the ground.");
     			}
     		}
     		Finish(stringBuilder);

@@ -174,7 +174,7 @@ namespace Echoes.Painterly.EditorTools
     		{
     			stringBuilder.AppendLine();
     			stringBuilder.AppendLine("  Beat5Director.EnterX = " + beat5Director.EnterX.ToString("0.0") + ", ExitX = " + beat5Director.ExitX.ToString("0.0"));
-    			stringBuilder.AppendLine("    enter line is " + ((beat5Director.EnterX < num7) ? ((num7 - beat5Director.EnterX).ToString("0.0") + " m WEST of the first floor cell — she starts on nothing, which may be correct (a lane outside the yard) or may be the whole reason the crawlers read as noticed too early") : ("inside the yard by " + (beat5Director.EnterX - num7).ToString("0.0") + " m")));
+    			stringBuilder.AppendLine("    enter line is " + ((beat5Director.EnterX < num7) ? ((num7 - beat5Director.EnterX).ToString("0.0") + " m WEST of the first floor cell — he starts on nothing, which may be correct (a lane outside the yard) or may be the whole reason the crawlers read as noticed too early") : ("inside the yard by " + (beat5Director.EnterX - num7).ToString("0.0") + " m")));
     		}
     		Finish(stringBuilder);
     	}

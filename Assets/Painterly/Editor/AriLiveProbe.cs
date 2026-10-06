@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Echoes.Painterly.EditorTools
 {
     /// <summary>
-    /// Drives Ari in play mode and measures whether she moves, whether the
+    /// Drives Ari in play mode and measures whether he moves, whether the
     /// Animator changes state, and whether the camera can see it.
     /// Writes Temp/ari_live.txt.
     ///
@@ -95,7 +95,7 @@ namespace Echoes.Painterly.EditorTools
                           $"(walkSpeed 2.2 => about 4.4 expected)");
             sb.AppendLine($"  CurrentSpeed reported = {mover.CurrentSpeed:F2}");
             sb.AppendLine($"  facing {yawBefore:F1} -> {ari.transform.eulerAngles.y:F1} " +
-                          $"(she turns towards travel at {ari.transform.eulerAngles.y - yawBefore:F1} deg)");
+                          $"(he turns towards travel at {ari.transform.eulerAngles.y - yawBefore:F1} deg)");
             sb.AppendLine($"  Speed>0.1 so the graph should be on the walk clip: " +
                           $"{mover.CurrentSpeed > 0.1f}");
             sb.AppendLine($"  {walkClip}");
@@ -103,7 +103,7 @@ namespace Echoes.Painterly.EditorTools
             float footTravel = Vector3.Distance(startFoot, walkedFoot);
             sb.AppendLine($"  LeftFoot bone moved {footTravel:F3} — " +
                           (footTravel > 0.05f
-                              ? "the walk clip is actually posing her"
+                              ? "the walk clip is actually posing his"
                               : "THE BONES DID NOT MOVE, the retarget is not driving the rig"));
 
             // ---- stop ----
@@ -114,7 +114,7 @@ namespace Echoes.Painterly.EditorTools
             sb.AppendLine($"  back on the idle: {stopped.Contains("Ari_Idle")}");
 
             // ---- ground ----
-            sb.AppendLine("\n--- ground under her ---");
+            sb.AppendLine("\n--- ground under him ---");
             foreach (var probe in new[] { ari.transform.position, walkedTo })
             {
                 bool hit = Physics.Raycast(probe + Vector3.up * 1.5f, Vector3.down,
@@ -139,11 +139,11 @@ namespace Echoes.Painterly.EditorTools
                               $"{Vector3.Distance(cam.transform.position, b.center):F2} units");
                 sb.AppendLine($"  in frustum: {inFrustum}");
                 sb.AppendLine($"  renderer isVisible: {rend.isVisible}");
-                sb.AppendLine($"  her height on screen: {b.size.y:F2} units, " +
+                sb.AppendLine($"  his height on screen: {b.size.y:F2} units, " +
                               $"from {cam.transform.position.y:F2} away");
             }
 
-            // Put her back and hand control to Update again.
+            // Put him back and hand control to Update again.
             ari.transform.position = startPos;
             mover.enabled = wasEnabled;
 

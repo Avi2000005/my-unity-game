@@ -97,7 +97,7 @@ namespace Echoes.Painterly.EditorTools
     		}
     		stringBuilder.AppendLine($"added={num} already had one={num2} no mesh={num3}");
     		stringBuilder.AppendLine("surface heights present: " + string.Join(", ", sortedSet));
-    		stringBuilder.AppendLine((sortedSet.Count > 1) ? $"note: {sortedSet.Count} distinct heights, so she will step between them" : "note: one height only");
+    		stringBuilder.AppendLine((sortedSet.Count > 1) ? $"note: {sortedSet.Count} distinct heights, so he will step between them" : "note: one height only");
     		EditorUtility.SetDirty((Object)(object)val);
     		EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
     		AssetDatabase.SaveAssets();

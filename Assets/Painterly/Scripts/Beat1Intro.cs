@@ -26,19 +26,19 @@ namespace Echoes.Painterly
     	[Tooltip("Shown when the level opens. Dismissed with Interact.")]
     	[TextArea(2, 6)]
     	[SerializeField]
-    	private string introText = "Ari has never seen a colour.\n\nEverything here is black or white, and she has a brush anyway — because everything she likes, she tries to paint.";
+    	private string introText = "Ari has never seen a colour.\n\nEverything here is black or white, and he has a brush anyway — because everything he likes, he tries to paint.";
 
-    	[Tooltip("Shown while the card is up, telling her how to dismiss it.")]
+    	[Tooltip("Shown while the card is up, telling his how to dismiss it.")]
     	[SerializeField]
     	private string introPrompt = "Press E (or F) to begin.";
 
     	[Header("The buttons")]
     	[Tooltip("One row per button, in teaching order. Five rows, five arrays — the lengths are checked and a mismatch is reported rather than silently truncating.")]
     	[SerializeField]
-    	private string[] keyGlyphs = new string[5] { "W A S D", "SPACE", "LEFT CLICK", "E / F", "S" };
+    	private string[] keyGlyphs = new string[6] { "W A S D", "SHIFT", "SPACE", "LEFT CLICK", "E / F", "S" };
 
     	[SerializeField]
-    	private string[] keyLabels = new string[5] { "move", "jump", "swing the brush", "interact", "skip a line" };
+    	private string[] keyLabels = new string[6] { "move", "sprint / run fast", "jump", "swing the brush", "interact", "skip a line" };
 
     	[Header("Behaviour")]
     	[Tooltip("Seconds the intro card waits before it can be dismissed. Long enough to actually be read; there is nothing to dismiss it with except the button it is introducing.")]
@@ -123,19 +123,31 @@ namespace Echoes.Painterly
 
     	private void Teach()
     	{
-    		if ((MoveKey() || MoveKeyAxis()) && ControlPrompts.MarkUsed(0) && log)
+    		int idx = 0;
+    		if ((MoveKey() || MoveKeyAxis()) && ControlPrompts.MarkUsed(idx) && log)
     		{
     			Debug.Log((object)"[Echoes] tutorial: move", (Object)(object)this);
     		}
-    		if (JumpKey() && ControlPrompts.MarkUsed(1) && log)
+    		idx++;
+    		if (ControlPrompts.Count > 4)
+    		{
+    			if (RunKey() && ControlPrompts.MarkUsed(idx) && log)
+    			{
+    				Debug.Log((object)"[Echoes] tutorial: run fast", (Object)(object)this);
+    			}
+    			idx++;
+    		}
+    		if (JumpKey() && ControlPrompts.MarkUsed(idx) && log)
     		{
     			Debug.Log((object)"[Echoes] tutorial: jump", (Object)(object)this);
     		}
-    		if (BrushKey() && ControlPrompts.MarkUsed(2) && log)
+    		idx++;
+    		if (BrushKey() && ControlPrompts.MarkUsed(idx) && log)
     		{
     			Debug.Log((object)"[Echoes] tutorial: brush", (Object)(object)this);
     		}
-    		if (AriInteract.Near != null && Interact() && ControlPrompts.MarkUsed(3) && log)
+    		idx++;
+    		if (AriInteract.Near != null && Interact() && ControlPrompts.MarkUsed(idx) && log)
     		{
     			Debug.Log((object)"[Echoes] tutorial: interact", (Object)(object)this);
     		}
@@ -185,6 +197,11 @@ namespace Echoes.Painterly
     			return current.dKey.isPressed;
     		}
     		return true;
+    	}
+
+    	private static bool RunKey()
+    	{
+    		return AriMover.IsRunHeld();
     	}
 
     	private static bool JumpKey()

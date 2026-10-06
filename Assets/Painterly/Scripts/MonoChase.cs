@@ -19,7 +19,7 @@ namespace Echoes.Painterly
     		[Min(0.5f)]
     		public float triggerRadius = 3f;
 
-    		[Tooltip("Mono's line as she reaches this leg. Looked up in his line list; a missing id warns instead of going silent.")]
+    		[Tooltip("Mono's line as he reaches this leg. Looked up in his line list; a missing id warns instead of going silent.")]
     		public string lineId = "";
     	}
 
@@ -52,7 +52,7 @@ namespace Echoes.Painterly
     	private float handoverDelay = 3.2f;
 
     	[Header("Camera")]
-    	[Tooltip("Metres the camera looks down from while guiding. A little higher than play, so the floor of the gully — the thing she has to run along — is in shot.")]
+    	[Tooltip("Metres the camera looks down from while guiding. A little higher than play, so the floor of the gully — the thing he has to run along — is in shot.")]
     	[Min(0.5f)]
     	[SerializeField]
     	private float guideHeight = 2.1f;

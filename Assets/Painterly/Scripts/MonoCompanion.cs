@@ -1,3 +1,5 @@
+using UnityEngine.InputSystem;
+using Object = UnityEngine.Object;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -13,13 +15,32 @@ namespace Echoes.Painterly
 
     	private static readonly int AwakeId = Animator.StringToHash("Awake");
 
+    	public static bool WakeDialogueActive { get; set; }
+    	public static bool WakeDialogueCompleted { get; set; }
+
+    	public static void ResetDialogueState()
+    	{
+    		WakeDialogueActive = false;
+    		WakeDialogueCompleted = false;
+    	}
+
+    	private int _wakeDialogueIndex = -1;
+    	private float _wakeWaitNext = 0f;
+
+    	private static readonly string[] WakeDialogueLines = new string[]
+    	{
+    		"Light! I felt it through the bark... I am finally awake! Hello, I am Mono. The Color Thief has stolen all the vibrant colors of our world, leaving everything bleak, grey, and cold.",
+    		"Ari, with your magic painter's brush, you have the power to restore our world! First, we must find the Fragment of Water — it holds the true, living color of pure water.",
+    		"Look towards the ancient stone wall ahead — the water fragment is glowing there! Let us go find it and restore the village fountain!"
+    	};
+
     	[Header("Who he is with")]
-    	[Tooltip("Ari. Left empty he will find her by name at Awake.")]
+    	[Tooltip("Ari. Left empty he will find his by name at Awake.")]
     	[SerializeField]
     	private Transform ari;
 
     	[Header("Following")]
-    	[Tooltip("How far behind Ari he stops. Close enough to talk over her shoulder, far enough that he is not under her feet.")]
+    	[Tooltip("How far behind Ari he stops. Close enough to talk over his shoulder, far enough that he is not under his feet.")]
     	[Min(0.3f)]
     	[SerializeField]
     	private float followDistance = 2f;
@@ -54,12 +75,12 @@ namespace Echoes.Painterly
     	private float groundTolerance = 1.2f;
 
     	[Header("Size")]
-    	[Tooltip("Scale him once, on waking, so he stands as tall as Ari's chest. One, because the brief is 'up to her chest', and his authored size is 0.57 m — a thing at Ari's ankle.")]
+    	[Tooltip("Scale him once, on waking, so he stands as tall as Ari's chest. One, because the brief is 'up to Ari's chest', and his authored size is 0.57 m — a thing at Ari's ankle.")]
     	[Min(0f)]
     	[SerializeField]
     	private float chestFraction = 1f;
 
-    	[Tooltip("Where her chest is, as a fraction of her body height. Not a number invented here: it is the same 0.6 that InkCrawler measures her reach from, so there is one chest in this project and not two.")]
+    	[Tooltip("Where Ari's chest is, as a fraction of Ari's body height. Not a number invented here: it is the same 0.6 that InkCrawler measures Ari's reach from, so there is one chest in this project and not two.")]
     	[Range(0.3f, 0.9f)]
     	[SerializeField]
     	private float chestAt = 0.6f;
@@ -290,8 +311,109 @@ namespace Echoes.Painterly
     			{
     				_animator.SetTrigger(AwakeId);
     			}
+    			StartWakeDialogue();
     		}
     	}
+    	public void StartWakeDialogue()
+    	{
+    		WakeDialogueActive = true;
+    		WakeDialogueCompleted = false;
+    		_wakeDialogueIndex = 0;
+    		_wakeWaitNext = 0.5f;
+
+    		if ((Object)(object)AriMover.I != (Object)null)
+    		{
+    			AriMover.I.Frozen = true;
+    		}
+    		else if ((Object)(object)ari != (Object)null)
+    		{
+    			AriMover m = ((Component)ari).GetComponent<AriMover>();
+    			if ((Object)(object)m != (Object)null) m.Frozen = true;
+    		}
+
+    		if ((Object)(object)ari != (Object)null)
+    		{
+    			Vector3 toMono = ((Component)this).transform.position - ari.position;
+    			toMono.y = 0f;
+    			if (toMono.sqrMagnitude > 0.01f) ari.forward = toMono.normalized;
+
+    			Vector3 toAri = ari.position - ((Component)this).transform.position;
+    			toAri.y = 0f;
+    			if (toAri.sqrMagnitude > 0.01f) ((Component)this).transform.forward = toAri.normalized;
+    		}
+
+    		PlayWakeLine(0);
+    	}
+
+    	private void PlayWakeLine(int index)
+    	{
+    		_wakeDialogueIndex = index;
+    		string text = WakeDialogueLines[index];
+    		_current = text;
+    		_showing = "";
+    		_reveal = 0f;
+    		_lineUntil = Time.time + 14f;
+
+    		if ((Object)(object)_animator != (Object)null && _hasController)
+    		{
+    			_animator.SetTrigger(TalkId);
+    		}
+    		AriAnim.PlayTalk();
+    	}
+
+    	private void AdvanceWakeDialogue()
+    	{
+    		_wakeDialogueIndex++;
+    		if (_wakeDialogueIndex < WakeDialogueLines.Length)
+    		{
+    			PlayWakeLine(_wakeDialogueIndex);
+    		}
+    		else
+    		{
+    			FinishWakeDialogue();
+    		}
+    	}
+
+    	public void SkipWakeDialogue()
+    	{
+    		FinishWakeDialogue();
+    	}
+
+    	private void FinishWakeDialogue()
+    	{
+    		WakeDialogueActive = false;
+    		WakeDialogueCompleted = true;
+    		_wakeDialogueIndex = -1;
+    		ClearLine();
+
+    		if ((Object)(object)AriMover.I != (Object)null)
+    		{
+    			AriMover.I.Frozen = false;
+    		}
+    		else if ((Object)(object)ari != (Object)null)
+    		{
+    			AriMover m = ((Component)ari).GetComponent<AriMover>();
+    			if ((Object)(object)m != (Object)null) m.Frozen = false;
+    		}
+
+    		BeatPrompt.Show("Objective: Find the Blue Water Fragment near the wall!", 5.5f);
+    		Debug.Log((object)"[Echoes] Mono wake interaction complete. Player free to explore and find the water fragment.");
+    	}
+
+    	public void SayDirect(string text)
+    	{
+    		if (string.IsNullOrEmpty(text) || !_awake) return;
+    		_current = text;
+    		_showing = "";
+    		_reveal = 0f;
+    		_lineUntil = Time.time + 5.5f;
+    		if ((Object)(object)_animator != (Object)null && _hasController)
+    		{
+    			_animator.SetTrigger(TalkId);
+    		}
+    		AriAnim.PlayTalk();
+    	}
+
 
     	private void FitToAribust()
     	{
@@ -497,6 +619,40 @@ namespace Echoes.Painterly
     		{
     			return;
     		}
+
+    		if (WakeDialogueActive)
+    		{
+    			if ((Object)(object)AriMover.I != (Object)null)
+    			{
+    				AriMover.I.Frozen = true;
+    			}
+
+    			_wakeWaitNext -= Time.deltaTime;
+
+    			Keyboard kb = Keyboard.current;
+    			if (kb != null)
+    			{
+    				if (kb.tabKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)
+    				{
+    					SkipWakeDialogue();
+    					return;
+    				}
+
+    				if (_wakeWaitNext <= 0f && (kb.spaceKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame))
+    				{
+    					_wakeWaitNext = 0.2f;
+    					if (_showing.Length < _current.Length)
+    					{
+    						_reveal = (float)_current.Length;
+    						_showing = _current;
+    					}
+    					else
+    					{
+    						AdvanceWakeDialogue();
+    					}
+    				}
+    			}
+    		}
     		if ((Object)(object)_target == (Object)null && (Object)(object)ari != (Object)null)
     		{
     			_target = ari;
@@ -654,22 +810,31 @@ namespace Echoes.Painterly
     		//IL_0169: Unknown result type (might be due to invalid IL or missing references)
     		//IL_0173: Expected Obj, but got Unknown
     		//IL_0189: Unknown result type (might be due to invalid IL or missing references)
-    		if (drawSubtitle && !string.IsNullOrEmpty(_current) && _awake)
+    		if (drawSubtitle && !string.IsNullOrEmpty(_current) && !string.IsNullOrEmpty(_showing) && _awake)
     		{
     			EnsureStyle();
     			float num = BeatText.PromptWidth(subtitleWidth);
     			float num2 = (float)Screen.height * (1f - subtitleAt.y);
-    			int num3 = BeatText.Fit(_style, _showing, num, BeatText.MaxBlock, BeatText.SubtitleTarget);
+    			// Paged at the full 5x size rather than shrunk to fit. Mono's lines
+    			// are the longest in the level and they are the ones that were
+    			// falling to roughly half size.
+    			var pages = BeatText.Pages(_style, _showing, num, BeatText.MaxBlock, BeatText.SubtitleTarget);
+    			if (pages == null || pages.Count == 0) return;
+    			int pageIdx = Mathf.Clamp(BeatText.PageOf(_showing, pages), 0, pages.Count - 1);
+    			string shown = pages[pageIdx];
+    			// The target, not a fit result: a page is built to fit at exactly
+    			// SubtitleTarget, so fitting it again could only shrink it.
+    			int num3 = BeatText.SubtitleTarget;
     			GUIStyle val = new GUIStyle(_style)
     			{
     				fontSize = num3
     			};
-    			float num4 = BeatText.Height(val, _showing, num);
+    			float num4 = BeatText.Height(val, shown, num);
     			Rect val2 = new Rect(((float)Screen.width - num) * subtitleAt.x, num2 - num4, num, num4);
     			GUIStyle val3 = new GUIStyle(val);
     			val3.normal.textColor = new Color(0f, 0f, 0f, 0.9f);
-    			GUI.Label(new Rect(val2.x + 3f, val2.y + 3f, val2.width, val2.height), _showing, val3);
-    			GUI.Label(val2, _showing, val);
+    			GUI.Label(new Rect(val2.x + 3f, val2.y + 3f, val2.width, val2.height), shown, val3);
+    			GUI.Label(val2, shown, val);
     			if (_showing.Length > 0)
     			{
     				int num5 = Mathf.Max(10, num3 / 2);
@@ -682,6 +847,20 @@ namespace Echoes.Painterly
     				val5.normal.textColor = new Color(0.8f, 0.8f, 0.77f);
     				GUI.Label(val4, "Mono", val5);
     			}
+    		}
+
+    		if (WakeDialogueActive)
+    		{
+    			string hint = "[Space / E] Next   •   [Tab / Esc] Skip";
+    			GUIStyle hintStyle = BeatText.Make(TextAnchor.MiddleCenter, Mathf.RoundToInt(14f * BeatText.ScreenScale), false, new Color(0.95f, 0.95f, 0.9f, 0.95f));
+    			float hintW = 380f;
+    			float hintH = 26f;
+    			Rect hintRect = new Rect(((float)Screen.width - hintW) * 0.5f, (float)Screen.height - 42f, hintW, hintH);
+    			Color prevColor = GUI.color;
+    			GUI.color = new Color(0.04f, 0.04f, 0.06f, 0.85f);
+    			GUI.DrawTexture(hintRect, Texture2D.whiteTexture);
+    			GUI.color = prevColor;
+    			GUI.Label(hintRect, hint, hintStyle);
     		}
     	}
 

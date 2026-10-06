@@ -115,7 +115,7 @@ namespace Echoes.Painterly.EditorTools
     				stringBuilder.AppendLine("      material '" + ((Object)val6).name + "' shader='" + ((shader != null) ? ((Object)shader).name : null) + "' " + $"supported={(Object)(object)shader != (Object)null && shader.isSupported} " + $"renderQueue={val6.renderQueue} passCount={((shader != null) ? new int?(shader.passCount) : ((int?)null))}");
     				if ((Object)(object)shader != (Object)null && !shader.isSupported)
     				{
-    					stringBuilder.AppendLine("      ^ SHADER NOT SUPPORTED: this is what makes her invisible");
+    					stringBuilder.AppendLine("      ^ SHADER NOT SUPPORTED: this is what makes his invisible");
     				}
     				Texture texture = val6.GetTexture("_BaseMap");
     				stringBuilder.AppendLine("      _BaseMap=" + (((Object)(object)texture == (Object)null) ? "<none>" : ((Object)texture).name) + " " + $"renderQueue={val6.renderQueue} " + "keywords=" + string.Join(",", val6.shaderKeywords));
@@ -172,7 +172,7 @@ namespace Echoes.Painterly.EditorTools
     			}
     			if (num == 0)
     			{
-    				stringBuilder.AppendLine("    none — nothing is in her space");
+    				stringBuilder.AppendLine("    none — nothing is in him space");
     			}
     		}
     		Animator val8 = val.GetComponent<Animator>();
@@ -182,7 +182,7 @@ namespace Echoes.Painterly.EditorTools
     		}
     		if ((Object)(object)val8 == (Object)null)
     		{
-    			stringBuilder.AppendLine("\nNO Animator on Ari or her children.");
+    			stringBuilder.AppendLine("\nNO Animator on Ari or his children.");
     		}
     		else
     		{

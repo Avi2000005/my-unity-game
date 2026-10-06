@@ -92,7 +92,7 @@ namespace Echoes.Painterly.EditorTools
     			_ => num2 + " of them. Colour could arrive somewhere it should not, which is the failure the gate exists to prevent.", 
     		});
     		FountainFix fountainFix = Object.FindAnyObjectByType<FountainFix>((FindObjectsInactive)1);
-    		stringBuilder.AppendLine("  FountainFix: " + (((Object)(object)fountainFix != (Object)null) ? ("present on '" + ((Object)fountainFix).name + "'") : "ABSENT — nothing will consume the fragment she is carrying"));
+    		stringBuilder.AppendLine("  FountainFix: " + (((Object)(object)fountainFix != (Object)null) ? ("present on '" + ((Object)fountainFix).name + "'") : "ABSENT — nothing will consume the fragment he is carrying"));
     		if ((Object)(object)fountainFix != (Object)null && GetField(fountainFix, "water") == null)
     		{
     			stringBuilder.AppendLine("    its `water` is NULL — the fix has no target to turn blue and would complete without any effect");

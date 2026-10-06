@@ -69,12 +69,12 @@ namespace Echoes.Painterly.EditorTools
 
             if (mover == null || anim == null) { Finish(sb); return; }
 
-            // ---- press Up and see if she walks ----
+            // ---- press Up and see if he walks ----
             var up = buttons.FirstOrDefault(b => b.name == "Up");
             if (up == null) { sb.AppendLine("\nNo 'Up' button found."); Finish(sb); return; }
 
             bool moverWasEnabled = mover.enabled;
-            mover.enabled = false;   // so Update does not also drive her
+            mover.enabled = false;   // so Update does not also drive his
 
             sb.AppendLine("\n--- pressing UP ---");
             Vector3 start = ari.transform.position;
@@ -109,7 +109,7 @@ namespace Echoes.Painterly.EditorTools
             sb.AppendLine($"  moved: {travelled > 0.5f}");
             sb.AppendLine($"  animator now: {ClipNow(anim)}");
 
-            // ---- release, confirm she stops ----
+            // ---- release, confirm he stops ----
             sb.AppendLine("\n--- releasing ---");
             SetPressed(up, false);
             SendUpdate(oc);
