@@ -6,6 +6,7 @@ namespace Echoes.Painterly
     [AddComponentMenu("Echoes/Fountain Fix")]
     public sealed class FountainFix : MonoBehaviour, IInteractable, IResettable
     {
+        public static FountainFix Instance { get; private set; }
         [Header("Reach")]
         [Min(0.5f)]
         [SerializeField]
@@ -75,6 +76,7 @@ namespace Echoes.Painterly
 
         private void Awake()
         {
+            Instance = this;
             if (mono == null)
             {
                 mono = MonoCompanion.FindInLevel();
@@ -113,6 +115,7 @@ namespace Echoes.Painterly
 
             _done = true;
             AriHudOverlay.CarryingFragment = false;
+            VanquishCrawlers();
 
             if (water != null)
             {
@@ -152,10 +155,29 @@ namespace Echoes.Painterly
             FloodedTargets = _flooded.Count;
 
             LevelState.Completed = true;
+            VanquishCrawlers();
+
+            AriFollowCamera cam = Object.FindAnyObjectByType<AriFollowCamera>(FindObjectsInactive.Include);
+            if (cam != null)
+            {
+                cam.StartVictoryCinematic(transform.position);
+            }
 
             if (log)
             {
                 Debug.Log("[Echoes] LEVEL 1 COMPLETE! The village has begun to regain its color.");
+            }
+        }
+
+        private void VanquishCrawlers()
+        {
+            InkCrawler[] crawlers = Object.FindObjectsByType<InkCrawler>(FindObjectsInactive.Include);
+            for (int i = 0; i < crawlers.Length; i++)
+            {
+                if (crawlers[i] != null)
+                {
+                    crawlers[i].Die();
+                }
             }
         }
 

@@ -119,6 +119,7 @@ namespace Echoes.Painterly
 
         private void OnGUI()
         {
+            if (Beat1Intro.IntroActive) return;
             if (!drawPrompt) return;
 
             Beat1Intro beat1Intro = Object.FindAnyObjectByType<Beat1Intro>(FindObjectsInactive.Include);

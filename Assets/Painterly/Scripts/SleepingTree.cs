@@ -5,6 +5,7 @@ namespace Echoes.Painterly
     [AddComponentMenu("Echoes/Sleeping Tree")]
     public sealed class SleepingTree : MonoBehaviour
     {
+        public static SleepingTree Instance { get; private set; }
         public readonly struct WakeResult
         {
             public WakeResult(bool fired, string why, int targets, float radius)
@@ -99,6 +100,7 @@ namespace Echoes.Painterly
 
         private void OnEnable()
         {
+            Instance = this;
             _awoken = false;
             Resolve();
             if (_brush != null)
@@ -160,6 +162,7 @@ namespace Echoes.Painterly
 
         private void Update()
         {
+            if (Beat1Intro.IntroActive) return;
             if (!_awoken)
             {
                 if (!_resolved)
@@ -190,6 +193,7 @@ namespace Echoes.Painterly
 
         private void OnStroked(Vector3 worldPosition, int targets)
         {
+            if (Beat1Intro.IntroActive) return;
             if (!_awoken)
             {
                 if (!_resolved) Resolve();
@@ -204,6 +208,7 @@ namespace Echoes.Painterly
 
         public WakeResult Wake(string why = "called directly")
         {
+            if (Beat1Intro.IntroActive) return WakeResult.Already;
             if (!_resolved) Resolve();
             if (_awoken) return WakeResult.Already;
 

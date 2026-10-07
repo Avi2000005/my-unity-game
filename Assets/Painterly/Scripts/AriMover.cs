@@ -616,7 +616,7 @@ namespace Echoes.Painterly
     		if (val.sqrMagnitude > 0.0001f)
     		{
     			Quaternion val5 = Quaternion.LookRotation(val, Vector3.up);
-    			float num4 = turnRate * dt * ((float)Math.PI / 180f);
+    			float num4 = turnRate * dt; // Rotate in degrees per second
     			transform.rotation = Quaternion.RotateTowards(transform.rotation, val5, num4);
     		}
     		else if (AriAnim.Talking)
@@ -625,7 +625,7 @@ namespace Echoes.Painterly
     			val6.y = 0f;
     			if (val6.sqrMagnitude > 0.0004f)
     			{
-    				float num5 = turnRate * 0.6f * dt * ((float)Math.PI / 180f);
+    				float num5 = turnRate * 0.6f * dt; // Rotate in degrees per second
     				transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(val6.normalized, Vector3.up), num5);
     			}
     		}

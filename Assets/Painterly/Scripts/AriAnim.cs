@@ -98,6 +98,11 @@ namespace Echoes.Painterly
 
     	public static void SetSpeed(float normalised)
     	{
+    		if (normalised > 0.05f)
+    		{
+    			_talkUntil = 0f;
+    			_talkFace = null;
+    		}
     		Animator val = Resolve();
     		if (!((Object)(object)val == (Object)null) && Has(val, SpeedId, "Speed"))
     		{

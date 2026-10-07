@@ -503,7 +503,7 @@ namespace Echoes.Painterly
     		else
     		{
     			Begin(line.text);
-    			AriAnim.PlayTalk();
+    			// AriAnim.PlayTalk(); // Do not trigger Ari full-body talk during gameplay movement
     		}
     	}
 
@@ -604,7 +604,7 @@ namespace Echoes.Painterly
     			{
     				_animator.SetTrigger(TalkId);
     			}
-    			AriAnim.PlayTalk();
+    			// AriAnim.PlayTalk(); // Do not trigger Ari full-body talk during gameplay movement
     		}
     	}
 

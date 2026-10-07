@@ -124,6 +124,7 @@ namespace Echoes.Painterly
         private int _speedHash;
         private int _crawlHash;
         private int _attackHash;
+        private static readonly int DieHash = Animator.StringToHash("Die");
         private bool _wired;
         private bool _hunting;
         private float _moved;
@@ -230,6 +231,7 @@ namespace Echoes.Painterly
 
         private void Update()
         {
+            if (Retired) return;
             Bind();
             EnsureVisible();
 
@@ -602,8 +604,39 @@ namespace Echoes.Painterly
             }
         }
 
+        public void Die()
+        {
+            if (Retired) return;
+            Retired = true;
+            _hunting = false;
+            _state = State.Spent;
+            HoldStill();
+            if (_anim != null)
+            {
+                _anim.ResetTrigger(_attackHash);
+                _anim.SetBool(_crawlHash, false);
+                _anim.SetFloat(_speedHash, 0f);
+                _anim.SetTrigger(DieHash);
+                _anim.Play("Crawler_Death", 0, 0f);
+            }
+            Collider[] colliders = GetComponentsInChildren<Collider>();
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                colliders[i].enabled = false;
+            }
+            if (log)
+            {
+                Debug.Log("[Echoes] " + name + " defeated on level victory!");
+            }
+        }
+
         public void ResetCrawler()
         {
+            Collider[] colliders = GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                colliders[i].enabled = true;
+            }
             Staggers = 0;
             Lunges = 0;
             HuntingSeconds = 0f;

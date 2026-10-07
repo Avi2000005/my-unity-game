@@ -5,6 +5,8 @@ namespace Echoes.Painterly
     [AddComponentMenu("Echoes/Colour Fragment")]
     public sealed class ColourFragment : MonoBehaviour, IInteractable, IResettable
     {
+        public static ColourFragment Instance { get; private set; }
+        private GameObject _beacon;
         [Header("Reach")]
         [Min(0.5f)]
         [SerializeField]
@@ -70,6 +72,8 @@ namespace Echoes.Painterly
 
         private void Awake()
         {
+            Instance = this;
+            CreateBeacon();
             _mono = MonoCompanion.FindInLevel();
             _visual = transform.Find("Glow");
             if (_visual == null)
@@ -83,6 +87,7 @@ namespace Echoes.Painterly
             _spot = transform.position;
 
             Show(!startsHidden);
+            if (_beacon != null) _beacon.SetActive(!startsHidden);
         }
 
         public void Show(bool on)
@@ -93,6 +98,10 @@ namespace Echoes.Painterly
                 if (_visual != null)
                 {
                     _visual.gameObject.SetActive(on);
+                }
+                if (_beacon != null)
+                {
+                    _beacon.SetActive(on);
                 }
             }
         }
@@ -110,6 +119,36 @@ namespace Echoes.Painterly
                 float num = 1f + Mathf.Sin(Time.time * pulseSpeed) * pulseAmount;
                 _visual.localScale = Vector3.one * (glowSize * num);
             }
+            if (_beacon != null && _beacon.activeSelf)
+            {
+                float bPulse = 0.45f + Mathf.Sin(Time.time * 2.5f) * 0.08f;
+                _beacon.transform.localScale = new Vector3(bPulse, 9f, bPulse);
+            }
+        }
+
+        private void CreateBeacon()
+        {
+            if (_beacon != null) return;
+            _beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            _beacon.name = "WaterFragmentSkyBeacon";
+            _beacon.transform.SetParent(transform, false);
+            _beacon.transform.localPosition = new Vector3(0f, 9f, 0f);
+            _beacon.transform.localScale = new Vector3(0.45f, 9f, 0.45f);
+
+            Collider c = _beacon.GetComponent<Collider>();
+            if (c != null) Destroy(c);
+
+            Renderer r = _beacon.GetComponent<Renderer>();
+            if (r != null)
+            {
+                Shader s = Shader.Find("Sprites/Default") ?? Shader.Find("Universal Render Pipeline/Unlit");
+                if (s != null)
+                {
+                    Material m = new Material(s);
+                    m.color = new Color(0.18f, 0.72f, 1f, 0.65f);
+                    r.material = m;
+                }
+            }
         }
 
         public void Interact(AriMover by)
@@ -117,30 +156,66 @@ namespace Echoes.Painterly
             if (!_taken && IsShowing)
             {
                 _taken = true;
-                if (_visual != null)
+                StartCoroutine(PickupRoutine(by));
+            }
+        }
+
+        private System.Collections.IEnumerator PickupRoutine(AriMover by)
+        {
+            // Briefly pause Ari during the reach down so he does not slide
+            if (by != null)
+            {
+                by.Frozen = true;
+                Vector3 toFrag = transform.position - by.transform.position;
+                toFrag.y = 0f;
+                if (toFrag.sqrMagnitude > 0.001f)
                 {
-                    _visual.gameObject.SetActive(false);
+                    by.transform.forward = toFrag.normalized;
                 }
+            }
 
-                AriHudOverlay.CarryingFragment = true;
-                AriAnim.PlayCollect();
+            // Snappy collect animation plays immediately
+            AriAnim.PlayCollect();
 
-                if (_mono != null)
-                {
-                    _mono.SayDirect("You got the water fragment! Quick, bring it to the fountain and fix it there!");
-                }
+            // Wait until Ari's hand reaches down to the fragment (~0.22s)
+            yield return new WaitForSeconds(0.22f);
 
-                BeatPrompt.Show("Objective: Bring the Blue Water Fragment to the fountain!", 5f);
+            // Hide world visual and give fragment to Ari
+            if (_visual != null)
+            {
+                _visual.gameObject.SetActive(false);
+            }
+            if (_beacon != null)
+            {
+                _beacon.SetActive(false);
+            }
+            AriHudOverlay.CarryingFragment = true;
+            BrushStrokeFx.Spawn(transform.position, Vector3.up, 1.2f);
 
-                if (log)
-                {
-                    Debug.Log("[Echoes] Blue fragment picked up! Carry it to the fountain.");
-                }
+            // Short follow-through as Ari stands back up (~0.18s)
+            yield return new WaitForSeconds(0.18f);
+
+            if (by != null)
+            {
+                by.Frozen = false;
+            }
+
+            if (_mono != null)
+            {
+                _mono.SayDirect("You got the water fragment! Quick, bring it to the fountain and fix it there!");
+            }
+
+            BeatPrompt.Show("Objective: Bring the Blue Water Fragment to the fountain!", 5f);
+
+            if (log)
+            {
+                Debug.Log("[Echoes] Blue fragment picked up! Carry it to the fountain.");
             }
         }
 
         public void ResetForCheckpoint()
         {
+            StopAllCoroutines();
             _taken = false;
             AriHudOverlay.CarryingFragment = false;
             _spot = transform.position;
